@@ -25,6 +25,16 @@ const FIELD_TO_ENV = {
   v4Quoter: "V4_QUOTER_ADDRESS",
   swapRouter: "SWAP_ROUTER_ADDRESS",
   swapRouterStartBlock: "SWAP_ROUTER_START_BLOCK",
+  lpFeeBps: "V4_LP_FEE_BPS",
+  tickSpacing: "V4_TICK_SPACING",
+  graduationThresholdHype: "GRADUATION_THRESHOLD_HYPE",
+  virtualHypeReserve: "VIRTUAL_HYPE_RESERVE",
+  virtualTokenReserve: "VIRTUAL_TOKEN_RESERVE",
+  sniperTaxStartBps: "SNIPER_TAX_START_BPS",
+  sniperTaxDecaySeconds: "SNIPER_TAX_DECAY_SECONDS",
+  maxWalletBps: "MAX_WALLET_BPS",
+  maxWalletWindowSeconds: "MAX_WALLET_WINDOW_SECONDS",
+  launchFeeHype: "LAUNCH_FEE_HYPE",
 };
 
 export function loadDeploymentEnv(repositoryRoot, network) {

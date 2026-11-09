@@ -39,6 +39,10 @@ contract ConfigureLaunchConfig is Script {
         vm.serializeUint(object, "graduationThresholdHype", config.graduationThresholdHype);
         vm.serializeUint(object, "virtualHypeReserve", config.virtualHypeReserve);
         vm.serializeUint(object, "virtualTokenReserve", config.virtualTokenReserve);
+        vm.serializeUint(object, "sniperTaxStartBps", config.sniperTaxStartBps);
+        vm.serializeUint(object, "sniperTaxDecaySeconds", config.sniperTaxDecaySeconds);
+        vm.serializeUint(object, "maxWalletBps", config.maxWalletBps);
+        vm.serializeUint(object, "maxWalletWindowSeconds", config.maxWalletWindowSeconds);
         string memory json = vm.serializeUint(object, "launchFeeHype", config.launchFeeHype);
         vm.writeJson(
             json,

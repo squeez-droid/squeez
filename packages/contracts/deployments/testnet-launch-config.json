@@ -4,6 +4,10 @@
   "graduationThresholdHype": 100000000000000000,
   "launchConfigId": 1,
   "launchFeeHype": 1000000000000000,
+  "sniperTaxStartBps": 9900,
+  "sniperTaxDecaySeconds": 5,
+  "maxWalletBps": 500,
+  "maxWalletWindowSeconds": 300,
   "network": "testnet",
   "virtualHypeReserve": 40000000000000000,
   "virtualTokenReserve": "1000000000000000000000000000"
