@@ -8,7 +8,15 @@ export interface RuntimeProtocolConfig {
   configured: boolean;
   network: "testnet" | "mainnet";
   chain: { id: number; name: string; explorer: string };
-  contracts: { factory: Address | null; quoteRegistry: Address | null; feeVault: Address | null };
+  contracts: {
+    factory: Address | null;
+    quoteRegistry: Address | null;
+    feeVault: Address | null;
+    swapRouter: Address | null;
+    v4Quoter: Address | null;
+    squeezHook: Address | null;
+  };
+  v4Pool: { lpFeeBps: string | null; tickSpacing: string | null };
   launchConfig: {
     graduationThresholdHype: string | null;
     virtualHypeReserve: string | null;

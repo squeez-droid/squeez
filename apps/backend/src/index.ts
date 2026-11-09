@@ -193,7 +193,8 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/v1/config") {
       const configured = Object.values(config.contracts).every(Boolean)
-        && Object.values(config.launchConfig).every(Boolean);
+        && Object.values(config.launchConfig).every(Boolean)
+        && Object.values(config.v4Pool).every((value) => value !== null);
       const launchConfig = {
         ...config.launchConfig,
         graduationThresholdHype: config.launchConfig.graduationThresholdHype
@@ -206,6 +207,7 @@ const server = createServer(async (req, res) => {
         network: config.network,
         chain: { id: config.chainId, name: config.network === "mainnet" ? "Elysium" : "Elysium Testnet", explorer: config.explorer },
         contracts: config.contracts,
+        v4Pool: config.v4Pool,
         launchConfig,
       });
     }

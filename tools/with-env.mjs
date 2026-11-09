@@ -57,12 +57,7 @@ try {
 // intentional emergency override (for example in CI); empty Coolify variables do not hide the address book.
 const runtimeEnv = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value?.trim()));
 const env = { ...fileEnv, ...deploymentEnv, ...runtimeEnv };
-// Contract addresses and non-secret pool parameters are intentionally exposed to the browser bundle.
-// Secrets (RPC upstream keys, database URLs, private keys, Pinata JWT) never receive a NEXT_PUBLIC alias.
-env.NEXT_PUBLIC_SWAP_ROUTER_ADDRESS ??= env.SWAP_ROUTER_ADDRESS;
-env.NEXT_PUBLIC_V4_QUOTER_ADDRESS ??= env.V4_QUOTER_ADDRESS;
-env.NEXT_PUBLIC_SQUEEZ_HOOK_ADDRESS ??= env.SQUEEZ_HOOK_ADDRESS;
-env.NEXT_PUBLIC_V4_LP_FEE_BPS ??= env.V4_LP_FEE_BPS;
-env.NEXT_PUBLIC_V4_TICK_SPACING ??= env.V4_TICK_SPACING;
+// The browser receives only the public API URL and network selector. Public contract routing data is fetched from
+// `/v1/config`, keeping every network value behind the same backend boundary as RPC access.
 const child = spawn(command.join(" "), { env, shell: true, stdio: "inherit" });
 child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));

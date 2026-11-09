@@ -36,6 +36,13 @@ export const backendConfig = {
     factory: address("FACTORY_ADDRESS"),
     quoteRegistry: address("QUOTE_REGISTRY_ADDRESS"),
     feeVault: address("FEE_VAULT_ADDRESS"),
+    swapRouter: address("SWAP_ROUTER_ADDRESS"),
+    v4Quoter: address("V4_QUOTER_ADDRESS"),
+    squeezHook: address("SQUEEZ_HOOK_ADDRESS"),
+  },
+  v4Pool: {
+    lpFeeBps: optional("V4_LP_FEE_BPS"),
+    tickSpacing: optional("V4_TICK_SPACING"),
   },
   launchConfig: {
     graduationThresholdHype: optional("GRADUATION_THRESHOLD_HYPE"),

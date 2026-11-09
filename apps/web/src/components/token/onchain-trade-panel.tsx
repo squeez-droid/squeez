@@ -6,8 +6,8 @@ import { usePublicClient, useReadContract, useSimulateContract, useWriteContract
 import { PROTOCOL_FEE_BPS } from "@squeez/shared";
 import type { IndexedToken } from "@/lib/indexer";
 import { curveTradeAbi, erc20TradeAbi, v4QuoterAbi, v4SwapRouterAbi } from "@/lib/abis";
-import { squeezHookAddress, swapRouterAddress, v4LpFee, v4QuoterAddress, v4TickSpacing } from "@/lib/chain";
 import { bpsToPct } from "@/lib/format";
+import { useProtocolConfig } from "@/lib/protocol-config";
 import { useTx } from "@/providers/tx";
 import { useWallet } from "@/providers/wallet";
 import { WalletGateButton } from "@/components/wallet-ui";
@@ -25,18 +25,27 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const tx = useTx();
   const publicClient = usePublicClient();
   const writer = useWriteContract();
+  const protocol = useProtocolConfig();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [slippageBps, setSlippageBps] = useState<number>(100);
   const amountWei = useMemo(() => toWei(amount), [amount]);
   const isV4 = token.venue === "uniswap-v4";
+  const swapRouterAddress = protocol.data?.contracts.swapRouter ?? zeroAddress;
+  const v4QuoterAddress = protocol.data?.contracts.v4Quoter ?? zeroAddress;
+  const squeezHookAddress = protocol.data?.contracts.squeezHook ?? zeroAddress;
+  const v4LpFee = Number(protocol.data?.v4Pool.lpFeeBps ?? 0);
+  const v4TickSpacing = Number(protocol.data?.v4Pool.tickSpacing ?? 0);
+  const v4Configured = swapRouterAddress !== zeroAddress && v4QuoterAddress !== zeroAddress
+    && squeezHookAddress !== zeroAddress && Number.isInteger(v4LpFee) && Number.isInteger(v4TickSpacing)
+    && v4TickSpacing > 0;
   const poolKey = useMemo(() => ({
     currency0: zeroAddress,
     currency1: token.address,
     fee: v4LpFee,
     tickSpacing: v4TickSpacing,
     hooks: squeezHookAddress,
-  }), [token.address]);
+  }), [token.address, squeezHookAddress, v4LpFee, v4TickSpacing]);
 
   const buyQuote = useReadContract({
     address: token.curve, abi: curveTradeAbi, functionName: "quoteBuy", args: [amountWei],
@@ -49,7 +58,7 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const v4Quote = useSimulateContract({
     address: v4QuoterAddress, abi: v4QuoterAbi, functionName: "quoteExactInputSingle",
     args: [{ poolKey, zeroForOne: side === "buy", exactAmount: amountWei, hookData: "0x" }],
-    query: { enabled: isV4 && amountWei > 0n },
+    query: { enabled: isV4 && v4Configured && amountWei > 0n },
   });
   const tokenBalance = useReadContract({
     address: token.address, abi: erc20TradeAbi, functionName: "balanceOf",
@@ -76,7 +85,7 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const quoteError = (isV4 ? v4Quote.error : (side === "buy" ? buyQuote.error : sellQuote.error))?.message.split("\n")[0];
 
   const execute = () => {
-    if (!quote || output === 0n || !publicClient || !wallet.address) return;
+    if (!quote || output === 0n || !publicClient || !wallet.address || (isV4 && !v4Configured)) return;
     const symbol = token.symbol ?? "TOKEN";
     void tx.run({
       title: `${side === "buy" ? "Buy" : "Sell"} $${symbol}`,
@@ -166,9 +175,10 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
       </div>
 
       {quoteError && <p className="mt-3 text-xs text-down">Unable to quote this trade: {quoteError}</p>}
+      {isV4 && !v4Configured && <p className="mt-3 text-xs text-down">The API has not published the v4 route configuration.</p>}
       {insufficient && <p className="mt-3 text-xs text-down">Insufficient wallet balance.</p>}
       <WalletGateButton className="mt-4 w-full" variant={side === "buy" ? "primary" : "sell"}
-        disabled={!quote || output === 0n || insufficient || Boolean(quoteError)} onClick={execute}>
+        disabled={!quote || output === 0n || insufficient || Boolean(quoteError) || (isV4 && !v4Configured)} onClick={execute}>
         {!amountWei ? "Enter an amount" : `${side === "buy" ? "Buy" : "Sell"} ${token.symbol ?? "token"}`}
       </WalletGateButton>
       <p className="mt-2 text-center text-[11px] text-muted">
