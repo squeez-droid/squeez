@@ -1,0 +1,204 @@
+{
+  "_note": "All landing page copy. Technical numbers (threshold, fees, supply, pairs) come from config.json / quotePairs.json, not from here. Layout is an editorial index: bracketed labels, numbered sections, mono metadata.",
+  "nav": [
+    {
+      "href": "#route",
+      "label": "Route"
+    },
+    {
+      "href": "#mechanism",
+      "label": "Mechanism"
+    },
+    {
+      "href": "#fees",
+      "label": "Fees"
+    },
+    {
+      "href": "#pairs",
+      "label": "Pairs"
+    },
+    {
+      "href": "#protection",
+      "label": "Protection"
+    }
+  ],
+  "hero": {
+    "counter": "000",
+    "wordTop": "Squeez",
+    "wordBottom": "Launchpad",
+    "location": "Elysium · Hyperliquid L2",
+    "role": "Fair-launch bonding curves, priced in HYPE.",
+    "keywords": [
+      "Curve",
+      "Graduate",
+      "Lock",
+      "Burn"
+    ],
+    "clockLabel": "Chain time · UTC",
+    "statement": "Launching,",
+    "body": "Every Squeez token is born with a fixed supply of 1,000,000,000 and none of it goes to the dev. 100% sits on a bonding curve. When the curve fills, the token graduates itself to Uniswap v4 and its liquidity is locked forever.",
+    "signature": "Permissionless launchpad — Testnet 2026",
+    "primaryCta": "Open app",
+    "secondaryCta": "Launch a token",
+    "scrollHint": "Scroll"
+  },
+  "route": {
+    "label": "Route",
+    "title": "From first buy to locked liquidity.",
+    "body": "A token has two homes in its life. It starts on the curve, where every buy pushes the price up. It ends in a Uniswap v4 pool that nobody can drain.",
+    "fromName": "Bonding curve",
+    "fromMeta": "0 HYPE raised",
+    "toName": "Uniswap v4",
+    "toMeta": "LP locked forever",
+    "tagline": "Two ends of the curve, one transaction.",
+    "curveCaption": "Constant-product bonding curve, computed from config.json. X axis: HYPE raised. Y axis: price per token."
+  },
+  "mechanism": {
+    "label": "Mechanism",
+    "title": "Four steps. No step to pull liquidity.",
+    "tags": [
+      "Launch",
+      "Curve",
+      "Graduate",
+      "Lock"
+    ],
+    "steps": [
+      {
+        "title": "Launch",
+        "body": "SqueezLaunchFactory deploys the ERC-20 and its bonding curve, then mints the entire supply to the curve. The creator's opening buy is bundled into the same transaction."
+      },
+      {
+        "title": "Bonding curve",
+        "body": "Buys and sells go straight to the curve, always in HYPE, whatever pair the creator picked. 5/7 of supply sells here."
+      },
+      {
+        "title": "Graduation",
+        "body": "The buy that fills the curve triggers graduation on the spot. Excess HYPE is refunded. HYPE converts to the quote asset and a Uniswap v4 pool opens at the curve's last price."
+      },
+      {
+        "title": "Locked",
+        "body": "Full-range LP and the remaining 4/49 of supply go to SqueezLiquidityLocker, a contract with no withdraw function. Nobody can pull it, Squeez included."
+      }
+    ]
+  },
+  "anatomy": {
+    "label": "Anatomy",
+    "title": "The token, taken apart.",
+    "meta": "1,000,000,000 supply · 3 destinations · 0 for the dev",
+    "supplyLabels": [
+      "Sold on the bonding curve",
+      "Uniswap v4 LP, locked",
+      "Locked in the locker"
+    ],
+    "ariaLabel": "5/7 of supply sold on the curve, 10/49 becomes locked LP, 4/49 locked in the locker"
+  },
+  "fees": {
+    "label": "Fees",
+    "title": "Two numbers. Both locked per token.",
+    "protocolLabel": "Protocol fee, fixed",
+    "creatorLabel": "Creator fee, set at launch",
+    "body": "Applies on the bonding curve and after graduation through the Squeez hook on Uniswap v4. A 2% creator fee means traders pay 3% in total.",
+    "split": [
+      {
+        "label": "TWAP buyback & burn $SQUEEZ",
+        "share": 0.8
+      },
+      {
+        "label": "Treasury operations",
+        "share": 0.2
+      }
+    ],
+    "destTitle": "Creators choose where their fee goes"
+  },
+  "live": {
+    "label": "Selected tokens",
+    "title": "About to graduate.",
+    "note": "Sample testnet data",
+    "scrollHint": "Scroll",
+    "viewAll": "View all tokens",
+    "leftLabel": "HYPE left"
+  },
+  "pairs": {
+    "label": "Pairs",
+    "title": "Pair with HYPE, stablecoins, or tokenized stocks.",
+    "countLabel": "Quote assets",
+    "body": "The curve is always in HYPE. The quote asset is used at graduation and for payouts after. Assets not yet confirmed on Elysium can't be selected.",
+    "categories": {
+      "crypto": "Crypto",
+      "stable": "Stablecoins",
+      "stock": "Tokenized stocks"
+    },
+    "statusLabels": {
+      "ready": "Ready",
+      "confirm-address": "Confirm address",
+      "unconfirmed": "Not on Elysium yet"
+    }
+  },
+  "protection": {
+    "label": "Protection",
+    "title": "100 ms blocks. Protection counts seconds, not blocks.",
+    "items": [
+      {
+        "metric": "creator",
+        "title": "Creator-only launch block",
+        "body": "Only the creator can buy in the launch transaction."
+      },
+      {
+        "metric": "sniper",
+        "title": "Linearly decaying sniper tax",
+        "body": "Buyers in the first seconds pay a tax that decays to zero."
+      },
+      {
+        "metric": "maxwallet",
+        "title": "Early max wallet",
+        "body": "A per-wallet holding cap during the early window. Sells and transfers are not limited."
+      }
+    ]
+  },
+  "cta": {
+    "label": "Next",
+    "title": "Let's launch something.",
+    "body": "Elysium mainnet goes live November 9, 2026. Testnet is already running. Grab testnet HYPE from the faucet and try a launch now.",
+    "primary": "Open app",
+    "secondary": "Testnet faucet",
+    "rows": [
+      {
+        "k": "Mainnet",
+        "v": "November 9, 2026"
+      },
+      {
+        "k": "Network",
+        "v": "Elysium · Hyperliquid L2"
+      },
+      {
+        "k": "Block time",
+        "v": "100 ms"
+      }
+    ],
+    "placeholderNote": "placeholder values, not final"
+  },
+  "footer": {
+    "copyright": "Squeez ©2026",
+    "top": "Back to top"
+  },
+  "skipLink": "Skip to content",
+  "sectionNavLabel": "Page sections",
+  "motion": {
+    "loaderLabel": "Loading curve",
+    "negativeOn": "Negative mode",
+    "negativeOff": "Positive mode"
+  },
+  "figures": {
+    "hero": {
+      "label": "Fig. 01",
+      "title": "Bonding curve, dithered",
+      "meta": "1-bit · Bayer 8×8 · follows your cursor"
+    },
+    "field": {
+      "label": "Fig. 02",
+      "title": "Reaction-diffusion, seeded with $SQZ",
+      "meta": "Gray-Scott · F 0.0545 · K 0.062 · click to seed",
+      "word": "SQZ"
+    }
+  }
+}

@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Color tokens: monochrome. The only non-gray colors are up/down for price direction & buy/sell. */
+:root {
+  color-scheme: dark;
+  --bg: 5 5 5;
+  --surface: 10 10 10;
+  --surface-2: 22 22 22;
+  --line: 38 38 38;
+  --fg: 250 250 250;
+  --fg-2: 212 212 212;
+  --muted: 140 140 140;
+  --up: 134 239 172;
+  --down: 252 129 129;
+}
+html, body { background: rgb(var(--bg)); color: rgb(var(--fg-2)); }
+body { -webkit-font-smoothing: antialiased; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+::selection { background: rgb(var(--fg)); color: rgb(var(--bg)); }
+:focus-visible { outline: 2px solid rgb(var(--fg)); outline-offset: 2px; }
+input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+input[type="range"], input[type="checkbox"] { accent-color: rgb(var(--fg)); }
+.scrollbar-thin::-webkit-scrollbar { height: 6px; width: 6px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(var(--line)); }
+@keyframes spin { to { transform: rotate(360deg) } }
+.spin { animation: spin 0.9s linear infinite; }
+/* hatch: marks "locked" portions, not decoration */
+.hatch { background-image: repeating-linear-gradient(135deg, rgb(var(--fg) / 0.55) 0 1px, transparent 1px 6px); }
+@keyframes draw { from { stroke-dashoffset: var(--len) } to { stroke-dashoffset: 0 } }
+.draw { stroke-dasharray: var(--len); animation: draw 1.6s cubic-bezier(.2,.7,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .draw, .spin { animation: none; } }
+.font-display { font-stretch: 125%; }
+/* Landing: editorial index style */
+.ulink { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 320ms cubic-bezier(.2,.7,.2,1); }
+.ulink:hover, .ulink:focus-visible { background-size: 100% 1px; }
+.wordmark { font-stretch: 100%; letter-spacing: -0.055em; line-height: 0.8; }
+.snap-row { scroll-snap-type: x mandatory; scrollbar-width: none; }
+.snap-row::-webkit-scrollbar { display: none; }
+.snap-row > * { scroll-snap-align: start; }
+@keyframes rise { from { transform: translateY(105%) } to { transform: none } }
+.rise { display: block; animation: rise 900ms cubic-bezier(.2,.7,.1,1) both; }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } .ulink { transition: none; } }
+/* Motion layer */
+.pixelated { image-rendering: pixelated; image-rendering: crisp-edges; }
+.loader { position: fixed; inset: 0; z-index: 90; background: rgb(var(--bg)); display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem 1rem; transition: clip-path 900ms cubic-bezier(.76,0,.24,1); clip-path: inset(0 0 0 0); }
+@media (min-width: 768px) { .loader { padding: 1.5rem 2rem; } }
+.loader-out { clip-path: inset(0 0 100% 0); }
+html:not(.loaded) .rise { animation-play-state: paused; }
+[data-reveal] { opacity: 0; transform: translateY(28px); transition: opacity 900ms cubic-bezier(.2,.7,.1,1), transform 900ms cubic-bezier(.2,.7,.1,1); transition-delay: var(--d, 0ms); }
+[data-reveal].in { opacity: 1; transform: none; }
+[data-reveal="line"] { opacity: 1; transform: none; clip-path: inset(0 0 100% 0); transition: clip-path 1000ms cubic-bezier(.76,0,.24,1); }
+[data-reveal="line"].in { clip-path: inset(0 0 0 0); }
+html.negative { filter: invert(1); }
+html.negative img, html.negative video { filter: invert(1); }
+@media (prefers-reduced-motion: reduce) { [data-reveal], [data-reveal="line"] { opacity: 1; transform: none; clip-path: none; transition: none; } .loader { display: none; } }

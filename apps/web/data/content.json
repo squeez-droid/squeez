@@ -1,0 +1,385 @@
+{
+  "brand": {
+    "name": "Squeez",
+    "tagline": "Fixed-supply token launchpad on Elysium. Pair with crypto or stocks.",
+    "chainLabel": "Elysium"
+  },
+  "nav": [
+    {
+      "href": "/explore",
+      "label": "Explore"
+    },
+    {
+      "href": "/launch",
+      "label": "Launch"
+    },
+    {
+      "href": "/fees",
+      "label": "Fees"
+    },
+    {
+      "href": "/rewards",
+      "label": "Creator rewards"
+    }
+  ],
+  "explore": {
+    "sortTabs": [
+      {
+        "id": "trending",
+        "label": "Trending"
+      },
+      {
+        "id": "new",
+        "label": "New"
+      },
+      {
+        "id": "graduating",
+        "label": "About to graduate"
+      },
+      {
+        "id": "graduated",
+        "label": "Graduated"
+      }
+    ],
+    "pairFilters": [
+      {
+        "id": "all",
+        "label": "All pairs"
+      },
+      {
+        "id": "hype",
+        "label": "HYPE"
+      },
+      {
+        "id": "crypto",
+        "label": "Crypto"
+      },
+      {
+        "id": "stock",
+        "label": "Stocks"
+      },
+      {
+        "id": "stable",
+        "label": "USDC"
+      }
+    ],
+    "graduatingThresholdPct": 80,
+    "emptyTitle": "No tokens match this filter",
+    "emptyBody": "Try another filter, or be the first to launch one.",
+    "title": "Explore"
+  },
+  "launch": {
+    "steps": [
+      {
+        "id": "identity",
+        "label": "Identity",
+        "hint": "Name, ticker, image, socials"
+      },
+      {
+        "id": "economics",
+        "label": "Economics",
+        "hint": "Pair, creator fee, opening buy"
+      }
+    ],
+    "pairGroups": [
+      {
+        "id": "hype",
+        "label": "HYPE"
+      },
+      {
+        "id": "crypto",
+        "label": "Crypto & stable"
+      },
+      {
+        "id": "stock",
+        "label": "Stocks"
+      }
+    ],
+    "destinations": [
+      {
+        "id": "wallet",
+        "label": "Fee wallet",
+        "body": "Fees accrue in SqueezFeeVault. Claim any time.",
+        "badge": "Default"
+      },
+      {
+        "id": "buyback",
+        "label": "Buyback & vest",
+        "body": "Part of the fee buys the token on market. Tokens are locked and release linearly over 5 years to escrow.",
+        "badge": "Combinable"
+      },
+      {
+        "id": "holders",
+        "label": "Holders",
+        "body": "Fees go to holders, weighted by amount × holding time. Permanent.",
+        "badge": "Exclusive"
+      }
+    ],
+    "holdersConfirmations": [
+      "I understand creator fees will go to holders and can NOT be redirected back to me.",
+      "I understand this choice is permanent and locked in the contract for this token."
+    ],
+    "protection": [
+      {
+        "title": "Creator-only launch block",
+        "body": "Only the creator can buy in the launch transaction. The opening buy is bundled into launch()."
+      },
+      {
+        "title": "Sniper tax",
+        "body": "Starts at {startPct}% and decays linearly to 0% over {decay} seconds after launch."
+      },
+      {
+        "title": "Early max wallet",
+        "body": "Max {maxPct}% of supply per wallet during the early window. Sells and transfers are not limited."
+      }
+    ],
+    "noAllocation": "100% of supply is minted to the bonding curve. No creator or team allocation.",
+    "title": "Launch token",
+    "form": {
+      "imageLabel": "Image",
+      "imageHint": "PNG/JPG/GIF",
+      "imageMax": "max 2MB",
+      "imageTooLarge": "Max 2MB",
+      "useMonogram": "Use ticker monogram",
+      "ipfsNote": "Uploaded to IPFS at launch.",
+      "name": {
+        "label": "Name",
+        "placeholder": "Hyper Pepe"
+      },
+      "ticker": {
+        "label": "Ticker",
+        "placeholder": "HPEPE"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Tell people about your token"
+      },
+      "socials": [
+        {
+          "key": "x",
+          "label": "X / Twitter",
+          "placeholder": "@handle"
+        },
+        {
+          "key": "telegram",
+          "label": "Telegram",
+          "placeholder": "t.me/…"
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "placeholder": "https://"
+        }
+      ],
+      "continue": "Continue to Economics →",
+      "back": "← Identity",
+      "review": "Review & launch",
+      "pairLabel": "Paired with",
+      "pairHint": "Locked forever. The curve stays in HYPE.",
+      "stockNote": "Ondo assets are not confirmed on Elysium yet. Stock pairs open once the bridge is live and passes integration tests (see quotePairs.json).",
+      "pairStatus": {
+        "ready": "Ready",
+        "confirm-address": "Confirm address",
+        "soon": "Soon"
+      },
+      "feeWalletLabel": "Creator fee wallet",
+      "feeWalletHint": "Defaults to the launching wallet. This is the only setting the creator can change after launch.",
+      "feeWalletPlaceholder": "Connect a wallet or enter an address",
+      "useMine": "Use mine",
+      "creatorFeeLabel": "Creator fee",
+      "creatorFeeNote": "Applies on the curve and after graduation. Locked per token (creatorFeeBps = {bps}).",
+      "destLabel": "Where the creator fee goes",
+      "buybackSplit": "Split to Buyback & vest",
+      "buybackNote": "Bought-back tokens are locked and release linearly over {years} years. The protocol keeps {cut}%{tbd} of each release.",
+      "holdersNote": "Holders selected: permanent, exclusive, and can never be redirected back to the creator.",
+      "openingLabel": "Opening buy (optional)",
+      "openingHint": "In HYPE, bundled into the launch() transaction.",
+      "openingEstimate": "≈ {amount} {ticker} ({pct}% supply). Runs in the launch tx; only the creator can buy in the launch block.",
+      "openingPresets": [
+        1,
+        5,
+        10,
+        25
+      ],
+      "footnote": "Values are read from the deployed launch configuration."
+    },
+    "errors": {
+      "nameShort": "Name needs at least 2 characters",
+      "nameLong": "Max 32 characters",
+      "ticker": "2–10 uppercase letters or digits",
+      "tickerTaken": "Ticker already taken (see data/tokens.json)",
+      "image": "Upload a token image",
+      "description": "Max 280 characters",
+      "website": "Must start with https://",
+      "feeWallet": "Invalid address",
+      "fee": "0–10%",
+      "dest": "Pick at least one destination",
+      "openingNegative": "Cannot be negative",
+      "openingMaxWallet": "Opening buy exceeds the {pct}% max wallet",
+      "openingBalance": "Not enough HYPE (opening buy + launch fee)"
+    },
+    "preview": {
+      "title": "Preview",
+      "namePlaceholder": "Token name",
+      "tickerPlaceholder": "TICKER",
+      "descriptionPlaceholder": "Your token description shows up here.",
+      "startMcap": "Start MCap",
+      "gradMcap": "Grad MCap",
+      "feeTitle": "Total fee per trade",
+      "burn": "Buyback & burn $SQUEEZ",
+      "treasury": "Treasury",
+      "creator": "Creator",
+      "feeExample": "Example: a $100 trade → ${fee} fee, ${creator} to the creator.",
+      "protectionTitle": "Launch protection"
+    },
+    "review": {
+      "title": "Review launch",
+      "supply": "Supply",
+      "supplyValue": "1,000,000,000 (100% to curve)",
+      "pair": "Paired with",
+      "creatorFee": "Creator fee",
+      "destination": "Fee destination",
+      "feeWallet": "Fee wallet",
+      "openingBuy": "Opening buy",
+      "launchFee": "Launch fee",
+      "launchConfig": "LaunchConfig",
+      "locked": "Pair, creator fee and fee destination cannot be changed after launch.",
+      "submit": "Launch ${ticker}",
+      "txTitle": "Launch ${ticker}",
+      "txTotal": "Total",
+      "successTitle": "${ticker} is live on the bonding curve",
+      "successBody": "SqueezToken + SqueezCurve deployed and the fixed supply was minted to the curve.",
+      "openToken": "Open token page"
+    },
+    "holdersModal": {
+      "title": "Send creator fees to holders?",
+      "body": "Fees are shared with token holders, weighted by amount × holding time. This option is exclusive and cannot be combined with Fee wallet or Buyback & vest.",
+      "cancel": "Cancel",
+      "confirm": "Yes, send to holders"
+    },
+    "destLabels": {
+      "wallet": "Fee wallet",
+      "buyback": "Buyback & vest ({pct}%)",
+      "holders": "Holders"
+    }
+  },
+  "fees": {
+    "title": "Simple fees, locked per token",
+    "intro": "Every trade pays two fees: a fixed 1% protocol fee and a 0–10% creator fee chosen at launch. Both apply on the bonding curve and after graduation, and both are locked per token.",
+    "lifecycle": [
+      {
+        "title": "Launch",
+        "body": "The factory deploys SqueezToken + SqueezCurve. 1B supply is minted to the curve. Creator pays the launch fee."
+      },
+      {
+        "title": "Bonding curve",
+        "body": "Buy and sell directly against the curve in HYPE. 5/7 of supply sells on the curve. Fees are taken in HYPE."
+      },
+      {
+        "title": "Graduation",
+        "body": "When HYPE raised hits the threshold, the curve locks, HYPE converts to the quote asset and a Uniswap v4 pool is created."
+      },
+      {
+        "title": "Liquidity locked",
+        "body": "Full-range LP + 4/49 of supply are locked forever in SqueezLiquidityLocker. There is no withdraw function."
+      },
+      {
+        "title": "Trading on v4",
+        "body": "The Squeez hook takes 1% + creator fee on every swap and sends it to SqueezFeeVault."
+      }
+    ],
+    "faq": [
+      {
+        "q": "Can the protocol fee change?",
+        "a": "No. PROTOCOL_FEE_BPS = 100 is immutable in the contract."
+      },
+      {
+        "q": "Can a creator change their creator fee?",
+        "a": "No. creatorFeeBps and the fee destination are locked at launch. Only the recipient address (feeRecipient) can be changed by the creator."
+      },
+      {
+        "q": "Who can pull LP after graduation?",
+        "a": "Nobody, including the creator and Squeez. The locker has no withdraw function."
+      },
+      {
+        "q": "How is $SQUEEZ burned?",
+        "a": "80% of the protocol fee goes to a keeper that buys $SQUEEZ via TWAP and burns it, to avoid MEV."
+      }
+    ]
+  },
+  "rewards": {
+    "title": "Creator rewards",
+    "intro": "Fees from tokens you launched accrue in SqueezFeeVault. Claim any time.",
+    "connectPrompt": "Connect your wallet to see rewards from tokens you launched.",
+    "wrongNetwork": "Switch to {chain}",
+    "notConnected": "Wallet not connected",
+    "switchNetwork": "Switch network",
+    "connect": "Connect wallet",
+    "claimAll": "Claim all · {amount} HYPE",
+    "claim": "Claim",
+    "stats": {
+      "claimable": "Claimable",
+      "claimed": "Claimed",
+      "lifetime": "Lifetime creator fee",
+      "launched": "Tokens launched"
+    },
+    "created": {
+      "title": "Tokens you launched",
+      "newLaunch": "+ New launch",
+      "emptyTitle": "No tokens yet",
+      "emptyDemo": "Launch your first token.",
+      "emptyLive": "Creator rewards for this wallet will show up once the indexer is live.",
+      "launch": "Launch token",
+      "columns": [
+        "Token",
+        "Status",
+        "Creator fee",
+        "Destination",
+        "Lifetime",
+        "Claimable"
+      ]
+    },
+    "vesting": {
+      "title": "Buyback & vest",
+      "empty": "No tokens with a Buyback & vest destination.",
+      "release": "linear release over {years} years",
+      "locked": "Locked",
+      "released": "Released",
+      "claimable": "Claimable",
+      "claim": "Claim from escrow",
+      "success": "Vested tokens claimed"
+    },
+    "holders": {
+      "title": "Holder rewards",
+      "empty": "You don't hold any token whose fees go to holders.",
+      "meta": "Weight {weight} · claimed {claimed} HYPE"
+    },
+    "history": {
+      "title": "Claim history",
+      "empty": "No claims yet.",
+      "creator": "Creator fee",
+      "holder": "Holder reward"
+    }
+  },
+  "footer": {
+    "links": [
+      {
+        "label": "Elysium docs",
+        "href": "https://elysium.kinetiq.xyz/docs"
+      },
+      {
+        "label": "Faucet",
+        "href": "https://testnet.elysium.kinetiq.xyz/faucet"
+      },
+      {
+        "label": "Bridge",
+        "href": "https://testnet.elysium.kinetiq.xyz/bridge"
+      },
+      {
+        "label": "Explorer",
+        "href": "https://testnet.elysium.kinetiq.xyz/explorer"
+      }
+    ],
+    "disclaimer": "Testnet. Contracts are not audited. Protocol and market data are read from on-chain sources when configured."
+  }
+}

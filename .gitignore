@@ -1,0 +1,72 @@
+# ── Private / not for the repo ────────────────────────────
+# Internal dev brief and docs (kept locally only)
+/docs/
+
+# Env files: commit only the *.example templates
+#   .env.testnet / .env.mainnet hold real values per network
+.env
+.env.*
+!.env.*.example
+.dev.vars*
+
+# Keys, wallets and credentials
+*.pem
+*.key
+*.p12
+*.keystore
+keystore/
+keystores/
+secrets/
+credentials/
+private/
+wallets/
+service-account*.json
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# Cloudflare Wrangler local state
+.wrangler/
+
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── Build output & caches ─────────────────────────────────
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.turbo/
+.cache/
+
+# Ponder (indexer)
+.ponder/
+ponder-env.d.ts
+generated/
+
+# Foundry (contracts)
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/lib/
+packages/contracts/broadcast/*/31337/
+packages/contracts/broadcast/**/dry-run/
+
+# ── Artifacts ─────────────────────────────────────────────
+*.tar.gz
+*.zip
+squeez-preview.html
+
+# ── OS / editor / logs ────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*

@@ -1,0 +1,17 @@
+{
+  "name": "@squeez/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Squeez Solidity contracts (Foundry): factory, token, curve, v4 hook, fee vault, locker, quote registry.",
+  "scripts": {
+    "setup": "forge install foundry-rs/forge-std --no-git",
+    "build": "forge build",
+    "test": "forge test -vvv",
+    "fmt": "forge fmt",
+    "deploy:testnet": "node ../../tools/with-env.mjs testnet forge script script/Deploy.s.sol --rpc-url elysium --broadcast",
+    "deploy:mainnet": "node ../../tools/with-env.mjs mainnet forge script script/Deploy.s.sol --rpc-url elysium --broadcast"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.1.0"
+  }
+}

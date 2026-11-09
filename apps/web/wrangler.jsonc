@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Default worker = testnet build (npm run deploy:testnet).
+  "name": "squeez-web",
+  "account_id": "a122875a8e8b3e808b6d10046a9f8603",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  },
+  "env": {
+    // npm run deploy:mainnet
+    "mainnet": {
+      "name": "squeez-web-mainnet"
+    }
+  }
+}

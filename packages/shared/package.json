@@ -1,0 +1,21 @@
+{
+  "name": "@squeez/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protocol constants, chain config, types and event names shared by web, indexer and keeper.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "viem": "^2.21.19"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

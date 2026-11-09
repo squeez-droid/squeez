@@ -1,0 +1,28 @@
+{
+  "name": "squeez",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Squeez: fixed-supply token launchpad on Elysium. Monorepo (npm workspaces).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @squeez/web",
+    "build": "npm run build -w @squeez/web",
+    "typecheck": "npm run typecheck -w @squeez/shared -w @squeez/web -w @squeez/keeper",
+    "lint": "npm run lint -w @squeez/web",
+    "check:no-fixtures": "node scripts/check-no-fixtures.mjs",
+    "check:networks": "node scripts/verify-networks.mjs",
+    "check": "npm run check:no-fixtures && npm run typecheck && npm run lint && npm run build && npm run contracts:fmt-check && npm run contracts:build && npm run contracts:test",
+    "dev:indexer": "npm run dev -w @squeez/indexer",
+    "dev:keeper": "npm run dev -w @squeez/keeper",
+    "contracts:setup": "npm run setup -w @squeez/contracts",
+    "contracts:fmt-check": "forge fmt --check --root packages/contracts",
+    "contracts:build": "npm run build -w @squeez/contracts",
+    "contracts:test": "npm run test -w @squeez/contracts"
+  }
+}
