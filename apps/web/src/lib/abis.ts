@@ -81,6 +81,19 @@ export const erc20TradeAbi = [
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "success", type: "bool" }] },
 ] as const;
 
+export const feeVaultAbi = [
+  {
+    type: "function", name: "creatorFeesAccrued", stateMutability: "view",
+    inputs: [{ name: "token", type: "address" }, { name: "asset", type: "address" }],
+    outputs: [{ name: "amount", type: "uint256" }],
+  },
+  {
+    type: "function", name: "claimCreatorFees", stateMutability: "nonpayable",
+    inputs: [{ name: "token", type: "address" }, { name: "asset", type: "address" }],
+    outputs: [{ name: "amount", type: "uint256" }],
+  },
+] as const;
+
 const poolKeyComponents = [
   { name: "currency0", type: "address" }, { name: "currency1", type: "address" },
   { name: "fee", type: "uint24" }, { name: "tickSpacing", type: "int24" }, { name: "hooks", type: "address" },

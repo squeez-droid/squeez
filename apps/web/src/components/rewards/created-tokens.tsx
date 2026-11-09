@@ -3,7 +3,6 @@ import Link from "next/link";
 import { content } from "@/lib/data";
 import { bpsToPct, feeDestinationLabel, fmtNum } from "@/lib/format";
 import { Badge, Button, Card, Empty } from "@/components/ui";
-import { PairBadge, TokenAvatar } from "@/components/token-bits";
 import { claimKey, type RewardsApi } from "./use-rewards";
 
 const T = content.rewards.created;
@@ -39,20 +38,22 @@ export function CreatedTokensCard({ api }: { api: RewardsApi }) {
                 <tr key={t.address} className="border-t border-line/60">
                   <td className="px-4 py-3">
                     <Link href={`/token/${t.address}`} className="flex items-center gap-2 hover:text-white hover:underline">
-                      <TokenAvatar token={t} size={32} />
                       <span>
-                        <span className="block font-medium text-white">{t.name}</span>
-                        <span className="flex items-center gap-1 text-xs text-muted">${t.ticker} <PairBadge quote={t.quote} /></span>
+                        <span className="block font-medium text-white">{t.name ?? "Metadata pending"}</span>
+                        <span className="flex items-center gap-1 text-xs text-muted">${t.symbol ?? "TOKEN"} · {t.quote === "0x0000000000000000000000000000000000000000" ? "HYPE" : "ERC-20"}</span>
                       </span>
                     </Link>
                   </td>
                   <td>{t.status === "graduated" ? <Badge tone="mint">Graduated</Badge> : <Badge tone="primary">Curve</Badge>}</td>
                   <td className="num text-white">{bpsToPct(t.creatorFeeBps)}</td>
-                  <td className="text-xs text-muted">{feeDestinationLabel(t.feeDestination)}</td>
+                  <td className="text-xs text-muted">{feeDestinationLabel({
+                    type: t.feeDestinationKind === 0 ? "direct" : "buyback",
+                    buybackBps: t.buybackBps,
+                  })}</td>
                   <td className="num text-white">{fmtNum(lifetimeHype, 2)}</td>
                   <td className="num text-white">{fmtNum(c, 4)} <span className="text-xs text-muted">HYPE</span></td>
                   <td className="pr-4 text-right">
-                    <Button size="sm" disabled={c <= 0} onClick={() => api.claim(key, c, `$${t.ticker}`)}>{content.rewards.claim}</Button>
+                    <Button size="sm" disabled={c <= 0} onClick={() => api.claim(key, c, `$${t.symbol ?? "TOKEN"}`)}>{content.rewards.claim}</Button>
                   </td>
                 </tr>
               );

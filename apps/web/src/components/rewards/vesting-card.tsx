@@ -2,7 +2,6 @@
 import { config, content, NOW } from "@/lib/data";
 import { fill, fmtCompact } from "@/lib/format";
 import { Button, Card, Progress } from "@/components/ui";
-import { TokenAvatar } from "@/components/token-bits";
 import { claimKey, type RewardsApi } from "./use-rewards";
 
 const T = content.rewards.vesting;
@@ -30,8 +29,7 @@ export function VestingCard({ api }: { api: RewardsApi }) {
           return (
             <div key={key} className="rounded-lg border border-line bg-bg p-3">
               <div className="flex items-center gap-2">
-                <TokenAvatar token={token} size={24} />
-                <span className="font-medium text-white">${token.ticker}</span>
+                <span className="font-medium text-white">${token.symbol ?? "TOKEN"}</span>
                 <span className="ml-auto text-xs text-muted">{fill(T.release, { years: YEARS })}</span>
               </div>
               <Progress value={pct} className="mt-3" />

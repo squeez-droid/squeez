@@ -1,0 +1,16 @@
+{
+  "token": "0xC168cA86449Fd24384985Abe58162398eCE980dA",
+  "curve": "0x69e7796cED5C295C90550B8f490F7Dee68C93853",
+  "vault": "0x5c59d4A218B4516Fc5B021DF89504584Bbf2BC58",
+  "recipient": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+  "asset": "0x0000000000000000000000000000000000000000",
+  "claimableBefore": "1080103047113969",
+  "claimableAfter": "0",
+  "claimedAmount": "1080103047113969",
+  "transactionHash": "0x198ac2be10c578831ed156294eefeaff4e7df309407ebe26885b1de148744166",
+  "blockNumber": "26767006",
+  "gasUsed": "74862",
+  "effectiveGasPrice": "100000000",
+  "gasCost": "7486200000000",
+  "recipientBalanceDeltaAfterGas": "1080103047113969"
+}

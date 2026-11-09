@@ -66,6 +66,7 @@
     "e2e:trade:testnet": "node tools/with-env.mjs testnet node scripts/e2e-trade-testnet.mjs",
     "e2e:graduate:testnet": "node tools/with-env.mjs testnet node scripts/e2e-graduate-testnet.mjs",
     "e2e:v4-swap:testnet": "node tools/with-env.mjs testnet node scripts/e2e-v4-swap-testnet.mjs",
+    "e2e:claim-creator:testnet": "node tools/with-env.mjs testnet node scripts/e2e-claim-creator-testnet.mjs",
     "check": "npm run check:no-fixtures && npm run check:client-boundary && npm run check:address-book && npm run typecheck && npm run lint && npm run build && npm run contracts:fmt-check && npm run contracts:build && npm run contracts:test",
     "contracts:setup": "npm run setup -w @squeez/contracts",
     "contracts:fmt-check": "forge fmt --check --root packages/contracts",
