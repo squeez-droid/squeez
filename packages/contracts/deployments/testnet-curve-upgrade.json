@@ -1,0 +1,6 @@
+{
+  "chainId": 99801,
+  "curveBeacon": "0xeE5b1e19EB99290e2EeDcd0A1776BFB869361591",
+  "curveImplementation": "0x2B5D3877139EB90083729441f8AdCcd83c46e3Fe",
+  "network": "testnet"
+}

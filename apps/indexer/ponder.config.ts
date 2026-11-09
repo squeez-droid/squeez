@@ -3,6 +3,7 @@ import { parseAbiItem } from "viem";
 import { SqueezLaunchFactoryAbi } from "./abis/SqueezLaunchFactory";
 import { SqueezCurveAbi } from "./abis/SqueezCurve";
 import { SqueezFeeVaultAbi } from "./abis/SqueezFeeVault";
+import { SqueezSwapRouterAbi } from "./abis/SqueezSwapRouter";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -45,6 +46,11 @@ export default createConfig({
       address: required("FEE_VAULT_ADDRESS") as `0x${string}`,
       startBlock: Number(required("FACTORY_START_BLOCK")),
     },
-    // TODO: SqueezHook
+    SqueezSwapRouter: {
+      chain: "elysium",
+      abi: SqueezSwapRouterAbi,
+      address: required("SWAP_ROUTER_ADDRESS") as `0x${string}`,
+      startBlock: Number(required("SWAP_ROUTER_START_BLOCK")),
+    },
   },
 });

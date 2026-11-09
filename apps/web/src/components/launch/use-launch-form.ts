@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { MAX_CREATOR_FEE_BPS, TOTAL_SUPPLY } from "@squeez/shared";
 import { formatEther, parseEther } from "viem";
-import { useReadContract } from "wagmi";
+import { useReadContract, useSignMessage } from "wagmi";
 import { content, quotePairs, tokens } from "@/lib/data";
 import { launchFactoryAbi } from "@/lib/abis";
+import { apiUrl } from "@/lib/chain";
 import { fill, isAddress } from "@/lib/format";
 import { useProtocolConfig } from "@/lib/protocol-config";
 import type { QuotePair } from "@/lib/types";
@@ -17,6 +18,7 @@ export interface LaunchForm {
   name: string;
   ticker: string;
   image: string | null;
+  metadataURI: string | null;
   description: string;
   x: string;
   telegram: string;
@@ -35,7 +37,7 @@ export interface LaunchForm {
 export type FormErrors = Partial<Record<string, string>>;
 
 const INITIAL: LaunchForm = {
-  name: "", ticker: "", image: null, description: "", x: "", telegram: "", website: "",
+  name: "", ticker: "", image: null, metadataURI: null, description: "", x: "", telegram: "", website: "",
   group: "hype", quote: "HYPE", feeWallet: "", creatorFeeBps: 100,
   destWallet: true, destBuyback: false, destHolders: false, buybackBps: 5000, openingBuy: "",
 };
@@ -64,10 +66,17 @@ function validateIdentity(f: LaunchForm): FormErrors {
 /** Form state, validation and derived numbers for the launch wizard. */
 export function useLaunchForm() {
   const wallet = useWallet();
+  const signer = useSignMessage();
   const protocol = useProtocolConfig();
   const [form, setForm] = useState<LaunchForm>(INITIAL);
+  const [metadataUploading, setMetadataUploading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
-  const set = <K extends keyof LaunchForm>(key: K, value: LaunchForm[K]) => setForm((s) => ({ ...s, [key]: value }));
+  const set = <K extends keyof LaunchForm>(key: K, value: LaunchForm[K]) => setForm((s) => ({
+    ...s,
+    [key]: value,
+    ...(["name", "ticker", "image", "description", "x", "telegram", "website"].includes(key) ? { metadataURI: null } : {}),
+  }));
   const patch = (p: Partial<LaunchForm>) => setForm((s) => ({ ...s, ...p }));
 
   // Default fee wallet = launching wallet.
@@ -99,6 +108,7 @@ export function useLaunchForm() {
     if (!isAddress(form.feeWallet)) e.feeWallet = E.feeWallet;
     if (form.creatorFeeBps < 0 || form.creatorFeeBps > MAX_CREATOR_FEE_BPS) e.fee = E.fee;
     if (!form.destWallet && !form.destBuyback && !form.destHolders) e.dest = E.dest;
+    if (form.destBuyback || form.destHolders) e.dest = "Only direct fee-wallet payouts are enabled for the HYPE v1 release.";
     if (opening < 0) e.opening = E.openingNegative;
     if (maxWalletPct > 0 && openingPct > maxWalletPct) e.opening = fill(E.openingMaxWallet, { pct: maxWalletPct });
     if (wallet.status === "connected" && opening + launchFeeHype > (wallet.balances.HYPE ?? 0)) e.opening = E.openingBalance;
@@ -126,13 +136,52 @@ export function useLaunchForm() {
     ? L.holders
     : [form.destWallet && L.wallet, form.destBuyback && fill(L.buyback, { pct: form.buybackBps / 100 })].filter(Boolean).join(" + ");
 
+  const uploadMetadata = async (requestId: string): Promise<string> => {
+    if (form.metadataURI) return form.metadataURI;
+    if (!wallet.address || !form.image) throw new Error("Connect a wallet and select an image first.");
+    setMetadataUploading(true);
+    setMetadataError(null);
+    try {
+      const nonceResponse = await fetch(`${apiUrl}/v1/metadata/nonce?address=${wallet.address}&requestId=${requestId}`);
+      if (!nonceResponse.ok) throw new Error("Could not create an upload authorization.");
+      const authorization = await nonceResponse.json() as { message: string };
+      const signature = await signer.signMessageAsync({ message: authorization.message });
+      const x = form.x
+        ? (form.x.startsWith("http") ? form.x : `https://x.com/${form.x.replace(/^@/, "")}`)
+        : "";
+      const telegram = form.telegram
+        ? (form.telegram.startsWith("http")
+          ? form.telegram
+          : form.telegram.startsWith("@")
+            ? `https://t.me/${form.telegram.slice(1)}`
+            : `https://${form.telegram.replace(/^\/?/, "")}`)
+        : "";
+      const response = await fetch(`${apiUrl}/v1/metadata`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...form, x, telegram, address: wallet.address, signature }),
+      });
+      const result = await response.json() as { metadataUri?: string; error?: string };
+      if (!response.ok || !result.metadataUri) throw new Error(result.error ?? "Metadata upload failed.");
+      setForm((current) => ({ ...current, metadataURI: result.metadataUri! }));
+      return result.metadataUri;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Metadata upload failed.";
+      setMetadataError(message);
+      throw cause;
+    } finally {
+      setMetadataUploading(false);
+    }
+  };
+
   return {
     form, set, selectGroup, toggleDestination, enableHolders, disableHolders,
     identityErrors, economicsErrors,
     identityOk: Object.keys(identityErrors).length === 0,
     economicsOk: Object.keys(economicsErrors).length === 0,
-    opening, openingWei, openingQuote, openingPct, openingQuoteLoading: openingRead.isLoading,
-    launchFeeHype, maxWalletPct, protocol, destinationLabel,
+    opening, openingWei, openingTokensOut: tokensOut, openingQuote, openingPct, openingQuoteLoading: openingRead.isLoading,
+    launchFeeHype, maxWalletPct, protocol, destinationLabel, walletAddress: wallet.address,
+    uploadMetadata, metadataUploading, metadataError,
   };
 }
 

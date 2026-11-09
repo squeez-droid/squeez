@@ -41,9 +41,15 @@ for (const network of networks) {
   const env = parseEnv(await readFile(envPath, "utf8"));
   const configuredChainId = Number(env.ELYSIUM_CHAIN_ID);
   const rpcUrl = env.ELYSIUM_RPC;
+  const databaseSchema = env.DATABASE_SCHEMA;
 
   if (configuredChainId !== network.expectedChainId || !rpcUrl) {
     throw new Error(`${network.name}: expected chain ${network.expectedChainId} and a configured RPC`);
+  }
+  if (databaseSchema !== network.name) {
+    throw new Error(
+      `${network.name}: DATABASE_SCHEMA must be the stable schema '${network.name}', received '${databaseSchema ?? "<unset>"}'`,
+    );
   }
 
   const [chainIdHex, blockHex] = await Promise.all([

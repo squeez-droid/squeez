@@ -20,7 +20,7 @@ export function IdentityStep({ api, showErrors, onContinue }: IdentityStepProps)
   return (
     <Card className="mt-4 p-5">
       <div className="grid gap-5 sm:grid-cols-[140px_1fr]">
-        <ImageUpload value={f.image} ticker={f.ticker} error={err("image")} onChange={(v) => set("image", v)} />
+        <ImageUpload value={f.image} error={err("image")} onChange={(v) => set("image", v)} />
 
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">

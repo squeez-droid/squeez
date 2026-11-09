@@ -1,5 +1,6 @@
 import { ponder } from "ponder:registry";
 import { creatorFee, protocolFee, token, trade } from "ponder:schema";
+import { logIndexed } from "./system-log";
 
 // Events to index (see @squeez/shared INDEXED_EVENTS):
 // TokenLaunched, CurveTrade, Graduated, PoolSwap, CreatorFeeAccrued, CreatorFeeClaimed, SqueezBurned
@@ -21,6 +22,7 @@ ponder.on("SqueezLaunchFactory:TokenLaunched", async ({ event, context }) => {
     launchBlockNumber: event.block.number,
     launchLogIndex: event.log.logIndex,
   });
+  await logIndexed("TokenLaunched", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezLaunchFactory:TokenMetadata", async ({ event, context }) => {
@@ -31,6 +33,7 @@ ponder.on("SqueezLaunchFactory:TokenMetadata", async ({ event, context }) => {
       symbol: event.args.symbol,
       metadataUri: event.args.metadataURI,
     });
+  await logIndexed("TokenMetadata", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezCurve:CurveTrade", async ({ event, context }) => {
@@ -48,6 +51,24 @@ ponder.on("SqueezCurve:CurveTrade", async ({ event, context }) => {
     blockNumber: event.block.number,
     logIndex: event.log.logIndex,
   });
+  await logIndexed("CurveTrade", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezCurve:GraduationThresholdReached", async ({ event, context }) => {
+  await context.db.update(token, { address: event.args.token }).set({ status: "graduating" });
+  await logIndexed("GraduationThresholdReached", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezCurve:GraduationAttempted", async ({ event }) => {
+  await logIndexed("GraduationAttempted", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezCurve:Graduated", async ({ event, context }) => {
+  await context.db.update(token, { address: event.args.token }).set({
+    status: "graduated",
+    pool: event.args.pool,
+  });
+  await logIndexed("Graduated", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezFeeVault:CreatorFeeAccrued", async ({ event, context }) => {
@@ -62,6 +83,7 @@ ponder.on("SqueezFeeVault:CreatorFeeAccrued", async ({ event, context }) => {
     blockNumber: event.block.number,
     logIndex: event.log.logIndex,
   });
+  await logIndexed("CreatorFeeAccrued", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezFeeVault:CreatorFeeClaimed", async ({ event, context }) => {
@@ -77,6 +99,7 @@ ponder.on("SqueezFeeVault:CreatorFeeClaimed", async ({ event, context }) => {
     blockNumber: event.block.number,
     logIndex: event.log.logIndex,
   });
+  await logIndexed("CreatorFeeClaimed", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezFeeVault:ProtocolFeeAccrued", async ({ event, context }) => {
@@ -91,6 +114,24 @@ ponder.on("SqueezFeeVault:ProtocolFeeAccrued", async ({ event, context }) => {
     blockNumber: event.block.number,
     logIndex: event.log.logIndex,
   });
+  await logIndexed("ProtocolFeeAccrued", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
-// TODO: Graduated → token.status/pool, PoolSwap → trade (source "pool"), SqueezBurned → burn
+ponder.on("SqueezSwapRouter:PoolSwap", async ({ event, context }) => {
+  await context.db.insert(trade).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    trader: event.args.trader,
+    isBuy: event.args.isBuy,
+    hypeAmount: event.args.quoteAmount,
+    tokenAmount: event.args.tokenAmount,
+    source: "pool",
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+  await logIndexed("PoolSwap", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+// TODO: SqueezBurned → burn

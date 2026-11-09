@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
+import { parseEther, zeroAddress, type Address } from "viem";
+import { usePublicClient, useWriteContract } from "wagmi";
 import { content } from "@/lib/data";
+import { launchFactoryAbi } from "@/lib/abis";
 import { fill, fmtNum } from "@/lib/format";
 import { useTx } from "@/providers/tx";
 import { PageHeader } from "@/components/ui";
@@ -11,6 +14,8 @@ const T = content.launch.review;
 
 export default function LaunchPage() {
   const tx = useTx();
+  const publicClient = usePublicClient();
+  const contractWrite = useWriteContract();
   const api = useLaunchForm();
   const [step, setStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
@@ -44,8 +49,9 @@ export default function LaunchPage() {
 
   const submit = () => {
     const { ticker } = api.form;
+    const factory = api.protocol.data?.contracts.factory;
     setReviewOpen(false);
-    tx.run({
+    void tx.run({
       title: fill(T.txTitle, { ticker }),
       lines: [
         { label: T.launchFee, value: `${api.launchFeeHype} HYPE` },
@@ -54,6 +60,33 @@ export default function LaunchPage() {
       ],
       successTitle: fill(T.successTitle, { ticker }),
       successBody: T.successBody,
+      wallet: api.walletAddress ?? undefined,
+    }, async (requestId) => {
+      if (!factory || !publicClient) throw new Error("Launch contract is not configured.");
+      const metadataURI = await api.uploadMetadata(requestId);
+      const launchFee = api.protocol.data?.launchConfig.launchFeeHype;
+      if (!launchFee) throw new Error("Launch fee is not configured.");
+      const hash = await contractWrite.writeContractAsync({
+        address: factory,
+        abi: launchFactoryAbi,
+        functionName: "launch",
+        args: [{
+          name: api.form.name.trim(),
+          symbol: api.form.ticker,
+          metadataURI,
+          quote: zeroAddress,
+          feeRecipient: api.form.feeWallet as Address,
+          creatorFeeBps: api.form.creatorFeeBps,
+          feeDestination: { kind: 0, buybackBps: 0 },
+          openingBuyHype: api.openingWei,
+          openingBuyMinTokens: api.openingWei > 0n ? api.openingTokensOut * 99n / 100n : 0n,
+        }],
+        value: parseEther(launchFee) + api.openingWei,
+      });
+      return {
+        hash,
+        wait: async () => { await publicClient.waitForTransactionReceipt({ hash }); },
+      };
     });
   };
 

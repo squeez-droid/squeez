@@ -2,21 +2,21 @@
 import clsx from "clsx";
 import { content } from "@/lib/data";
 import { IconUpload } from "@/components/icons";
-import { monogramDataUrl } from "./monogram";
 
 const T = content.launch.form;
-const MAX_BYTES = 2_000_000;
+const MAX_BYTES = 5 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 
 interface ImageUploadProps {
   value: string | null;
-  ticker: string;
   error?: string | null;
   onChange: (dataUrl: string) => void;
 }
 
-export function ImageUpload({ value, ticker, error, onChange }: ImageUploadProps) {
+export function ImageUpload({ value, error, onChange }: ImageUploadProps) {
   const onFile = (file?: File) => {
     if (!file) return;
+    if (!ALLOWED_TYPES.has(file.type)) return alert("Use a PNG, JPEG, WebP, or GIF image.");
     if (file.size > MAX_BYTES) return alert(T.imageTooLarge);
     const reader = new FileReader();
     reader.onload = () => onChange(reader.result as string);
@@ -41,16 +41,8 @@ export function ImageUpload({ value, ticker, error, onChange }: ImageUploadProps
             <span className="mt-2">{T.imageHint}<br />{T.imageMax}</span>
           </>
         )}
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
       </label>
-      <button
-        type="button"
-        disabled={ticker.length < 2}
-        onClick={() => onChange(monogramDataUrl(ticker))}
-        className="mt-2 w-full rounded-md border border-line py-1.5 text-xs text-muted hover:text-white disabled:opacity-40"
-      >
-        {T.useMonogram}
-      </button>
       <p className="mt-1 text-[11px] text-muted">{T.ipfsNote}</p>
       {error && <p className="mt-1 text-xs text-down">{error}</p>}
     </div>

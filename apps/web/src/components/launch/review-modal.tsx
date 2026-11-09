@@ -40,7 +40,8 @@ export function ReviewModal({ api, open, onClose, onSubmit }: ReviewModalProps) 
         {rows.map(([label, value]) => <Row key={label} label={label} value={value} />)}
       </div>
       <p className="mt-3 text-xs text-muted">{T.locked}</p>
-      <Button size="lg" className="mt-4 w-full" onClick={onSubmit}>{fill(T.submit, { ticker: f.ticker })}</Button>
+      {api.metadataError && <p className="mt-2 text-xs text-down">{api.metadataError}</p>}
+      <Button size="lg" className="mt-4 w-full" loading={api.metadataUploading} onClick={onSubmit}>{fill(T.submit, { ticker: f.ticker })}</Button>
     </Modal>
   );
 }

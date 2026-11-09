@@ -29,6 +29,7 @@ export const backendConfig = {
   pinata: {
     jwt: optional("PINATA_JWT"),
     apiUrl: optional("PINATA_API_URL") ?? "https://api.pinata.cloud",
+    uploadUrl: optional("PINATA_UPLOAD_URL") ?? "https://uploads.pinata.cloud/v3/files",
     gatewayUrl: optional("PINATA_GATEWAY_URL") ?? "https://gateway.pinata.cloud/ipfs",
   },
   contracts: {
@@ -38,8 +39,9 @@ export const backendConfig = {
   },
   launchConfig: {
     graduationThresholdHype: optional("GRADUATION_THRESHOLD_HYPE"),
-    virtualHypeReserve: optional("VIRTUAL_HYPE_RESERVE"),
-    virtualTokenReserve: optional("VIRTUAL_TOKEN_RESERVE"),
+    virtualHypeReserve: optional("VIRTUAL_HYPE_RESERVE")
+      ?? (optional("GRADUATION_THRESHOLD_HYPE") ? (BigInt(optional("GRADUATION_THRESHOLD_HYPE")!) * 2n / 5n).toString() : null),
+    virtualTokenReserve: optional("VIRTUAL_TOKEN_RESERVE") ?? "1000000000000000000000000000",
     sniperTaxStartBps: optional("SNIPER_TAX_START_BPS"),
     sniperTaxDecaySeconds: optional("SNIPER_TAX_DECAY_SECONDS"),
     maxWalletBps: optional("MAX_WALLET_BPS"),

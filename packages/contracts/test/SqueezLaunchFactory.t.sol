@@ -9,6 +9,8 @@ import {SqueezToken} from "../src/SqueezToken.sol";
 import {FeeDestination, FeeDestinationType, LaunchConfig, LaunchParams} from "../src/libraries/SqueezTypes.sol";
 import {SqueezConstants} from "../src/libraries/SqueezConstants.sol";
 import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import {ProxyTestBase} from "./ProxyTestBase.sol";
 
 contract RejectingTreasury {
     receive() external payable {
@@ -16,7 +18,9 @@ contract RejectingTreasury {
     }
 }
 
-contract SqueezLaunchFactoryTest is Test {
+contract GraduationAdapterStub {}
+
+contract SqueezLaunchFactoryTest is Test, ProxyTestBase {
     address internal creator = makeAddr("creator");
     address internal feeRecipient = makeAddr("feeRecipient");
     address internal treasury = makeAddr("treasury");
@@ -24,11 +28,13 @@ contract SqueezLaunchFactoryTest is Test {
     SqueezQuoteRegistry internal registry;
     SqueezLaunchFactory internal factory;
     SqueezFeeVault internal feeVault;
+    UpgradeableBeacon internal curveBeacon;
 
     function setUp() public {
-        registry = new SqueezQuoteRegistry(address(this));
-        feeVault = new SqueezFeeVault(address(this), treasury);
-        factory = new SqueezLaunchFactory(address(this), registry, feeVault, treasury, _config());
+        registry = _deployRegistry(address(this));
+        feeVault = _deployVault(address(this), treasury);
+        curveBeacon = _deployCurveBeacon(address(this));
+        factory = _deployFactory(address(this), registry, feeVault, treasury, address(curveBeacon), _config());
         vm.deal(creator, 10 ether);
     }
 
@@ -70,9 +76,10 @@ contract SqueezLaunchFactoryTest is Test {
 
     function test_LaunchRevertsAtomicallyWhenTreasuryRejectsFee() public {
         RejectingTreasury rejectingTreasury = new RejectingTreasury();
-        SqueezFeeVault rejectingVault = new SqueezFeeVault(address(this), address(rejectingTreasury));
-        SqueezLaunchFactory rejectingFactory =
-            new SqueezLaunchFactory(address(this), registry, rejectingVault, address(rejectingTreasury), _config());
+        SqueezFeeVault rejectingVault = _deployVault(address(this), address(rejectingTreasury));
+        SqueezLaunchFactory rejectingFactory = _deployFactory(
+            address(this), registry, rejectingVault, address(rejectingTreasury), address(curveBeacon), _config()
+        );
 
         vm.prank(creator);
         vm.expectRevert(SqueezLaunchFactory.TreasuryTransferFailed.selector);
@@ -133,6 +140,22 @@ contract SqueezLaunchFactoryTest is Test {
         invalid.virtualHypeReserve = 0;
         vm.expectRevert(SqueezLaunchFactory.InvalidLaunchConfig.selector);
         factory.setLaunchConfig(invalid);
+    }
+
+    function test_OnlyOwnerCanSetOrPauseGraduationAdapter() public {
+        GraduationAdapterStub adapter = new GraduationAdapterStub();
+        factory.setGraduationAdapter(address(adapter));
+        assertEq(factory.graduationAdapter(), address(adapter));
+
+        vm.prank(creator);
+        vm.expectRevert();
+        factory.setGraduationAdapter(address(adapter));
+
+        vm.expectRevert(SqueezLaunchFactory.InvalidAdapter.selector);
+        factory.setGraduationAdapter(makeAddr("notContract"));
+
+        factory.setGraduationAdapter(address(0));
+        assertEq(factory.graduationAdapter(), address(0));
     }
 
     function test_LaunchRejectsInvalidMetadataFields() public {

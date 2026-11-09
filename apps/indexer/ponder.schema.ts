@@ -13,7 +13,7 @@ export const token = onchainTable("token", (t) => ({
   name: t.text(),
   symbol: t.text(),
   metadataUri: t.text(),
-  status: t.text().notNull(), // "curve" | "graduated"
+  status: t.text().notNull(), // "curve" | "graduating" | "graduated"
   pool: t.hex(),
   createdAt: t.bigint().notNull(),
   launchTxHash: t.hex().notNull(),

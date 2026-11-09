@@ -3,20 +3,22 @@ pragma solidity ^0.8.26;
 
 import {ISqueezEvents} from "./interfaces/ISqueezEvents.sol";
 import {ISqueezFeeVault} from "./interfaces/ISqueezFeeVault.sol";
+import {ISqueezGraduationAdapter} from "./interfaces/ISqueezGraduationAdapter.sol";
+import {ISqueezLaunchFactory} from "./interfaces/ISqueezLaunchFactory.sol";
 import {LaunchConfig, FeeDestination} from "./libraries/SqueezTypes.sol";
 import {SqueezConstants} from "./libraries/SqueezConstants.sol";
 import {SqueezCurveMath} from "./libraries/SqueezCurveMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @notice HYPE-denominated constant-product curve with virtual reserves, one per token.
 /// Takes 1% protocol fee + creator fee on every buy/sell, applies sniper tax and max wallet,
 /// and graduates to a full-range Uniswap v4 position when HYPE raised hits the threshold.
-contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
+contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    error NotImplemented();
     error CurveClosed();
     error Unauthorized();
     error ZeroAddress();
@@ -26,15 +28,19 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
     error ThresholdExceeded();
     error TransferFailed();
     error InvalidAmount();
+    error ThresholdNotReached();
+    error GraduationUnavailable();
+    error GraduationInProgress();
+    error InvalidGraduationResult();
 
-    address public immutable factory;
+    address public factory;
     address public token;
-    address public immutable creator;
-    address public immutable quote;
-    ISqueezFeeVault public immutable feeVault;
-    uint16 public immutable creatorFeeBps;
-    uint256 public immutable launchedAt;
-    uint256 public immutable launchedAtBlock;
+    address public creator;
+    address public quote;
+    ISqueezFeeVault public feeVault;
+    uint16 public creatorFeeBps;
+    uint256 public launchedAt;
+    uint256 public launchedAtBlock;
     address public feeRecipient;
 
     LaunchConfig public config;
@@ -42,8 +48,16 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
     uint256 public hypeRaised;
     uint256 public sniperTaxAccrued;
     bool public graduated;
+    // Appended for Beacon storage compatibility. 0=pending, 1=executing, 2=complete.
+    uint8 public graduationState;
+    address public graduationPool;
 
-    constructor(
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initializeCurve(
+        address factory_,
         address creator_,
         address quote_,
         address feeRecipient_,
@@ -51,11 +65,14 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
         uint16 creatorFeeBps_,
         LaunchConfig memory config_,
         FeeDestination memory dest_
-    ) {
-        if (creator_ == address(0) || feeRecipient_ == address(0) || address(feeVault_) == address(0)) {
+    ) external initializer {
+        if (
+            factory_ == address(0) || creator_ == address(0) || feeRecipient_ == address(0)
+                || address(feeVault_) == address(0)
+        ) {
             revert ZeroAddress();
         }
-        factory = msg.sender;
+        factory = factory_;
         creator = creator_;
         quote = quote_;
         feeVault = feeVault_;
@@ -76,7 +93,7 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
     }
 
     /// @dev Called once by the factory after the token is deployed.
-    function initialize(address token_) external {
+    function initializeToken(address token_) external {
         if (token_ == address(0)) revert ZeroAddress();
         require(msg.sender == factory && token == address(0), "init");
         token = token_;
@@ -88,11 +105,14 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
         view
         returns (uint256 tokensOut, uint256 protocolFee, uint256 creatorFee, uint256 sniperTax)
     {
-        protocolFee = (hypeIn * SqueezConstants.PROTOCOL_FEE_BPS) / SqueezConstants.BPS;
-        creatorFee = (hypeIn * creatorFeeBps) / SqueezConstants.BPS;
-        uint256 afterBaseFees = hypeIn - protocolFee - creatorFee;
-        sniperTax = (afterBaseFees * sniperTaxBps()) / SqueezConstants.BPS;
-        uint256 netHype = afterBaseFees - sniperTax;
+        uint256 taxBps = sniperTaxBps();
+        uint256 netHype;
+        (protocolFee, creatorFee, sniperTax, netHype) = _feeBreakdown(hypeIn, taxBps);
+        uint256 remaining = config.graduationThresholdHype - hypeRaised;
+        if (netHype > remaining) {
+            uint256 acceptedGross = _maxGrossForNet(hypeIn, remaining, taxBps);
+            (protocolFee, creatorFee, sniperTax, netHype) = _feeBreakdown(acceptedGross, taxBps);
+        }
         tokensOut = SqueezCurveMath.quoteBuy(config.virtualHypeReserve, config.virtualTokenReserve, hypeRaised, netHype);
     }
 
@@ -129,13 +149,18 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
         if (graduated) revert CurveClosed();
         if (block.timestamp > deadline) revert Expired();
         if (msg.value == 0) revert InvalidAmount();
-        uint256 protocolFee;
-        uint256 creatorFee;
-        uint256 sniperTax;
-        (tokensOut, protocolFee, creatorFee, sniperTax) = quoteBuy(msg.value);
+        uint256 taxBps = sniperTaxBps();
+        uint256 acceptedGross = msg.value;
+        (uint256 protocolFee, uint256 creatorFee, uint256 sniperTax, uint256 netHype) =
+            _feeBreakdown(acceptedGross, taxBps);
+        uint256 remaining = config.graduationThresholdHype - hypeRaised;
+        if (netHype > remaining) {
+            acceptedGross = _maxGrossForNet(msg.value, remaining, taxBps);
+            (protocolFee, creatorFee, sniperTax, netHype) = _feeBreakdown(acceptedGross, taxBps);
+        }
+        tokensOut = SqueezCurveMath.quoteBuy(config.virtualHypeReserve, config.virtualTokenReserve, hypeRaised, netHype);
         if (tokensOut < minTokensOut || tokensOut == 0) revert SlippageExceeded();
-        uint256 netHype = msg.value - protocolFee - creatorFee - sniperTax;
-        if (hypeRaised + netHype > config.graduationThresholdHype) revert ThresholdExceeded();
+        uint256 refund = msg.value - acceptedGross;
         if (
             block.timestamp < launchedAt + config.maxWalletWindowSeconds
                 && IERC20(token).balanceOf(recipient) + tokensOut
@@ -144,11 +169,19 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
 
         hypeRaised += netHype;
         sniperTaxAccrued += sniperTax;
+        if (hypeRaised == config.graduationThresholdHype) {
+            graduated = true;
+            emit GraduationThresholdReached(token, hypeRaised);
+        }
         IERC20(token).safeTransfer(recipient, tokensOut);
         if (protocolFee + creatorFee > 0) {
             feeVault.depositFees{value: protocolFee + creatorFee}(token, address(0), protocolFee, creatorFee);
         }
-        emit CurveTrade(token, recipient, true, msg.value, tokensOut, hypeRaised);
+        if (refund > 0) {
+            (bool refunded,) = payable(recipient).call{value: refund}("");
+            if (!refunded) revert TransferFailed();
+        }
+        emit CurveTrade(token, recipient, true, acceptedGross, tokensOut, hypeRaised);
     }
 
     function sell(uint256 tokenAmount, uint256 minHypeOut, uint256 deadline)
@@ -175,9 +208,32 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
         emit CurveTrade(token, msg.sender, false, grossHype, tokenAmount, hypeRaised);
     }
 
-    /// @notice Permissionless fallback if graduation did not fit in the closing buy.
-    function graduate() external {
-        revert NotImplemented(); // TODO: sweep, swap HYPE→quote, init v4 pool, seed LP, lock
+    /// @notice Permissionless, idempotent graduation. A failed adapter call reverts all state and can be retried.
+    function graduate() external nonReentrant {
+        if (!graduated) revert ThresholdNotReached();
+        if (graduationState == 2) return;
+        if (graduationState == 1) revert GraduationInProgress();
+
+        address adapter = ISqueezLaunchFactory(factory).graduationAdapter();
+        if (adapter == address(0) || adapter.code.length == 0) revert GraduationUnavailable();
+
+        uint256 quoteAmount = hypeRaised;
+        uint256 tokenAmount = IERC20(token).balanceOf(address(this));
+        graduationState = 1;
+        emit GraduationAttempted(token, adapter);
+
+        IERC20(token).forceApprove(adapter, tokenAmount);
+        (address pool, uint256 quoteUsed, uint256 tokenUsed) =
+            ISqueezGraduationAdapter(adapter).graduate{value: quoteAmount}(token, quote, quoteAmount, tokenAmount);
+        IERC20(token).forceApprove(adapter, 0);
+
+        if (pool == address(0) || quoteUsed != quoteAmount || tokenUsed != tokenAmount) {
+            revert InvalidGraduationResult();
+        }
+        hypeRaised = 0;
+        graduationPool = pool;
+        graduationState = 2;
+        emit Graduated(token, pool, quoteUsed, tokenUsed);
     }
 
     /// @notice Current sniper tax in bps: linear decay from start to 0 over the decay window.
@@ -187,5 +243,29 @@ contract SqueezCurve is ISqueezEvents, ReentrancyGuard {
         return
             (uint256(config.sniperTaxStartBps) * (config.sniperTaxDecaySeconds - elapsed))
                 / config.sniperTaxDecaySeconds;
+    }
+
+    function _feeBreakdown(uint256 grossHype, uint256 taxBps)
+        private
+        view
+        returns (uint256 protocolFee, uint256 creatorFee, uint256 sniperTax, uint256 netHype)
+    {
+        protocolFee = (grossHype * SqueezConstants.PROTOCOL_FEE_BPS) / SqueezConstants.BPS;
+        creatorFee = (grossHype * creatorFeeBps) / SqueezConstants.BPS;
+        uint256 afterBaseFees = grossHype - protocolFee - creatorFee;
+        sniperTax = (afterBaseFees * taxBps) / SqueezConstants.BPS;
+        netHype = afterBaseFees - sniperTax;
+    }
+
+    function _maxGrossForNet(uint256 grossLimit, uint256 targetNet, uint256 taxBps) private view returns (uint256) {
+        uint256 low;
+        uint256 high = grossLimit;
+        while (low < high) {
+            uint256 mid = low + (high - low + 1) / 2;
+            (,,, uint256 netHype) = _feeBreakdown(mid, taxBps);
+            if (netHype <= targetNet) low = mid;
+            else high = mid - 1;
+        }
+        return low;
     }
 }

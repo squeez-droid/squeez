@@ -1,0 +1,10 @@
+{
+  "chainId": 99801,
+  "factory": "0x78a714ed20ebFDbf60944ed2457a4Df37226Ba83",
+  "factoryImplementation": "0x9Ca62e4bD99c8E33a15F75CABBa91119B626CfA0",
+  "feeVault": "0x5c59d4A218B4516Fc5B021DF89504584Bbf2BC58",
+  "feeVaultImplementation": "0xEacc98A1f898CE8F7D97b056A7f9DacD08f3cf64",
+  "network": "testnet",
+  "quoteRegistry": "0x1D44F470e0Bd1326773C1d286B78eedaf1038d00",
+  "quoteRegistryImplementation": "0x1F2C89D05c54b07aeDF82dE7a6ED62952c1a303a"
+}

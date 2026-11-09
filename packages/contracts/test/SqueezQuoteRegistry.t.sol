@@ -5,17 +5,18 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SqueezQuoteRegistry} from "../src/SqueezQuoteRegistry.sol";
 import {ISqueezQuoteRegistry} from "../src/interfaces/ISqueezQuoteRegistry.sol";
+import {ProxyTestBase} from "./ProxyTestBase.sol";
 
 contract MockQuoteToken is ERC20 {
     constructor() ERC20("USD Coin", "USDC") {}
 }
 
-contract SqueezQuoteRegistryTest is Test {
+contract SqueezQuoteRegistryTest is Test, ProxyTestBase {
     SqueezQuoteRegistry internal registry;
     MockQuoteToken internal usdc;
 
     function setUp() public {
-        registry = new SqueezQuoteRegistry(address(this));
+        registry = _deployRegistry(address(this));
         usdc = new MockQuoteToken();
     }
 

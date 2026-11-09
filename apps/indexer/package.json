@@ -9,15 +9,19 @@
     "dev:mainnet": "node ../../tools/with-env.mjs mainnet ponder dev",
     "start:testnet": "node ../../tools/with-env.mjs testnet ponder start",
     "start:mainnet": "node ../../tools/with-env.mjs mainnet ponder start",
-    "codegen": "ponder codegen"
+    "codegen": "ponder codegen",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@squeez/shared": "*",
+    "hono": "^4.13.17",
+    "pg": "^8.13.1",
     "ponder": "^0.18.0",
     "viem": "^2.21.19"
   },
   "devDependencies": {
     "@types/node": "^20.16.11",
+    "@types/pg": "^8.11.10",
     "typescript": "^5.6.3"
   }
 }

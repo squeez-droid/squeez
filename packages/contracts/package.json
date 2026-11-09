@@ -9,9 +9,21 @@
     "test": "forge test -vvv",
     "fmt": "forge fmt",
     "deploy:testnet": "node ../../tools/with-env.mjs testnet forge script script/Deploy.s.sol --rpc-url elysium --broadcast",
-    "deploy:mainnet": "node ../../tools/with-env.mjs mainnet forge script script/Deploy.s.sol --rpc-url elysium --broadcast"
+    "deploy:mainnet": "node ../../tools/with-env.mjs mainnet forge script script/Deploy.s.sol --rpc-url elysium --broadcast",
+    "upgrade:core:testnet": "node ../../tools/with-env.mjs testnet forge script script/UpgradeCore.s.sol --rpc-url elysium --broadcast",
+    "upgrade:curve:testnet": "node ../../tools/with-env.mjs testnet forge script script/UpgradeCurveBeacon.s.sol --rpc-url elysium --broadcast",
+    "deploy:graduation-infra:testnet": "node ../../tools/with-env.mjs testnet forge script script/DeployGraduationInfra.s.sol --rpc-url elysium --broadcast",
+    "deploy:hook:testnet": "node ../../tools/with-env.mjs testnet forge script script/DeploySqueezHook.s.sol --rpc-url elysium --broadcast",
+    "configure:hook:testnet": "node ../../tools/with-env.mjs testnet forge script script/ConfigureSqueezHook.s.sol --rpc-url elysium --broadcast",
+    "configure:launch:testnet": "node ../../tools/with-env.mjs testnet forge script script/ConfigureLaunchConfig.s.sol --rpc-url elysium --broadcast",
+    "deploy:swap-router:testnet": "node ../../tools/with-env.mjs testnet forge script script/DeploySwapRouter.s.sol --rpc-url elysium --broadcast",
+    "deploy:v4-stack:testnet": "forge build && node ../../tools/with-env.mjs testnet node ../../scripts/deploy-v4-stack.mjs",
+    "configure:graduation:testnet": "node ../../tools/with-env.mjs testnet forge script script/ConfigureGraduation.s.sol --rpc-url elysium --broadcast"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.1.0"
+    "@openzeppelin/contracts": "^5.1.0",
+    "@openzeppelin/contracts-upgradeable": "^5.6.1",
+    "@uniswap/v4-core": "1.0.2",
+    "@uniswap/v4-periphery": "1.0.3"
   }
 }

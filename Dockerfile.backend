@@ -19,4 +19,5 @@ COPY apps/backend ./apps/backend
 COPY apps/indexer ./apps/indexer
 COPY apps/keeper ./apps/keeper
 COPY packages/shared ./packages/shared
+COPY packages/contracts/deployments ./packages/contracts/deployments
 USER node

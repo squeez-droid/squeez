@@ -1,0 +1,10 @@
+{
+  "chainId": 99801,
+  "factory": "0x78a714ed20ebFDbf60944ed2457a4Df37226Ba83",
+  "graduationThresholdHype": 100000000000000000,
+  "launchConfigId": 1,
+  "launchFeeHype": 1000000000000000,
+  "network": "testnet",
+  "virtualHypeReserve": 40000000000000000,
+  "virtualTokenReserve": "1000000000000000000000000000"
+}

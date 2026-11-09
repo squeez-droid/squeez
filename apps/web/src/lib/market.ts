@@ -10,6 +10,6 @@ export function tokenMarket(t: Token) {
   const priceUsd = priceHype * HYPE_USD;
   const priceQuote = priceUsd / quote.usd;
   const mcapUsd = priceUsd * SUPPLY;
-  const progress = t.status === "graduated" ? 100 : progressPct(t.hypeRaised);
+  const progress = t.status === "curve" ? progressPct(t.hypeRaised) : 100;
   return { quote, priceHype, priceUsd, priceQuote, mcapUsd, progress, remainingHype: Math.max(0, THRESHOLD - t.hypeRaised) };
 }

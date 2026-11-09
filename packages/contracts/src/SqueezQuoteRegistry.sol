@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ISqueezQuoteRegistry} from "./interfaces/ISqueezQuoteRegistry.sol";
 
 /// @notice Admin-managed allowlist of quote assets (HYPE, USDC, Unit, Ondo...) with their HYPE→quote route.
-contract SqueezQuoteRegistry is ISqueezQuoteRegistry, Ownable {
+contract SqueezQuoteRegistry is ISqueezQuoteRegistry, Initializable, Ownable2StepUpgradeable, UUPSUpgradeable {
     error InvalidQuote();
 
     /// @dev Native HYPE is represented by address(0).
@@ -15,11 +17,19 @@ contract SqueezQuoteRegistry is ISqueezQuoteRegistry, Ownable {
 
     event QuoteSet(address indexed asset, uint8 decimals, bytes routerPath, bool active);
 
-    constructor(address admin) Ownable(admin) {
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address admin) external initializer {
+        __Ownable_init(admin);
+        __Ownable2Step_init();
         quotes[address(0)] = QuoteAsset({asset: address(0), decimals: 18, routerPath: "", active: true});
         quoteAssets.push(address(0));
         knownAsset[address(0)] = true;
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     function setQuote(QuoteAsset calldata q) external onlyOwner {
         if (q.decimals == 0 || q.decimals > 18) revert InvalidQuote();

@@ -30,7 +30,7 @@ export interface Token {
   creatorFeeBps: number;
   feeDestination: FeeDestination;
   launchConfigId: number;
-  status: "curve" | "graduated";
+  status: "curve" | "graduating" | "graduated";
   hypeRaised: number;
   createdAt: string;
   volume24hUsd: number;

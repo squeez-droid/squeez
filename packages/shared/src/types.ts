@@ -8,4 +8,4 @@ export type FeeDestination =
   | { type: "buyback-split"; buybackBps: number }
   | { type: "holders" };
 
-export type TokenStatus = "curve" | "graduated";
+export type TokenStatus = "curve" | "graduating" | "graduated";

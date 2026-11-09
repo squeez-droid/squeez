@@ -14,7 +14,8 @@ export interface IndexedToken {
   name: string | null;
   symbol: string | null;
   metadataUri: string | null;
-  status: "curve" | "graduated";
+  status: "curve" | "graduating" | "graduated";
+  venue: "curve" | "uniswap-v4";
   pool: Address | null;
   createdAt: string;
   launchTxHash: `0x${string}`;
@@ -50,6 +51,13 @@ export interface IndexedCreatorFee {
   logIndex: number;
 }
 
+export interface DataSourceStatus {
+  network: string;
+  checkedAt: number;
+  rpc: { ok: boolean; blockNumber: number | null };
+  indexer: { ok: boolean; blockNumber: number | null; updatedAt: number | null; lagBlocks: number | null; stale: boolean };
+}
+
 export const isIndexerConfigured = Boolean(apiUrl);
 
 async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -75,4 +83,8 @@ export function listIndexedTrades(address: string, signal?: AbortSignal): Promis
 
 export function listIndexedCreatorFees(address: string, signal?: AbortSignal): Promise<IndexedCreatorFee[]> {
   return request<IndexedCreatorFee[]>(`/v1/tokens/${encodeURIComponent(address)}/fees`, signal);
+}
+
+export function getDataSourceStatus(signal?: AbortSignal): Promise<DataSourceStatus> {
+  return request<DataSourceStatus>("/v1/status", signal);
 }

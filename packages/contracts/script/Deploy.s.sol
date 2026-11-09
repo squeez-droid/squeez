@@ -5,11 +5,26 @@ import {Script} from "forge-std/Script.sol";
 import {SqueezQuoteRegistry} from "../src/SqueezQuoteRegistry.sol";
 import {SqueezLaunchFactory} from "../src/SqueezLaunchFactory.sol";
 import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
+import {SqueezCurve} from "../src/SqueezCurve.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {LaunchConfig} from "../src/libraries/SqueezTypes.sol";
+import {SqueezConstants} from "../src/libraries/SqueezConstants.sol";
 
 /// @notice Deploys the registry and factory using explicitly approved environment configuration.
 /// Signs with DEPLOYER_PRIVATE_KEY when set (testnet), otherwise with the CLI signer (`--account` on mainnet).
 contract Deploy is Script {
+    struct Deployment {
+        address registry;
+        address registryImplementation;
+        address feeVault;
+        address feeVaultImplementation;
+        address curveBeacon;
+        address curveImplementation;
+        address factory;
+        address factoryImplementation;
+    }
+
     function run() external {
         address admin = vm.envAddress("ADMIN_MULTISIG");
         address treasury = vm.envAddress("TREASURY");
@@ -19,17 +34,72 @@ contract Deploy is Script {
         if (deployerKey == 0) vm.startBroadcast();
         else vm.startBroadcast(deployerKey);
 
-        SqueezQuoteRegistry registry = new SqueezQuoteRegistry(admin);
-        SqueezFeeVault feeVault = new SqueezFeeVault(admin, treasury);
-        new SqueezLaunchFactory(admin, registry, feeVault, treasury, launchConfig);
+        uint256 deploymentBlock = block.number;
+        Deployment memory deployment;
+        (deployment.registry, deployment.registryImplementation) = _deployRegistry(admin);
+        (deployment.feeVault, deployment.feeVaultImplementation) = _deployVault(admin, treasury);
+        (deployment.curveBeacon, deployment.curveImplementation) = _deployCurveBeacon(admin);
+        (deployment.factory, deployment.factoryImplementation) = _deployFactory(
+            admin, treasury, deployment.registry, deployment.feeVault, deployment.curveBeacon, launchConfig
+        );
         vm.stopBroadcast();
+
+        string memory object = "deployment";
+        vm.serializeString(object, "network", vm.envString("SQUEEZ_NETWORK"));
+        vm.serializeUint(object, "chainId", block.chainid);
+        vm.serializeUint(object, "startBlock", deploymentBlock);
+        vm.serializeAddress(object, "quoteRegistry", deployment.registry);
+        vm.serializeAddress(object, "quoteRegistryImplementation", deployment.registryImplementation);
+        vm.serializeAddress(object, "feeVault", deployment.feeVault);
+        vm.serializeAddress(object, "feeVaultImplementation", deployment.feeVaultImplementation);
+        vm.serializeAddress(object, "curveBeacon", deployment.curveBeacon);
+        vm.serializeAddress(object, "curveImplementation", deployment.curveImplementation);
+        vm.serializeAddress(object, "factoryImplementation", deployment.factoryImplementation);
+        string memory json = vm.serializeAddress(object, "factory", deployment.factory);
+        vm.writeJson(json, string.concat(vm.projectRoot(), "/deployments/", vm.envString("SQUEEZ_NETWORK"), ".json"));
+    }
+
+    function _deployRegistry(address admin) private returns (address proxy, address implementation) {
+        implementation = address(new SqueezQuoteRegistry());
+        proxy = address(new ERC1967Proxy(implementation, abi.encodeCall(SqueezQuoteRegistry.initialize, (admin))));
+    }
+
+    function _deployVault(address admin, address treasury) private returns (address proxy, address implementation) {
+        implementation = address(new SqueezFeeVault());
+        proxy = address(new ERC1967Proxy(implementation, abi.encodeCall(SqueezFeeVault.initialize, (admin, treasury))));
+    }
+
+    function _deployCurveBeacon(address admin) private returns (address beacon, address implementation) {
+        implementation = address(new SqueezCurve());
+        beacon = address(new UpgradeableBeacon(implementation, admin));
+    }
+
+    function _deployFactory(
+        address admin,
+        address treasury,
+        address registry,
+        address vault,
+        address beacon,
+        LaunchConfig memory config
+    ) private returns (address proxy, address implementation) {
+        implementation = address(new SqueezLaunchFactory());
+        proxy = address(
+            new ERC1967Proxy(
+                implementation,
+                abi.encodeCall(
+                    SqueezLaunchFactory.initialize,
+                    (admin, SqueezQuoteRegistry(registry), SqueezFeeVault(payable(vault)), treasury, beacon, config)
+                )
+            )
+        );
     }
 
     function _launchConfig() private view returns (LaunchConfig memory) {
+        uint256 graduationThreshold = vm.envUint("GRADUATION_THRESHOLD_HYPE");
         return LaunchConfig({
-            graduationThresholdHype: vm.envUint("GRADUATION_THRESHOLD_HYPE"),
-            virtualHypeReserve: vm.envUint("VIRTUAL_HYPE_RESERVE"),
-            virtualTokenReserve: vm.envUint("VIRTUAL_TOKEN_RESERVE"),
+            graduationThresholdHype: graduationThreshold,
+            virtualHypeReserve: (graduationThreshold * 2) / 5,
+            virtualTokenReserve: SqueezConstants.TOTAL_SUPPLY,
             sniperTaxStartBps: uint16(vm.envUint("SNIPER_TAX_START_BPS")),
             sniperTaxDecaySeconds: uint32(vm.envUint("SNIPER_TAX_DECAY_SECONDS")),
             maxWalletBps: uint16(vm.envUint("MAX_WALLET_BPS")),

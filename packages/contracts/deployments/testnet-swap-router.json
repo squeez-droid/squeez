@@ -1,0 +1,14 @@
+{
+  "chainId": 99801,
+  "deployer": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+  "network": "testnet",
+  "poolManager": "0x759416D86DC2E820A34a46cfE3935c251781580A",
+  "squeezHook": "0x5Df663a2C49e8C9E868131E12656B5A462cde0Cc",
+  "swapRouter": "0x8Fb1Ec2e25e3ae5245A90426B1299C236afb4033",
+  "swapRouterStartBlock": 26715677,
+  "transactionHash": "0x0b016e8d331fcb4fc45153b4f773950cae8f3ee97c88d7d33e5a27c6015b8652",
+  "blockHash": "0x59722dfe61fb55a4528b885e56946f342b51d739a2a0b5ba229f6f33a0809a0b",
+  "gasUsed": 995853,
+  "effectiveGasPriceWei": "100000001",
+  "transactionCostWei": "99585300995853"
+}

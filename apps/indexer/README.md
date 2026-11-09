@@ -12,3 +12,7 @@ the public web reads indexed rows through `apps/backend`, never through a databa
 
 Storage: with `DATABASE_URL` empty Ponder uses local PGlite. In production it writes to Supabase Postgres,
 into the schema named by `DATABASE_SCHEMA` (`testnet` or `mainnet`). See `supabase/README.md`.
+
+Ponder exclusively owns the network schema. After a testnet contract/config replacement, reset and backfill
+the stable `testnet` schema with `npm run db:reset-indexer:testnet`; never create versioned schemas such as
+`testnet_v2`. The command is deliberately testnet-only and preserves `testnet_system` and every mainnet schema.

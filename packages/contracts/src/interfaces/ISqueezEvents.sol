@@ -23,6 +23,8 @@ interface ISqueezEvents {
         uint256 tokenAmount,
         uint256 hypeRaised
     );
+    event GraduationThresholdReached(address indexed token, uint256 hypeRaised);
+    event GraduationAttempted(address indexed token, address indexed adapter);
     event Graduated(address indexed token, address pool, uint256 quoteAmount, uint256 tokenAmount);
     event PoolSwap(address indexed token, address indexed trader, bool isBuy, uint256 quoteAmount, uint256 tokenAmount);
     event CreatorFeeAccrued(address indexed token, address indexed asset, uint256 amount);

@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { LOG_EVENTS } from "@squeez/shared";
+import { apiUrl } from "@/lib/chain";
 
 export type TxPhase = "signing" | "pending" | "success" | "error";
 
@@ -11,12 +13,14 @@ export interface TxRequest {
   successBody?: string;
   successHref?: { href: string; label: string };
   onSuccess?: () => void;
+  wallet?: string;
 }
 
 export interface TxState extends TxRequest {
   phase: TxPhase;
   hash?: string;
   error?: string;
+  requestId: string;
 }
 
 export interface Toast {
@@ -28,8 +32,8 @@ export interface Toast {
 
 interface TxCtx {
   state: TxState | null;
-  /** Disabled until each caller is wired to a real wallet contract write. Never simulates a transaction. */
-  run: (request: TxRequest, execute?: () => Promise<{ hash: string; wait: () => Promise<void> }>) => Promise<void>;
+  /** Runs a real wallet transaction and records its request/submission/receipt lifecycle. */
+  run: (request: TxRequest, execute?: (requestId: string) => Promise<{ hash: string; wait: () => Promise<void> }>) => Promise<void>;
   reject: () => void;
   close: () => void;
   toasts: Toast[];
@@ -48,27 +52,39 @@ export function TxProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 4500);
   }, []);
 
-  const run = useCallback(async (request: TxRequest, execute?: () => Promise<{ hash: string; wait: () => Promise<void> }>) => {
+  const log = useCallback((event: string, requestId: string, request: TxRequest, extra: Record<string, string> = {}) => {
+    void fetch(`${apiUrl}/v1/logs`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ event, requestId, wallet: request.wallet, ...extra }) }).catch(() => undefined);
+  }, []);
+
+  const run = useCallback(async (request: TxRequest, execute?: (requestId: string) => Promise<{ hash: string; wait: () => Promise<void> }>) => {
+    const requestId = crypto.randomUUID();
     if (!execute) {
-      setState({ ...request, phase: "error", error: "This action is not connected to an on-chain transaction." });
+      setState({ ...request, requestId, phase: "error", error: "This action is not connected to an on-chain transaction." });
       return;
     }
-    setState({ ...request, phase: "signing" });
+    log(LOG_EVENTS.txRequested, requestId, request);
+    setState({ ...request, requestId, phase: "signing" });
     try {
-      const pending = await execute();
-      setState({ ...request, phase: "pending", hash: pending.hash });
+      const pending = await execute(requestId);
+      log(LOG_EVENTS.txSubmitted, requestId, request, { txHash: pending.hash });
+      setState({ ...request, requestId, phase: "pending", hash: pending.hash });
       await pending.wait();
-      setState({ ...request, phase: "success", hash: pending.hash });
+      log(LOG_EVENTS.txConfirmed, requestId, request, { txHash: pending.hash });
+      setState({ ...request, requestId, phase: "success", hash: pending.hash });
       request.onSuccess?.();
       toast({ title: request.successTitle ?? "Transaction confirmed", body: request.successBody, kind: "success" });
     } catch (cause) {
+      const message = cause instanceof Error ? cause.message.split("\n")[0] : "Transaction failed.";
+      const rejected = /reject|denied|cancel/i.test(message);
+      log(rejected ? LOG_EVENTS.txRejected : LOG_EVENTS.txFailed, requestId, request, { message });
       setState({
-        ...request,
+        ...request, requestId,
         phase: "error",
-        error: cause instanceof Error ? cause.message.split("\n")[0] : "Transaction failed.",
+        error: message,
       });
     }
-  }, [toast]);
+  }, [toast, log]);
 
   const reject = useCallback(() => {
     setState((current) => current ? { ...current, phase: "error", error: "Transaction rejected in wallet." } : current);

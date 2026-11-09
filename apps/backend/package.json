@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@squeez/shared": "*",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "viem": "2.21.19"
   },
   "devDependencies": {
     "@types/node": "^20.16.11",

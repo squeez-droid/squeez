@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {ISqueezEvents} from "./interfaces/ISqueezEvents.sol";
 import {ISqueezQuoteRegistry} from "./interfaces/ISqueezQuoteRegistry.sol";
 import {ISqueezFeeVault} from "./interfaces/ISqueezFeeVault.sol";
@@ -14,7 +17,13 @@ import {SqueezCurve} from "./SqueezCurve.sol";
 
 /// @notice One launch = one call. Deploys SqueezToken + SqueezCurve, mints 1B to the curve,
 /// takes the launch fee and runs the creator's optional opening buy in the same tx.
-contract SqueezLaunchFactory is Ownable, ReentrancyGuard, ISqueezEvents {
+contract SqueezLaunchFactory is
+    Initializable,
+    Ownable2StepUpgradeable,
+    ReentrancyGuard,
+    UUPSUpgradeable,
+    ISqueezEvents
+{
     error InvalidCreatorFee();
     error QuoteNotActive();
     error InsufficientLaunchFee();
@@ -26,39 +35,62 @@ contract SqueezLaunchFactory is Ownable, ReentrancyGuard, ISqueezEvents {
     error InvalidMetadataURI();
     error TreasuryTransferFailed();
     error ZeroAddress();
+    error InvalidAdapter();
 
-    ISqueezQuoteRegistry public immutable quoteRegistry;
-    ISqueezFeeVault public immutable feeVault;
-    address public immutable treasury;
+    ISqueezQuoteRegistry public quoteRegistry;
+    ISqueezFeeVault public feeVault;
+    address public treasury;
+    address public curveBeacon;
 
     LaunchConfig[] public launchConfigs; // new configs apply to the next launch only
     uint256 public activeConfigId;
+    address public graduationAdapter;
 
     event LaunchConfigActivated(uint256 indexed configId, LaunchConfig config);
+    event GraduationAdapterSet(address indexed previousAdapter, address indexed newAdapter);
 
-    constructor(
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
         address admin,
         ISqueezQuoteRegistry registry,
         ISqueezFeeVault feeVault_,
         address treasury_,
+        address curveBeacon_,
         LaunchConfig memory initial
-    ) Ownable(admin) {
+    ) external initializer {
         if (
             admin == address(0) || address(registry) == address(0) || address(feeVault_) == address(0)
-                || treasury_ == address(0)
+                || treasury_ == address(0) || curveBeacon_ == address(0)
         ) revert ZeroAddress();
+        __Ownable_init(admin);
+        __Ownable2Step_init();
         _validateLaunchConfig(initial);
         quoteRegistry = registry;
         feeVault = feeVault_;
         treasury = treasury_;
+        curveBeacon = curveBeacon_;
         launchConfigs.push(initial);
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     function setLaunchConfig(LaunchConfig calldata cfg) external onlyOwner {
         _validateLaunchConfig(cfg);
         launchConfigs.push(cfg);
         activeConfigId = launchConfigs.length - 1;
         emit LaunchConfigActivated(activeConfigId, cfg);
+    }
+
+    /// @notice Sets the chain-specific v4 adapter used by all existing and future curves.
+    /// Setting zero pauses graduation without reopening curve trading.
+    function setGraduationAdapter(address adapter) external onlyOwner {
+        if (adapter != address(0) && adapter.code.length == 0) revert InvalidAdapter();
+        address previousAdapter = graduationAdapter;
+        graduationAdapter = adapter;
+        emit GraduationAdapterSet(previousAdapter, adapter);
     }
 
     function quoteOpeningBuy(uint256 hypeIn, uint16 creatorFeeBps)
@@ -84,10 +116,28 @@ contract SqueezLaunchFactory is Ownable, ReentrancyGuard, ISqueezEvents {
         if (msg.value < requiredValue) revert InsufficientLaunchFee();
         if (msg.value != requiredValue) revert IncorrectLaunchValue();
 
-        SqueezCurve c =
-            new SqueezCurve(msg.sender, p.quote, p.feeRecipient, feeVault, p.creatorFeeBps, cfg, p.feeDestination);
+        SqueezCurve c = SqueezCurve(
+            payable(address(
+                    new BeaconProxy(
+                        curveBeacon,
+                        abi.encodeCall(
+                            SqueezCurve.initializeCurve,
+                            (
+                                address(this),
+                                msg.sender,
+                                p.quote,
+                                p.feeRecipient,
+                                feeVault,
+                                p.creatorFeeBps,
+                                cfg,
+                                p.feeDestination
+                            )
+                        )
+                    )
+                ))
+        );
         SqueezToken t = new SqueezToken(p.name, p.symbol, p.metadataURI, address(c));
-        c.initialize(address(t));
+        c.initializeToken(address(t));
         feeVault.registerCurve(address(t), address(c));
 
         emit TokenLaunched(

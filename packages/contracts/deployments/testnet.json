@@ -1,0 +1,13 @@
+{
+  "chainId": 99801,
+  "curveBeacon": "0xeE5b1e19EB99290e2EeDcd0A1776BFB869361591",
+  "curveImplementation": "0x6405d6786d7F53726C27b9890a15cB66d2e46f13",
+  "factory": "0x78a714ed20ebFDbf60944ed2457a4Df37226Ba83",
+  "factoryImplementation": "0x334C50261F93aAB90D4Dbd91CE3CB2859639D3b4",
+  "feeVault": "0x5c59d4A218B4516Fc5B021DF89504584Bbf2BC58",
+  "feeVaultImplementation": "0x372ae3806bC6087aD22d852C29Ef8c29a3Ed3B8D",
+  "network": "testnet",
+  "quoteRegistry": "0x1D44F470e0Bd1326773C1d286B78eedaf1038d00",
+  "quoteRegistryImplementation": "0xA1054615F5F79059899d2d50410376bcbf72A84b",
+  "startBlock": 26619541
+}

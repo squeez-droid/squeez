@@ -4,8 +4,6 @@ x-common: &common
   ELYSIUM_RPC: ${ELYSIUM_RPC}
   DATABASE_URL: ${DATABASE_URL}
   DATABASE_SCHEMA: ${DATABASE_SCHEMA:-testnet}
-  FACTORY_ADDRESS: ${FACTORY_ADDRESS}
-  FEE_VAULT_ADDRESS: ${FEE_VAULT_ADDRESS}
   GRADUATION_THRESHOLD_HYPE: ${GRADUATION_THRESHOLD_HYPE}
   VIRTUAL_HYPE_RESERVE: ${VIRTUAL_HYPE_RESERVE}
   VIRTUAL_TOKEN_RESERVE: ${VIRTUAL_TOKEN_RESERVE}
@@ -27,9 +25,9 @@ services:
       PORT: 8080
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       ELYSIUM_EXPLORER: ${ELYSIUM_EXPLORER}
-      QUOTE_REGISTRY_ADDRESS: ${QUOTE_REGISTRY_ADDRESS}
       PINATA_JWT: ${PINATA_JWT}
       PINATA_API_URL: ${PINATA_API_URL:-https://api.pinata.cloud}
+      PINATA_UPLOAD_URL: ${PINATA_UPLOAD_URL:-https://uploads.pinata.cloud/v3/files}
       PINATA_GATEWAY_URL: ${PINATA_GATEWAY_URL:-https://gateway.pinata.cloud/ipfs}
     expose:
       - "8080"
@@ -47,7 +45,6 @@ services:
     restart: unless-stopped
     environment:
       <<: *common
-      FACTORY_START_BLOCK: ${FACTORY_START_BLOCK}
     depends_on:
       api:
         condition: service_healthy
