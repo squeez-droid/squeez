@@ -23,34 +23,36 @@ Requirements: Node 20+ (`nvm use`), npm 10+, and [Foundry](https://book.getfound
 
 ```bash
 npm install                                                   # installs every workspace
-cp apps/web/.env.testnet.example apps/web/.env.testnet        # then fill it in
+cp .env.testnet.example .env.testnet                          # one env for every testnet service
 npm run dev                                                   # web on testnet, http://localhost:3000
 ```
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Run the web app |
+| `npm run dev:web:testnet` | Run the testnet web app |
+| `npm run dev:api:testnet` | Run the testnet API |
+| `npm run dev:indexer:testnet` | Run the testnet Ponder indexer |
+| `npm run dev:keeper:testnet` | Run the testnet keeper |
 | `npm run build` | Production build of the web app |
 | `npm run typecheck` | Typecheck shared, web and keeper |
-| `npm run dev:indexer` | Run the Ponder indexer |
-| `npm run dev:keeper` | Run the buyback keeper |
 | `npm run contracts:setup` | Install forge-std into `packages/contracts/lib` |
 | `npm run contracts:build` / `contracts:test` | Build / test contracts |
 
 ## Networks and env files
 
-Every app runs against one network at a time and reads its settings from `.env.testnet` or `.env.mainnet`
-in its own folder. Only the `.env.<network>.example` templates are committed; the real files are gitignored.
+Every service reads the same root `.env.testnet` or `.env.mainnet`. Only the root example templates are committed;
+the real files are gitignored. Commands select the service and network, so values are never duplicated.
 
 | Workspace | Testnet | Mainnet |
 | --- | --- | --- |
-| `apps/web` | `npm run dev`, `deploy:testnet` | `dev:mainnet`, `deploy:mainnet` |
-| `apps/indexer` | `npm run dev`, `start:testnet` | `dev:mainnet`, `start:mainnet` |
-| `apps/keeper` | `npm run dev`, `start:testnet` | `start:mainnet` |
-| `packages/contracts` | `deploy:testnet` | `deploy:mainnet -- --account <keystore>` |
+| `apps/web` | `npm run dev:web:testnet` | `npm run dev:web:mainnet` |
+| `apps/backend` | `npm run dev:api:testnet` | `npm run dev:api:mainnet` |
+| `apps/indexer` | `npm run dev:indexer:testnet` | `npm run dev:indexer:mainnet` |
+| `apps/keeper` | `npm run dev:keeper:testnet` | `npm run start:keeper:mainnet` |
+| `packages/contracts` | `npm run deploy:contracts:testnet` | `npm run deploy:contracts:mainnet -- --account <keystore>` |
 
-Run them with `-w <package>` from the root, for example `npm run deploy:testnet -w @squeez/web`.
-`tools/with-env.mjs` loads the file; values already set in the shell (CI, secret managers) win.
+`tools/with-env.mjs` always loads the selected root file; values set by Coolify, Cloudflare, CI, or another secret
+manager override local file values.
 
 Data lives in Supabase with a separate schema per network. See [supabase/README.md](supabase/README.md).
 

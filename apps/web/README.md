@@ -1,6 +1,6 @@
 # @squeez/web
 
-Next.js frontend for Squeez on Elysium.
+Next.js frontend for Squeez on Elysium, packaged for Cloudflare Workers through OpenNext.
 
 ## Data policy
 
@@ -12,21 +12,13 @@ Next.js frontend for Squeez on Elysium.
 
 ## Environment
 
-The repository contains `.env.testnet` and `.env.mainnet` files, both gitignored. Fill their values from
-verified Elysium documentation and deployed Squeez address books. Never copy values between networks.
+The browser bundle only receives the network selector and public Squeez API URL. RPC providers, database access,
+indexer configuration, keeper keys, and backend contract env stay in Coolify.
 
 Required web variables:
 
 - `NEXT_PUBLIC_SQUEEZ_NETWORK`
-- `NEXT_PUBLIC_ELYSIUM_CHAIN_ID`
-- `NEXT_PUBLIC_ELYSIUM_RPC`
-- `NEXT_PUBLIC_ELYSIUM_EXPLORER`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_SUPABASE_SCHEMA`
-- `NEXT_PUBLIC_FACTORY_ADDRESS`
-- `NEXT_PUBLIC_QUOTE_REGISTRY_ADDRESS`
-- `NEXT_PUBLIC_FEE_VAULT_ADDRESS`
+- `NEXT_PUBLIC_API_URL`
 
 ## Run
 
@@ -35,7 +27,7 @@ npm install
 npm run dev
 ```
 
-`tools/with-env.mjs` loads `.env.testnet` for the default development command. The app intentionally fails
+`tools/with-env.mjs` loads the root `.env.testnet` for the default development command. The app intentionally fails
 configuration validation when required chain values are missing.
 
 ## Checks
@@ -44,4 +36,5 @@ configuration validation when required chain values are missing.
 npm run typecheck
 npm run lint
 npm run build:testnet -w @squeez/web
+npm run build:worker:testnet -w @squeez/web
 ```

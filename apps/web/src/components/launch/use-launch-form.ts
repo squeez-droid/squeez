@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { config, content, quotePairs, tokens } from "@/lib/data";
-import { SUPPLY, quoteBuy } from "@/lib/curve";
+import { MAX_CREATOR_FEE_BPS, TOTAL_SUPPLY } from "@squeez/shared";
+import { formatEther, parseEther } from "viem";
+import { useReadContract } from "wagmi";
+import { content, quotePairs, tokens } from "@/lib/data";
+import { launchFactoryAbi } from "@/lib/abis";
 import { fill, isAddress } from "@/lib/format";
+import { useProtocolConfig } from "@/lib/protocol-config";
 import type { QuotePair } from "@/lib/types";
 import { useWallet } from "@/providers/wallet";
 
@@ -36,10 +40,7 @@ const INITIAL: LaunchForm = {
   destWallet: true, destBuyback: false, destHolders: false, buybackBps: 5000, openingBuy: "",
 };
 
-const P = config.protocol;
-const LC = config.launchConfig;
 const E = content.launch.errors;
-const MAX_WALLET_PCT = LC.maxWallet.bps / 100;
 
 /** Quote pairs shown for a pair group in the Economics step. */
 export function pairsForGroup(group: PairGroup): QuotePair[] {
@@ -63,6 +64,7 @@ function validateIdentity(f: LaunchForm): FormErrors {
 /** Form state, validation and derived numbers for the launch wizard. */
 export function useLaunchForm() {
   const wallet = useWallet();
+  const protocol = useProtocolConfig();
   const [form, setForm] = useState<LaunchForm>(INITIAL);
 
   const set = <K extends keyof LaunchForm>(key: K, value: LaunchForm[K]) => setForm((s) => ({ ...s, [key]: value }));
@@ -74,21 +76,35 @@ export function useLaunchForm() {
   }, [wallet.address, form.feeWallet]);
 
   const opening = parseFloat(form.openingBuy) || 0;
-  const openingQuote = quoteBuy(0, opening, form.creatorFeeBps);
-  const openingPct = (openingQuote.outAmount / SUPPLY) * 100;
+  let openingWei = 0n;
+  try { openingWei = parseEther(form.openingBuy || "0"); } catch { /* validation reports malformed values */ }
+  const factory = protocol.data?.contracts.factory ?? undefined;
+  const openingRead = useReadContract({
+    address: factory,
+    abi: launchFactoryAbi,
+    functionName: "quoteOpeningBuy",
+    args: [openingWei, form.creatorFeeBps],
+    query: { enabled: Boolean(factory && openingWei > 0n) },
+  });
+  const tokensOut = openingRead.data?.[0] ?? 0n;
+  const openingQuote = { outAmount: Number(formatEther(tokensOut)) };
+  const openingPct = openingQuote.outAmount / TOTAL_SUPPLY * 100;
+  const launchFeeHype = Number(protocol.data?.launchConfig.launchFeeHype ?? 0);
+  const maxWalletPct = Number(protocol.data?.launchConfig.maxWalletBps ?? 0) / 100;
 
   const identityErrors = useMemo(() => validateIdentity(form), [form]);
 
   const economicsErrors = useMemo(() => {
     const e: FormErrors = {};
     if (!isAddress(form.feeWallet)) e.feeWallet = E.feeWallet;
-    if (form.creatorFeeBps < 0 || form.creatorFeeBps > P.MAX_CREATOR_FEE_BPS) e.fee = E.fee;
+    if (form.creatorFeeBps < 0 || form.creatorFeeBps > MAX_CREATOR_FEE_BPS) e.fee = E.fee;
     if (!form.destWallet && !form.destBuyback && !form.destHolders) e.dest = E.dest;
     if (opening < 0) e.opening = E.openingNegative;
-    if (openingPct > MAX_WALLET_PCT) e.opening = fill(E.openingMaxWallet, { pct: MAX_WALLET_PCT });
-    if (wallet.status === "connected" && opening + P.launchFeeHype > (wallet.balances.HYPE ?? 0)) e.opening = E.openingBalance;
+    if (maxWalletPct > 0 && openingPct > maxWalletPct) e.opening = fill(E.openingMaxWallet, { pct: maxWalletPct });
+    if (wallet.status === "connected" && opening + launchFeeHype > (wallet.balances.HYPE ?? 0)) e.opening = E.openingBalance;
+    if (openingWei > 0n && openingRead.isError) e.opening = "Unable to quote the opening buy on-chain.";
     return e;
-  }, [form, opening, openingPct, wallet.status, wallet.balances.HYPE]);
+  }, [form, opening, openingPct, maxWalletPct, launchFeeHype, openingWei, openingRead.isError, wallet.status, wallet.balances.HYPE]);
 
   const selectGroup = (group: PairGroup) => {
     const first = pairsForGroup(group).find((p) => group !== "crypto" || p.enabled) ?? quotePairs[0];
@@ -115,7 +131,8 @@ export function useLaunchForm() {
     identityErrors, economicsErrors,
     identityOk: Object.keys(identityErrors).length === 0,
     economicsOk: Object.keys(economicsErrors).length === 0,
-    opening, openingQuote, openingPct, destinationLabel,
+    opening, openingWei, openingQuote, openingPct, openingQuoteLoading: openingRead.isLoading,
+    launchFeeHype, maxWalletPct, protocol, destinationLabel,
   };
 }
 

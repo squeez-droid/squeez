@@ -32,4 +32,6 @@ struct LaunchParams {
     address feeRecipient;
     uint16 creatorFeeBps;
     FeeDestination feeDestination;
+    uint256 openingBuyHype;
+    uint256 openingBuyMinTokens;
 }

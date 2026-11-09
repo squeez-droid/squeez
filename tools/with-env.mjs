@@ -8,7 +8,8 @@
 // Empty values (`KEY=`) are treated as unset. Each app validates its required values.
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const NETWORKS = ["testnet", "mainnet"];
 
@@ -38,11 +39,13 @@ const [network, ...command] = process.argv.slice(2);
 if (!NETWORKS.includes(network)) fail(`first argument must be one of: ${NETWORKS.join(", ")}`);
 if (command.length === 0) fail("missing command to run");
 
-const envFile = resolve(process.cwd(), `.env.${network}`);
-if (!existsSync(envFile)) {
-  fail(`${envFile} not found. Copy .env.${network}.example to .env.${network} and fill it in.`);
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const envFile = resolve(repositoryRoot, `.env.${network}`);
+const fileEnv = existsSync(envFile) ? parseEnvFile(readFileSync(envFile, "utf8")) : {};
+if (!existsSync(envFile) && process.env.SQUEEZ_NETWORK !== network) {
+  fail(`${envFile} not found and SQUEEZ_NETWORK=${network} was not supplied by the runtime.`);
 }
 
-const env = { ...parseEnvFile(readFileSync(envFile, "utf8")), ...process.env };
+const env = { ...fileEnv, ...process.env };
 const child = spawn(command.join(" "), { env, shell: true, stdio: "inherit" });
 child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));

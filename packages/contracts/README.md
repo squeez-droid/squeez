@@ -18,9 +18,9 @@ npm run setup -w @squeez/contracts   # forge-std into lib/
 npm run build -w @squeez/contracts
 npm run test  -w @squeez/contracts
 
-cp .env.testnet.example .env.testnet                                   # fill it in
-npm run deploy:testnet -w @squeez/contracts
-npm run deploy:mainnet -w @squeez/contracts -- --account squeez-deployer   # keystore, no raw key
+cp .env.testnet.example .env.testnet # run at repository root, then fill it in
+npm run deploy:contracts:testnet
+npm run deploy:contracts:mainnet -- --account squeez-deployer # keystore, no raw key
 ```
 
 Status: skeleton. Types, events, constants, the registry and the sniper-tax decay are in place; trading, graduation, the hook and the vault revert with `NotImplemented()`.

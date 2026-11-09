@@ -1,27 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { getIndexedToken, isIndexerConfigured, type IndexedToken } from "@/lib/indexer";
+import {
+  getIndexedToken,
+  isIndexerConfigured,
+  listIndexedCreatorFees,
+  listIndexedTrades,
+  type IndexedCreatorFee,
+  type IndexedToken,
+  type IndexedTrade,
+} from "@/lib/indexer";
 import { bpsToPct, shortAddr } from "@/lib/format";
 import { Badge, Button, Empty, Row, Spinner } from "@/components/ui";
+import { formatEther } from "viem";
 
-export default function TokenPage({ params }: { params: { address: string } }) {
+export default function TokenPage({ params }: { params: Promise<{ address: string }> }) {
+  const { address } = use(params);
   const [token, setToken] = useState<IndexedToken | null>(null);
+  const [trades, setTrades] = useState<IndexedTrade[]>([]);
+  const [fees, setFees] = useState<IndexedCreatorFee[]>([]);
   const [loading, setLoading] = useState(isIndexerConfigured);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isIndexerConfigured) return;
     const controller = new AbortController();
-    getIndexedToken(params.address, controller.signal)
-      .then(setToken)
+    Promise.all([
+      getIndexedToken(address, controller.signal),
+      listIndexedTrades(address, controller.signal),
+      listIndexedCreatorFees(address, controller.signal),
+    ])
+      .then(([indexedToken, indexedTrades, indexedFees]) => {
+        setToken(indexedToken);
+        setTrades(indexedTrades);
+        setFees(indexedFees);
+      })
       .catch((cause) => {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Indexer request failed.");
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [params.address]);
+  }, [address]);
 
   if (!isIndexerConfigured) return <Empty title="Indexer not configured" body="Configure this network’s indexer before opening token pages." />;
   if (loading) return <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted"><Spinner /> Loading indexed token…</div>;
@@ -44,9 +64,42 @@ export default function TokenPage({ params }: { params: { address: string } }) {
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-xl border border-line bg-surface p-5">
-          <h2 className="font-medium text-white">Market activity</h2>
-          <p className="mt-2 text-sm text-muted">Trades, candles, holders, and prices will appear only after their on-chain events and indexer handlers are implemented.</p>
+        <div className="space-y-5">
+          <section className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="font-medium text-white">Indexed curve trades</h2>
+            {trades.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">No on-chain trades have been indexed for this token.</p>
+            ) : (
+              <div className="mt-3 divide-y divide-line text-sm">
+                {trades.slice(0, 20).map((trade) => (
+                  <div key={trade.id} className="grid grid-cols-[70px_1fr_1fr] gap-3 py-2">
+                    <span className={trade.isBuy ? "text-primary" : "text-red-300"}>{trade.isBuy ? "Buy" : "Sell"}</span>
+                    <span className="num text-white">{Number(formatEther(BigInt(trade.hypeAmount))).toFixed(6)} HYPE</span>
+                    <span className="num text-right text-muted">{shortAddr(trade.trader, 5)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          <section className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="font-medium text-white">Creator fee events</h2>
+            {fees.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">No creator-fee event has been indexed.</p>
+            ) : (
+              <div className="mt-3 divide-y divide-line text-sm">
+                {fees.slice(0, 20).map((fee) => (
+                  <div key={fee.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className={fee.kind === "accrued" ? "text-primary" : "text-mint"}>{fee.kind}</span>
+                    <span className="num text-white">
+                      {fee.asset === "0x0000000000000000000000000000000000000000"
+                        ? `${Number(formatEther(BigInt(fee.amount))).toFixed(6)} HYPE`
+                        : `${fee.amount} units · ${shortAddr(fee.asset, 4)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
         <aside className="rounded-xl border border-line bg-surface p-5">
           <h2 className="font-medium text-white">On-chain launch data</h2>

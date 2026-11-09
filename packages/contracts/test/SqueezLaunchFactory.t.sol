@@ -8,6 +8,13 @@ import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {SqueezToken} from "../src/SqueezToken.sol";
 import {FeeDestination, FeeDestinationType, LaunchConfig, LaunchParams} from "../src/libraries/SqueezTypes.sol";
 import {SqueezConstants} from "../src/libraries/SqueezConstants.sol";
+import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
+
+contract RejectingTreasury {
+    receive() external payable {
+        revert("reject");
+    }
+}
 
 contract SqueezLaunchFactoryTest is Test {
     address internal creator = makeAddr("creator");
@@ -16,10 +23,12 @@ contract SqueezLaunchFactoryTest is Test {
 
     SqueezQuoteRegistry internal registry;
     SqueezLaunchFactory internal factory;
+    SqueezFeeVault internal feeVault;
 
     function setUp() public {
         registry = new SqueezQuoteRegistry(address(this));
-        factory = new SqueezLaunchFactory(address(this), registry, treasury, _config());
+        feeVault = new SqueezFeeVault(address(this), treasury);
+        factory = new SqueezLaunchFactory(address(this), registry, feeVault, treasury, _config());
         vm.deal(creator, 10 ether);
     }
 
@@ -35,12 +44,64 @@ contract SqueezLaunchFactoryTest is Test {
         assertEq(curve.creatorFeeBps(), 200);
         assertEq(curve.token(), token);
         assertEq(SqueezToken(token).balanceOf(curveAddress), SqueezConstants.TOTAL_SUPPLY);
+        assertEq(feeVault.curveForToken(token), curveAddress);
     }
 
-    function test_LaunchRejectsExcessValueUntilOpeningBuyIsImplemented() public {
+    function test_LaunchRejectsValueAboveRequiredLaunchAndOpeningBuy() public {
         vm.prank(creator);
         vm.expectRevert(SqueezLaunchFactory.IncorrectLaunchValue.selector);
         factory.launch{value: 0.2 ether}(_params(200));
+    }
+
+    function test_LaunchRejectsInsufficientValue() public {
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.InsufficientLaunchFee.selector);
+        factory.launch{value: 0.09 ether}(_params(200));
+    }
+
+    function test_LaunchRejectsInactiveQuote() public {
+        LaunchParams memory params = _params(200);
+        params.quote = makeAddr("inactiveQuote");
+
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.QuoteNotActive.selector);
+        factory.launch{value: 0.1 ether}(params);
+    }
+
+    function test_LaunchRevertsAtomicallyWhenTreasuryRejectsFee() public {
+        RejectingTreasury rejectingTreasury = new RejectingTreasury();
+        SqueezFeeVault rejectingVault = new SqueezFeeVault(address(this), address(rejectingTreasury));
+        SqueezLaunchFactory rejectingFactory =
+            new SqueezLaunchFactory(address(this), registry, rejectingVault, address(rejectingTreasury), _config());
+
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.TreasuryTransferFailed.selector);
+        rejectingFactory.launch{value: 0.1 ether}(_params(200));
+        assertEq(address(rejectingTreasury).balance, 0);
+    }
+
+    function test_LaunchExecutesAtomicOpeningBuyForCreator() public {
+        LaunchParams memory params = _params(200);
+        params.openingBuyHype = 0.5 ether;
+
+        vm.prank(creator);
+        (address token, address curveAddress) = factory.launch{value: 0.6 ether}(params);
+
+        assertGt(SqueezToken(token).balanceOf(creator), 0);
+        assertGt(SqueezCurve(curveAddress).hypeRaised(), 0);
+        assertEq(treasury.balance, 0.1 ether);
+        assertGt(feeVault.creatorFeesAccrued(token, address(0)), 0);
+    }
+
+    function test_OpeningBuySlippageRevertsEntireLaunch() public {
+        LaunchParams memory params = _params(200);
+        params.openingBuyHype = 0.1 ether;
+        params.openingBuyMinTokens = type(uint256).max;
+
+        vm.prank(creator);
+        vm.expectRevert(SqueezCurve.SlippageExceeded.selector);
+        factory.launch{value: 0.2 ether}(params);
+        assertEq(treasury.balance, 0);
     }
 
     function test_LaunchRejectsCreatorFeeAboveMaximum() public {
@@ -74,6 +135,37 @@ contract SqueezLaunchFactoryTest is Test {
         factory.setLaunchConfig(invalid);
     }
 
+    function test_LaunchRejectsInvalidMetadataFields() public {
+        LaunchParams memory params = _params(200);
+        params.name = "";
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.InvalidName.selector);
+        factory.launch{value: 0.1 ether}(params);
+
+        params = _params(200);
+        params.symbol = "SYMBOL-IS-TOO-LONG";
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.InvalidSymbol.selector);
+        factory.launch{value: 0.1 ether}(params);
+
+        params = _params(200);
+        params.metadataURI = "https://example.com/metadata.json";
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.InvalidMetadataURI.selector);
+        factory.launch{value: 0.1 ether}(params);
+    }
+
+    function test_OpeningBuyQuoteMatchesAtomicLaunch() public {
+        (uint256 expected,,,) = factory.quoteOpeningBuy(0.5 ether, 200);
+        LaunchParams memory params = _params(200);
+        params.openingBuyHype = 0.5 ether;
+        params.openingBuyMinTokens = expected;
+
+        vm.prank(creator);
+        (address token,) = factory.launch{value: 0.6 ether}(params);
+        assertEq(SqueezToken(token).balanceOf(creator), expected);
+    }
+
     function _params(uint16 creatorFeeBps) internal view returns (LaunchParams memory) {
         return LaunchParams({
             name: "Squeez Test",
@@ -82,7 +174,9 @@ contract SqueezLaunchFactoryTest is Test {
             quote: address(0),
             feeRecipient: feeRecipient,
             creatorFeeBps: creatorFeeBps,
-            feeDestination: FeeDestination({kind: FeeDestinationType.Wallet, buybackBps: 0})
+            feeDestination: FeeDestination({kind: FeeDestinationType.Wallet, buybackBps: 0}),
+            openingBuyHype: 0,
+            openingBuyMinTokens: 0
         });
     }
 

@@ -11,7 +11,9 @@ export function OpeningBuy({ api }: { api: LaunchFormApi }) {
   const w = useWallet();
   const { form: f, set, opening, openingQuote, openingPct } = api;
 
-  const hint = opening > 0
+  const hint = api.openingQuoteLoading
+    ? "Reading opening quote from the launch factory…"
+    : opening > 0
     ? fill(T.openingEstimate, { amount: fmtNum(openingQuote.outAmount, 0), ticker: f.ticker || "token", pct: openingPct.toFixed(2) })
     : T.openingHint;
 

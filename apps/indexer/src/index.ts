@@ -1,5 +1,5 @@
 import { ponder } from "ponder:registry";
-import { token } from "ponder:schema";
+import { creatorFee, protocolFee, token, trade } from "ponder:schema";
 
 // Events to index (see @squeez/shared INDEXED_EVENTS):
 // TokenLaunched, CurveTrade, Graduated, PoolSwap, CreatorFeeAccrued, CreatorFeeClaimed, SqueezBurned
@@ -33,5 +33,64 @@ ponder.on("SqueezLaunchFactory:TokenMetadata", async ({ event, context }) => {
     });
 });
 
-// TODO: CurveTrade → trade, Graduated → token.status/pool, PoolSwap → trade (source "pool"),
-// CreatorFeeAccrued/Claimed → creatorFee, SqueezBurned → burn
+ponder.on("SqueezCurve:CurveTrade", async ({ event, context }) => {
+  await context.db.insert(trade).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    trader: event.args.trader,
+    isBuy: event.args.isBuy,
+    hypeAmount: event.args.hypeAmount,
+    tokenAmount: event.args.tokenAmount,
+    source: "curve",
+    hypeRaised: event.args.hypeRaised,
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+});
+
+ponder.on("SqueezFeeVault:CreatorFeeAccrued", async ({ event, context }) => {
+  await context.db.insert(creatorFee).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    asset: event.args.asset,
+    kind: "accrued",
+    amount: event.args.amount,
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+});
+
+ponder.on("SqueezFeeVault:CreatorFeeClaimed", async ({ event, context }) => {
+  await context.db.insert(creatorFee).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    asset: event.args.asset,
+    recipient: event.args.recipient,
+    kind: "claimed",
+    amount: event.args.amount,
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+});
+
+ponder.on("SqueezFeeVault:ProtocolFeeAccrued", async ({ event, context }) => {
+  await context.db.insert(protocolFee).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    asset: event.args.asset,
+    buybackAmount: event.args.buybackAmount,
+    treasuryAmount: event.args.treasuryAmount,
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+});
+
+// TODO: Graduated → token.status/pool, PoolSwap → trade (source "pool"), SqueezBurned → burn

@@ -37,10 +37,10 @@ async function rpc(url, method) {
 }
 
 for (const network of networks) {
-  const envPath = resolve(`apps/web/.env.${network.name}`);
+  const envPath = resolve(`.env.${network.name}`);
   const env = parseEnv(await readFile(envPath, "utf8"));
-  const configuredChainId = Number(env.NEXT_PUBLIC_ELYSIUM_CHAIN_ID);
-  const rpcUrl = env.NEXT_PUBLIC_ELYSIUM_RPC;
+  const configuredChainId = Number(env.ELYSIUM_CHAIN_ID);
+  const rpcUrl = env.ELYSIUM_RPC;
 
   if (configuredChainId !== network.expectedChainId || !rpcUrl) {
     throw new Error(`${network.name}: expected chain ${network.expectedChainId} and a configured RPC`);

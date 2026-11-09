@@ -6,6 +6,7 @@
 #   .env.testnet / .env.mainnet hold real values per network
 .env
 .env.*
+!.env.example
 !.env.*.example
 .dev.vars*
 
@@ -35,6 +36,7 @@ node_modules/
 
 # ── Build output & caches ─────────────────────────────────
 .next/
+.open-next/
 out/
 dist/
 build/

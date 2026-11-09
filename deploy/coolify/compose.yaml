@@ -1,0 +1,69 @@
+x-common: &common
+  SQUEEZ_NETWORK: ${SQUEEZ_NETWORK:-testnet}
+  ELYSIUM_CHAIN_ID: ${ELYSIUM_CHAIN_ID}
+  ELYSIUM_RPC: ${ELYSIUM_RPC}
+  DATABASE_URL: ${DATABASE_URL}
+  DATABASE_SCHEMA: ${DATABASE_SCHEMA:-testnet}
+  FACTORY_ADDRESS: ${FACTORY_ADDRESS}
+  FEE_VAULT_ADDRESS: ${FEE_VAULT_ADDRESS}
+  GRADUATION_THRESHOLD_HYPE: ${GRADUATION_THRESHOLD_HYPE}
+  VIRTUAL_HYPE_RESERVE: ${VIRTUAL_HYPE_RESERVE}
+  VIRTUAL_TOKEN_RESERVE: ${VIRTUAL_TOKEN_RESERVE}
+  SNIPER_TAX_START_BPS: ${SNIPER_TAX_START_BPS}
+  SNIPER_TAX_DECAY_SECONDS: ${SNIPER_TAX_DECAY_SECONDS}
+  MAX_WALLET_BPS: ${MAX_WALLET_BPS}
+  MAX_WALLET_WINDOW_SECONDS: ${MAX_WALLET_WINDOW_SECONDS}
+  LAUNCH_FEE_HYPE: ${LAUNCH_FEE_HYPE}
+
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.backend
+    command: npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/backend
+    restart: unless-stopped
+    environment:
+      <<: *common
+      PORT: 8080
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      ELYSIUM_EXPLORER: ${ELYSIUM_EXPLORER}
+      QUOTE_REGISTRY_ADDRESS: ${QUOTE_REGISTRY_ADDRESS}
+      PINATA_JWT: ${PINATA_JWT}
+      PINATA_API_URL: ${PINATA_API_URL:-https://api.pinata.cloud}
+      PINATA_GATEWAY_URL: ${PINATA_GATEWAY_URL:-https://gateway.pinata.cloud/ipfs}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  indexer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.backend
+    command: npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/indexer
+    restart: unless-stopped
+    environment:
+      <<: *common
+      FACTORY_START_BLOCK: ${FACTORY_START_BLOCK}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  keeper:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.backend
+    command: npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/keeper
+    restart: unless-stopped
+    environment:
+      <<: *common
+      KEEPER_PRIVATE_KEY: ${KEEPER_PRIVATE_KEY}
+      SQUEEZ_TOKEN_ADDRESS: ${SQUEEZ_TOKEN_ADDRESS}
+      TWAP_INTERVAL_SECONDS: ${TWAP_INTERVAL_SECONDS}
+      TWAP_CHUNK_HYPE: ${TWAP_CHUNK_HYPE}
+    depends_on:
+      api:
+        condition: service_healthy

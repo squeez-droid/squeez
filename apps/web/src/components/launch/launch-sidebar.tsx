@@ -1,19 +1,15 @@
 "use client";
-import { config, content } from "@/lib/data";
-import { SUPPLY, THRESHOLD, priceAt } from "@/lib/curve";
-import { bpsToPct, fill, fmtUsd } from "@/lib/format";
-import { HYPE_USD } from "@/lib/market";
+import { BURN_BPS_OF_PROTOCOL, PROTOCOL_FEE_BPS } from "@squeez/shared";
+import { content } from "@/lib/data";
+import { bpsToPct, fill } from "@/lib/format";
 import { Card, Row, Swatch } from "@/components/ui";
 import { PairBadge, TokenAvatar } from "@/components/token-bits";
 import { IconShield } from "@/components/icons";
 import type { LaunchFormApi } from "./use-launch-form";
 
 const T = content.launch.preview;
-const P = config.protocol;
-const LC = config.launchConfig;
-
-const burnBps = (P.PROTOCOL_FEE_BPS * P.BURN_BPS_OF_PROTOCOL) / 10000;
-const treasuryBps = P.PROTOCOL_FEE_BPS - burnBps;
+const burnBps = (PROTOCOL_FEE_BPS * BURN_BPS_OF_PROTOCOL) / 10000;
+const treasuryBps = PROTOCOL_FEE_BPS - burnBps;
 /** Bar widths are scaled against the 11% maximum (1% protocol + 10% creator). */
 const barPct = (bps: number) => `${bps / 11}%`;
 
@@ -34,8 +30,8 @@ function TokenPreview({ api }: { api: LaunchFormApi }) {
         </div>
         <p className="mt-3 line-clamp-3 text-sm text-muted">{f.description || T.descriptionPlaceholder}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <MiniStat label={T.startMcap} value={fmtUsd(priceAt(0) * SUPPLY * HYPE_USD)} />
-          <MiniStat label={T.gradMcap} value={fmtUsd(priceAt(THRESHOLD) * SUPPLY * HYPE_USD)} />
+          <MiniStat label={T.startMcap} value="On-chain" />
+          <MiniStat label={T.gradMcap} value={`${api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} HYPE`} />
         </div>
       </div>
     </Card>
@@ -54,7 +50,7 @@ function FeeBreakdown({ api }: { api: LaunchFormApi }) {
   return (
     <Card title={T.feeTitle}>
       <div className="p-4">
-        <div className="font-display text-5xl font-bold tabular-nums tracking-tight text-white">{bpsToPct(P.PROTOCOL_FEE_BPS + fee)}</div>
+        <div className="font-display text-5xl font-bold tabular-nums tracking-tight text-white">{bpsToPct(PROTOCOL_FEE_BPS + fee)}</div>
         <div className="mt-3 flex h-2 overflow-hidden bg-line">
           <div className="bg-primary" style={{ width: barPct(burnBps) }} />
           <div className="hatch" style={{ width: barPct(treasuryBps) }} />
@@ -71,8 +67,9 @@ function FeeBreakdown({ api }: { api: LaunchFormApi }) {
   );
 }
 
-function LaunchProtection() {
-  const vars = { startPct: LC.sniperTax.startBps / 100, decay: LC.sniperTax.decaySeconds, maxPct: LC.maxWallet.bps / 100 };
+function LaunchProtection({ api }: { api: LaunchFormApi }) {
+  const lc = api.protocol.data?.launchConfig;
+  const vars = { startPct: Number(lc?.sniperTaxStartBps ?? 0) / 100, decay: lc?.sniperTaxDecaySeconds ?? "—", maxPct: Number(lc?.maxWalletBps ?? 0) / 100 };
   return (
     <Card title={T.protectionTitle}>
       <ul className="space-y-3 p-4">
@@ -95,7 +92,7 @@ export function LaunchSidebar({ api }: { api: LaunchFormApi }) {
     <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
       <TokenPreview api={api} />
       <FeeBreakdown api={api} />
-      <LaunchProtection />
+      <LaunchProtection api={api} />
     </aside>
   );
 }

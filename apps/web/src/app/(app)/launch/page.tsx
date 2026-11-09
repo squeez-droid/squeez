@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
-import { config, content } from "@/lib/data";
+import { content } from "@/lib/data";
 import { fill, fmtNum } from "@/lib/format";
 import { useTx } from "@/providers/tx";
 import { PageHeader } from "@/components/ui";
 import { Empty } from "@/components/ui";
 import { EconomicsStep, HoldersConfirm, IdentityStep, LaunchSidebar, ReviewModal, Stepper, useLaunchForm } from "@/components/launch";
 
-const P = config.protocol;
 const T = content.launch.review;
 
 export default function LaunchPage() {
@@ -18,11 +17,22 @@ export default function LaunchPage() {
   const [holdersOpen, setHoldersOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
 
-  if (!config.configured) {
+  if (api.protocol.isLoading) {
     return (
       <div>
         <PageHeader title={content.launch.title} intro={content.launch.noAllocation} />
-        <Empty title="Protocol not configured" body="Launch is disabled until verified contract addresses and the on-chain launch configuration are available." />
+        <Empty title="Loading protocol configuration" body="Reading verified launch settings from the backend API." />
+      </div>
+    );
+  }
+
+  if (api.protocol.isError || !api.protocol.data?.configured) {
+    return (
+      <div>
+        <PageHeader title={content.launch.title} intro={content.launch.noAllocation} />
+        <Empty title="Protocol not configured" body={api.protocol.isError
+          ? "The runtime protocol configuration could not be loaded from the backend API."
+          : "Launch is disabled until verified contract addresses and the on-chain launch configuration are available."} />
       </div>
     );
   }
@@ -38,9 +48,9 @@ export default function LaunchPage() {
     tx.run({
       title: fill(T.txTitle, { ticker }),
       lines: [
-        { label: T.launchFee, value: `${P.launchFeeHype} HYPE` },
+        { label: T.launchFee, value: `${api.launchFeeHype} HYPE` },
         { label: T.openingBuy, value: api.opening ? `${fmtNum(api.opening, 4)} HYPE` : "—" },
-        { label: T.txTotal, value: `${fmtNum(P.launchFeeHype + api.opening, 4)} HYPE + gas` },
+        { label: T.txTotal, value: `${fmtNum(api.launchFeeHype + api.opening, 4)} HYPE + gas` },
       ],
       successTitle: fill(T.successTitle, { ticker }),
       successBody: T.successBody,

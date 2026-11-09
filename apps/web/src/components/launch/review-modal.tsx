@@ -1,14 +1,11 @@
 "use client";
-import { config, content } from "@/lib/data";
-import { THRESHOLD } from "@/lib/curve";
+import { content } from "@/lib/data";
 import { bpsToPct, fill, fmtNum, shortAddr } from "@/lib/format";
 import { Button, Modal, Row } from "@/components/ui";
 import { TokenAvatar } from "@/components/token-bits";
 import type { LaunchFormApi } from "./use-launch-form";
 
 const T = content.launch.review;
-const P = config.protocol;
-const LC = config.launchConfig;
 
 interface ReviewModalProps {
   api: LaunchFormApi;
@@ -26,8 +23,8 @@ export function ReviewModal({ api, open, onClose, onSubmit }: ReviewModalProps) 
     [T.destination, api.destinationLabel],
     [T.feeWallet, shortAddr(f.feeWallet, 6)],
     [T.openingBuy, opening ? `${fmtNum(opening, 4)} HYPE → ${fmtNum(openingQuote.outAmount, 0)} ${f.ticker}` : "—"],
-    [T.launchFee, `${P.launchFeeHype} HYPE`],
-    [T.launchConfig, `#${LC.id} · grad ${THRESHOLD} HYPE`],
+    [T.launchFee, `${api.protocol.data?.launchConfig.launchFeeHype ?? "—"} HYPE`],
+    [T.launchConfig, `on-chain · grad ${api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} HYPE`],
   ];
 
   return (

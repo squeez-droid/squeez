@@ -1,0 +1,22 @@
+FROM node:20-bookworm-slim AS dependencies
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY apps/indexer/package.json apps/indexer/package.json
+COPY apps/keeper/package.json apps/keeper/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+RUN npm ci --omit=optional
+
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY tools ./tools
+COPY apps/backend ./apps/backend
+COPY apps/indexer ./apps/indexer
+COPY apps/keeper ./apps/keeper
+COPY packages/shared ./packages/shared
+USER node

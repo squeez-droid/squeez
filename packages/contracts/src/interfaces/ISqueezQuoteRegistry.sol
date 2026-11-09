@@ -11,4 +11,5 @@ interface ISqueezQuoteRegistry {
 
     function isActive(address asset) external view returns (bool);
     function getQuote(address asset) external view returns (QuoteAsset memory);
+    function getActiveQuotes() external view returns (QuoteAsset[] memory);
 }

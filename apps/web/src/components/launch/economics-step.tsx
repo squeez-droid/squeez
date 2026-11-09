@@ -1,6 +1,6 @@
 "use client";
-import { config, content } from "@/lib/data";
-import { THRESHOLD } from "@/lib/curve";
+import { PROTOCOL_FEE_BPS } from "@squeez/shared";
+import { content } from "@/lib/data";
 import { useWallet } from "@/providers/wallet";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { WalletGateButton } from "@/components/wallet-ui";
@@ -11,8 +11,6 @@ import { PairPicker } from "./pair-picker";
 import type { LaunchFormApi } from "./use-launch-form";
 
 const T = content.launch.form;
-const P = config.protocol;
-const LC = config.launchConfig;
 
 interface EconomicsStepProps {
   api: LaunchFormApi;
@@ -45,12 +43,11 @@ export function EconomicsStep({ api, onBack, onReview, onRequestHolders }: Econo
 
       <div className="flex flex-col-reverse gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="ghost" onClick={onBack}>{T.back}</Button>
-        <WalletGateButton disabled={!api.economicsOk} onClick={onReview}>{T.review}</WalletGateButton>
+        <WalletGateButton disabled={!api.economicsOk || api.openingQuoteLoading} onClick={onReview}>{T.review}</WalletGateButton>
       </div>
 
       <p className="text-center text-xs text-muted sm:text-right">
-        Launch fee {P.launchFeeHype} HYPE{P.launchFeeTbd && "*"}. Graduates at {THRESHOLD} HYPE{LC.graduationThresholdTbd && "*"}. Protocol fee {(P.PROTOCOL_FEE_BPS / 100).toFixed(1)}%.
-        {(P.launchFeeTbd || LC.graduationThresholdTbd) && <span className="block text-[11px]">{T.footnote}</span>}
+        Launch fee {api.protocol.data?.launchConfig.launchFeeHype ?? "—"} HYPE. Graduates at {api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} HYPE. Protocol fee {(PROTOCOL_FEE_BPS / 100).toFixed(1)}%.
       </p>
     </Card>
   );
