@@ -21,3 +21,7 @@ COPY apps/keeper ./apps/keeper
 COPY packages/shared ./packages/shared
 COPY packages/contracts/deployments ./packages/contracts/deployments
 USER node
+
+# Coolify runs this image directly. Keep the network selectable at runtime so
+# the same image definition can be used for testnet and mainnet deployments.
+CMD ["sh", "-c", "npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/backend"]
