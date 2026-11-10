@@ -1,5 +1,5 @@
 import { ponder } from "ponder:registry";
-import { creatorFee, protocolFee, token, trade } from "ponder:schema";
+import { creatorFee, holderBalance, protocolFee, token, trade } from "ponder:schema";
 import { logIndexed } from "./system-log";
 
 // Events to index (see @squeez/shared INDEXED_EVENTS):
@@ -52,6 +52,33 @@ ponder.on("SqueezCurve:CurveTrade", async ({ event, context }) => {
     logIndex: event.log.logIndex,
   });
   await logIndexed("CurveTrade", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezToken:Transfer", async ({ event, context }) => {
+  const zero = "0x0000000000000000000000000000000000000000";
+  const tokenAddress = event.log.address;
+  if (event.args.from.toLowerCase() !== zero) {
+    await context.db.insert(holderBalance).values({
+      id: `${tokenAddress}-${event.args.from}`.toLowerCase(), token: tokenAddress,
+      account: event.args.from, balance: 0n - event.args.value,
+      updatedAt: event.block.timestamp, blockNumber: event.block.number,
+    }).onConflictDoUpdate((row) => ({
+      balance: row.balance - event.args.value,
+      updatedAt: event.block.timestamp,
+      blockNumber: event.block.number,
+    }));
+  }
+  if (event.args.to.toLowerCase() !== zero) {
+    await context.db.insert(holderBalance).values({
+      id: `${tokenAddress}-${event.args.to}`.toLowerCase(), token: tokenAddress,
+      account: event.args.to, balance: event.args.value,
+      updatedAt: event.block.timestamp, blockNumber: event.block.number,
+    }).onConflictDoUpdate((row) => ({
+      balance: row.balance + event.args.value,
+      updatedAt: event.block.timestamp,
+      blockNumber: event.block.number,
+    }));
+  }
 });
 
 ponder.on("SqueezCurve:GraduationThresholdReached", async ({ event, context }) => {

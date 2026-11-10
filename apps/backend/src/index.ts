@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { formatEther, getAddress, verifyMessage, type Address, type Hex } from "viem";
+import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, verifyMessage, type Address, type Hex } from "viem";
 import { LOG_EVENTS, WEB_LOG_EVENTS, type LogEvent } from "@squeez/shared";
 import { backendConfig as config } from "./config.js";
 import { writeSystemLog } from "./logger.js";
@@ -47,6 +47,13 @@ const uploadNonces = new Map<string, { nonce: string; expiresAt: number; request
 const imageTypes = new Map([
   ["image/png", "png"], ["image/jpeg", "jpg"], ["image/webp", "webp"], ["image/gif", "gif"],
 ]);
+const quoteRegistryAbi = [{
+  type: "function", name: "getActiveQuotes", stateMutability: "view", inputs: [],
+  outputs: [{ name: "active", type: "tuple[]", components: [
+    { name: "asset", type: "address" }, { name: "decimals", type: "uint8" },
+    { name: "routerPath", type: "bytes" }, { name: "active", type: "bool" },
+  ] }],
+}] as const;
 
 function uploadMessage(address: string, nonce: string, expiresAt: number): string {
   return `Squeez metadata upload\nWallet: ${address}\nNonce: ${nonce}\nExpires: ${expiresAt}`;
@@ -68,13 +75,37 @@ function cleanUrl(value: unknown): string {
   return result;
 }
 
+function safeMetadataText(value: unknown, max: number): string {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function safeMetadataUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.length > 200 || !/^https:\/\//i.test(value)) return null;
+  return value;
+}
+
 const tokenColumns = `address, curve, creator, quote,
   creator_fee_bps as "creatorFeeBps", fee_recipient as "feeRecipient",
   fee_destination_kind as "feeDestinationKind", buyback_bps as "buybackBps",
   launch_config_id as "launchConfigId", name, symbol, metadata_uri as "metadataUri", status,
   case when status = 'graduated' then 'uniswap-v4' else 'curve' end as venue, pool,
   created_at as "createdAt", launch_tx_hash as "launchTxHash",
-  launch_block_number as "launchBlockNumber", launch_log_index as "launchLogIndex"`;
+  launch_block_number as "launchBlockNumber", launch_log_index as "launchLogIndex",
+  coalesce((
+    select tr.hype_raised from "${config.databaseSchema}"."trade" tr
+    where lower(tr.token) = lower(address) and tr.source = 'curve' and tr.hype_raised is not null
+    order by tr.block_number desc, tr.log_index desc limit 1
+  ), 0)::text as "hypeRaised",
+  (select count(*)::int from "${config.databaseSchema}"."trade" tc
+    where lower(tc.token) = lower(address)) as "tradeCount",
+  coalesce((select sum(tv.hype_amount) from "${config.databaseSchema}"."trade" tv
+    where lower(tv.token) = lower(address) and tv.timestamp >= extract(epoch from now())::bigint - 86400), 0)::text as "volume24hHype",
+  coalesce((select lp.hype_amount from "${config.databaseSchema}"."trade" lp
+    where lower(lp.token) = lower(address) and lp.token_amount > 0
+    order by lp.block_number desc, lp.log_index desc limit 1), 0)::text as "lastHypeAmount",
+  coalesce((select lp.token_amount from "${config.databaseSchema}"."trade" lp
+    where lower(lp.token) = lower(address) and lp.token_amount > 0
+    order by lp.block_number desc, lp.log_index desc limit 1), 0)::text as "lastTokenAmount"`;
 
 async function rpc(method: string, params: unknown[] = []) {
   const response = await fetch(config.rpcUrl, {
@@ -219,9 +250,102 @@ const server = createServer(async (req, res) => {
         launchConfig,
       });
     }
+    if (req.method === "GET" && url.pathname === "/v1/stats") {
+      const zero = "0x0000000000000000000000000000000000000000";
+      const [trades, creatorFees, protocolFees, burned, launches] = await Promise.all([
+        pool.query(`select coalesce(sum(hype_amount), 0)::text as value, count(*)::int as count
+          from "${config.databaseSchema}"."trade" where timestamp >= extract(epoch from now())::bigint - 86400`),
+        pool.query(`select coalesce(sum(amount), 0)::text as value from "${config.databaseSchema}"."creator_fee"
+          where kind = 'accrued' and lower(asset) = lower($1) and timestamp >= extract(epoch from now())::bigint - 86400`, [zero]),
+        pool.query(`select coalesce(sum(buyback_amount + treasury_amount), 0)::text as value
+          from "${config.databaseSchema}"."protocol_fee" where lower(asset) = lower($1)
+          and timestamp >= extract(epoch from now())::bigint - 86400`, [zero]),
+        pool.query(`select coalesce(sum(amount), 0)::text as value from "${config.databaseSchema}"."burn"`),
+        pool.query(`select count(*)::int as total, count(*) filter (where status = 'graduated')::int as graduated
+          from "${config.databaseSchema}"."token"`),
+      ]);
+      return json(res, 200, {
+        volume24hHype: trades.rows[0].value,
+        trades24h: trades.rows[0].count,
+        creatorFees24hHype: creatorFees.rows[0].value,
+        protocolFees24hHype: protocolFees.rows[0].value,
+        squeezBurned: burned.rows[0].value,
+        tokensLaunched: launches.rows[0].total,
+        tokensGraduated: launches.rows[0].graduated,
+      });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/quotes") {
+      if (!config.contracts.quoteRegistry) return json(res, 503, { error: "Quote registry is not configured" });
+      const data = encodeFunctionData({ abi: quoteRegistryAbi, functionName: "getActiveQuotes" });
+      const result = await rpc("eth_call", [{ to: config.contracts.quoteRegistry, data }, "latest"]);
+      const quotes = decodeFunctionResult({ abi: quoteRegistryAbi, functionName: "getActiveQuotes", data: result as Hex });
+      const classified = quotes.map((quote) => {
+        const asset = quote.asset.toLowerCase();
+        const category = asset === "0x0000000000000000000000000000000000000000" ? "crypto"
+          : config.quoteAssets.usdc?.toLowerCase() === asset ? "stable"
+          : config.quoteAssets.unit?.toLowerCase() === asset || config.quoteAssets.ondo?.toLowerCase() === asset ? "stock" : "unclassified";
+        const symbol = category === "crypto" ? "HYPE" : category === "stable" ? "USDC"
+          : config.quoteAssets.unit?.toLowerCase() === asset ? "UNIT" : config.quoteAssets.ondo?.toLowerCase() === asset ? "ONDO" : null;
+        return { asset: quote.asset, decimals: quote.decimals, category, symbol, routeConfigured: quote.routerPath !== "0x" };
+      });
+      return json(res, 200, classified);
+    }
     if (req.method === "GET" && url.pathname === "/v1/tokens") {
       const result = await pool.query(`select ${tokenColumns} from "${config.databaseSchema}"."token" order by "createdAt" desc limit 100`);
       return json(res, 200, result.rows);
+    }
+    const holdersMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/holders$/);
+    if (req.method === "GET" && holdersMatch) {
+      try {
+        const result = await pool.query(
+          `select account, balance::text as balance, updated_at as "updatedAt", block_number as "blockNumber"
+           from "${config.databaseSchema}"."holder_balance"
+           where lower(token) = lower($1) and balance > 0
+           order by balance desc limit 100`,
+          [holdersMatch[1]],
+        );
+        return json(res, 200, result.rows);
+      } catch (cause) {
+        if ((cause as { code?: string }).code === "42P01") return json(res, 503, { error: "Holder indexing is not ready" });
+        throw cause;
+      }
+    }
+    const metadataMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/metadata$/);
+    if (req.method === "GET" && metadataMatch) {
+      const record = await pool.query(
+        `select metadata_uri as "metadataUri" from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`,
+        [metadataMatch[1]],
+      );
+      const uri = record.rows[0]?.metadataUri as string | undefined;
+      const cid = uri?.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1];
+      if (!cid) return json(res, 404, { error: "Token metadata is unavailable" });
+      const response = await fetch(`${config.pinata.gatewayUrl}/${cid}`, { signal: AbortSignal.timeout(10_000) });
+      if (!response.ok) return json(res, 502, { error: "Metadata gateway unavailable" });
+      const payload = await response.json() as Record<string, unknown>;
+      const imageCid = typeof payload.image === "string" ? payload.image.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1] : undefined;
+      const rawLinks = typeof payload.links === "object" && payload.links ? payload.links as Record<string, unknown> : {};
+      return json(res, 200, {
+        schema: payload.schema === "squeez.token.v1" ? payload.schema : null,
+        description: safeMetadataText(payload.description, 280),
+        links: {
+          website: safeMetadataUrl(rawLinks.website),
+          x: safeMetadataUrl(rawLinks.x),
+          telegram: safeMetadataUrl(rawLinks.telegram),
+        },
+        imagePath: imageCid ? `/v1/ipfs/${imageCid}` : null,
+      });
+    }
+    const ipfsMatch = url.pathname.match(/^\/v1\/ipfs\/([a-zA-Z0-9]+)$/);
+    if (req.method === "GET" && ipfsMatch) {
+      const response = await fetch(`${config.pinata.gatewayUrl}/${ipfsMatch[1]}`, { signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) return json(res, 502, { error: "IPFS gateway unavailable" });
+      const contentType = response.headers.get("content-type")?.split(";")[0] ?? "";
+      if (!imageTypes.has(contentType)) return json(res, 415, { error: "Unsupported asset type" });
+      const bytes = await response.arrayBuffer();
+      if (bytes.byteLength > 5_000_000) return json(res, 413, { error: "Asset is too large" });
+      res.writeHead(200, { "content-type": contentType, "content-length": String(bytes.byteLength), "cache-control": "public, max-age=31536000, immutable" });
+      res.end(Buffer.from(bytes));
+      return;
     }
     const tradesMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/trades$/);
     if (req.method === "GET" && tradesMatch) {

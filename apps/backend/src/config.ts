@@ -40,6 +40,11 @@ export const backendConfig = {
     v4Quoter: address("V4_QUOTER_ADDRESS"),
     squeezHook: address("SQUEEZ_HOOK_ADDRESS"),
   },
+  quoteAssets: {
+    usdc: address("USDC_ADDRESS"),
+    unit: address("UNIT_ASSET_ADDRESS"),
+    ondo: address("ONDO_ASSET_ADDRESS"),
+  },
   v4Pool: {
     lpFeeBps: optional("V4_LP_FEE_BPS"),
     tickSpacing: optional("V4_TICK_SPACING"),

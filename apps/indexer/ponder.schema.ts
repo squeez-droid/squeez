@@ -36,6 +36,15 @@ export const trade = onchainTable("trade", (t) => ({
   logIndex: t.integer().notNull(),
 }));
 
+export const holderBalance = onchainTable("holder_balance", (t) => ({
+  id: t.text().primaryKey(), // token-account
+  token: t.hex().notNull(),
+  account: t.hex().notNull(),
+  balance: t.bigint().notNull(),
+  updatedAt: t.bigint().notNull(),
+  blockNumber: t.bigint().notNull(),
+}));
+
 export const creatorFee = onchainTable("creator_fee", (t) => ({
   id: t.text().primaryKey(),
   token: t.hex().notNull(),

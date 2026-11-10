@@ -1,6 +1,6 @@
 # Squeez development roadmap
 
-Source of truth: `docs/brief/squeez-dev-brief.md`. Re-audited against the repository on Nov 9, 2026.
+Source of truth: `docs/brief/squeez-dev-brief.md`. Re-audited against the repository on Nov 10, 2026.
 
 The first release target is a HYPE-only testnet lifecycle:
 
@@ -155,8 +155,9 @@ approved.
 - [~] Web Launch loads runtime contract/economic config, obtains opening-buy output from Factory `eth_call`, signs
   and pins metadata, submits the real payable Factory call with 1% opening-buy slippage, and waits for its receipt;
   the underlying launch/IPFS/indexing path is verified on testnet, while browser-wallet UI evidence remains.
-- [~] Explore and token header query indexed launches through the backend with no fixture fallback; deployed-contract,
-  database, and API runtime reads are verified, while browser UI and stale/error-state evidence remain.
+- [~] Explore and token surfaces query indexed launches through the backend with no fixture fallback. Local UI now
+  includes progress-at-zero, live stats, sorting/filtering/pagination, trade-derived charts, metadata, holders,
+  creator claims, and explorer links; deployment, holder backfill, and browser stale/error-state evidence remain.
 - [~] Metadata authorization/upload and web transaction lifecycle share one request ID; indexed events now recover
   that request ID from the submitted transaction hash. Automated and browser-wallet E2E evidence remain.
 
@@ -183,7 +184,8 @@ approved.
   and malicious recipients. Stateful invariants continuously verify Curve native liabilities, FeeVault bucket
   accounting, and token-supply conservation across randomized buy/sell/claim/withdraw sequences.
 - [~] Emit/index CurveTrade and creator/protocol fee events with canonical identity, dynamically discover Factory
-  curves, and expose token trades/creator fees through the API; holders and candles remain.
+  curves/tokens, and expose trades, fees, Transfer-derived holders, aggregate stats, and trade-derived candles in
+  the web. Dedicated server-side candle aggregation and deployed holder-backfill evidence remain.
 - [x] Web quotes through `eth_call`, submits real buy/sell transactions (including sell approval), waits for the
   receipt, and refreshes indexed trades/fees after confirmation.
 - [x] UI shows fee/tax/slippage from contract reads and indexed results; authoritative settlement is never computed
@@ -239,9 +241,9 @@ approved.
   Ponder block-lag/stale states; apply the same status contract to fees, rewards, and future graduation surfaces.
 - [x] Reconciliation command verifies FeeVault liabilities/buckets, native balances, curve HYPE/sniper-tax balances,
   and indexed creator fees; the post buy/sell testnet run reports zero mismatches.
-- [~] Preserved evidence now covers launch, curve buy/sell, graduation, v4 buy/sell, FeeVault bucket increases, and
-  creator claim. Consolidate these transactions into one repeatable release-candidate report after the web claim UI
-  has browser-wallet evidence.
+- [~] Preserved evidence covers launch, curve buy/sell, graduation, v4 buy/sell, FeeVault bucket increases, and
+  creator claim. A repeatable evidence validator and browser-wallet acceptance checklist now exist; execute the
+  checklist against the deployed UI and attach the final reconciliation result.
 - [ ] Security review curve solvency, FeeVault liabilities, hook settlement, graduation, access control, and any
   upgrade path.
 
@@ -254,6 +256,8 @@ critical/high review finding.
 
 ### Quote assets
 
+- [~] Active quote discovery and category gating are served from the on-chain QuoteRegistry; unverified asset
+  classes stay disabled and network env slots exist for approved USDC, Unit/Ondo, oracle, and route configuration.
 - [ ] Enable USDC only after official address, custody, liquidity, route, oracle, decimals, and graduation test.
 - [ ] Enable Unit and Ondo assets individually only after the same checks plus eligibility/transfer restrictions.
 - [ ] Add HYPE→quote graduation conversion with TWAP/oracle bound, deadline, minimum output, and retry rules.

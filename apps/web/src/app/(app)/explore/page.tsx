@@ -1,22 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { content } from "@/lib/data";
-import { getDataSourceStatus, isIndexerConfigured, listIndexedTokens, type DataSourceStatus, type IndexedToken } from "@/lib/indexer";
-import { bpsToPct, shortAddr } from "@/lib/format";
-import { Badge, Button, Empty, Spinner } from "@/components/ui";
+import { getDataSourceStatus, getIndexedStats, isIndexerConfigured, listActiveQuotes, listIndexedTokens, type ActiveQuote, type DataSourceStatus, type IndexedStats, type IndexedToken } from "@/lib/indexer";
+import { getProtocolConfig, type RuntimeProtocolConfig } from "@/lib/protocol-config";
+import { bpsToPct, fmtNum, shortAddr } from "@/lib/format";
+import { Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
 import { DataSourceState } from "@/components/data-source-state";
+import { formatEther } from "viem";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
+type SortMode = "trending" | "new" | "graduating" | "graduated";
+type PairFilter = "all" | "crypto" | "stock" | "stable";
+const PAGE_SIZE = 12;
 
 export default function ExplorePage() {
   const [tokens, setTokens] = useState<IndexedToken[]>([]);
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [sort, setSort] = useState<SortMode>("trending");
+  const [pair, setPair] = useState<PairFilter>("all");
+  const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(isIndexerConfigured);
   const [error, setError] = useState<string | null>(null);
   const [sourceStatus, setSourceStatus] = useState<DataSourceStatus | null>(null);
+  const [protocol, setProtocol] = useState<RuntimeProtocolConfig | null>(null);
+  const [stats, setStats] = useState<IndexedStats | null>(null);
+  const [quotes, setQuotes] = useState<ActiveQuote[]>([]);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -24,8 +35,8 @@ export default function ExplorePage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    Promise.all([listIndexedTokens(controller.signal), getDataSourceStatus(controller.signal)])
-      .then(([nextTokens, nextStatus]) => { setTokens(nextTokens); setSourceStatus(nextStatus); })
+    Promise.all([listIndexedTokens(controller.signal), getDataSourceStatus(controller.signal), getProtocolConfig(controller.signal), getIndexedStats(controller.signal), listActiveQuotes(controller.signal).catch(() => [])])
+      .then(([nextTokens, nextStatus, nextProtocol, nextStats, nextQuotes]) => { setTokens(nextTokens); setSourceStatus(nextStatus); setProtocol(nextProtocol); setStats(nextStats); setQuotes(nextQuotes); })
       .catch((cause) => {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Indexer request failed.");
       })
@@ -33,12 +44,29 @@ export default function ExplorePage() {
     return () => controller.abort();
   }, [reload]);
 
+  const threshold = Number(protocol?.launchConfig.graduationThresholdHype ?? 0);
+  const progressOf = useCallback((token: IndexedToken) => {
+    if (token.status === "graduated") return 100;
+    const raised = Number(formatEther(BigInt(token.hypeRaised ?? "0")));
+    return threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
+  }, [threshold]);
   const filtered = useMemo(() => tokens.filter((token) => {
     if (status !== "all" && token.status !== status) return false;
+    const category = quotes.find((quote) => quote.asset.toLowerCase() === token.quote.toLowerCase())?.category
+      ?? (token.quote.toLowerCase() === "0x0000000000000000000000000000000000000000" ? "crypto" : "unclassified");
+    if (pair !== "all" && category !== pair) return false;
     const needle = query.trim().toLowerCase();
-    if (!needle) return true;
-    return `${token.name ?? ""} ${token.symbol ?? ""} ${token.address}`.toLowerCase().includes(needle);
-  }), [tokens, status, query]);
+    return !needle || `${token.name ?? ""} ${token.symbol ?? ""} ${token.address}`.toLowerCase().includes(needle);
+  }).sort((a, b) => {
+    if (sort === "new") return Number(BigInt(b.createdAt) - BigInt(a.createdAt));
+    if (sort === "graduating") return progressOf(b) - progressOf(a);
+    if (sort === "graduated") return Number(b.status === "graduated") - Number(a.status === "graduated") || Number(BigInt(b.createdAt) - BigInt(a.createdAt));
+    return Number(BigInt(b.volume24hHype ?? "0") - BigInt(a.volume24hHype ?? "0"));
+  }), [tokens, status, pair, query, sort, progressOf, quotes]);
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => setPage(1), [status, pair, query, sort]);
 
   return (
     <div>
@@ -50,13 +78,30 @@ export default function ExplorePage() {
         <Link href="/launch"><Button>Launch token</Button></Link>
       </div>
 
-      <div className="my-5 flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-px border-x border-b border-line bg-line md:grid-cols-4">
+        <Stat className="bg-bg p-4" label="Volume · 24h" value={stats ? `${fmtNum(Number(formatEther(BigInt(stats.volume24hHype))), 4)} HYPE` : "—"} sub={stats ? `${stats.trades24h} trades` : undefined} />
+        <Stat className="bg-bg p-4" label="Creator fees · 24h" value={stats ? `${fmtNum(Number(formatEther(BigInt(stats.creatorFees24hHype))), 4)} HYPE` : "—"} />
+        <Stat className="bg-bg p-4" label="$SQUEEZ burned" value={stats ? fmtNum(Number(formatEther(BigInt(stats.squeezBurned))), 2) : "—"} sub="Indexed burn events" />
+        <Stat className="bg-bg p-4" label="Tokens launched" value={stats?.tokensLaunched ?? "—"} sub={stats ? `${stats.tokensGraduated} graduated` : undefined} />
+      </div>
+
+      <div className="my-5 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {(["trending", "new", "graduating", "graduated"] as const).map((value) => (
+            <button key={value} onClick={() => setSort(value)} className={`rounded-md border px-3 py-2 text-sm capitalize ${sort === value ? "border-white bg-white text-bg" : "border-line text-muted hover:text-white"}`}>{value === "graduating" ? "About to graduate" : value}</button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
         {(["all", "curve", "graduating", "graduated"] as const).map((value) => (
           <button key={value} onClick={() => setStatus(value)} className={`rounded-md border px-3 py-2 text-sm ${status === value ? "border-white bg-white text-bg" : "border-line text-muted hover:text-white"}`}>
             {value === "all" ? "All" : value === "curve" ? "Bonding curve" : "Graduated"}
           </button>
         ))}
+        {(["all", "crypto", "stock", "stable"] as const).map((value) => (
+          <button key={`pair-${value}`} disabled={value !== "all" && !quotes.some((quote) => quote.category === value)} title={value !== "all" && !quotes.some((quote) => quote.category === value) ? "Available after the quote asset is verified and enabled on-chain" : undefined} onClick={() => setPair(value)} className={`rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40 ${pair === value ? "border-primary text-primary" : "border-line text-muted hover:text-white"}`}>{value === "all" ? "All pairs" : value === "stable" ? "USDC" : value === "stock" ? "Stocks" : "Crypto"}</button>
+        ))}
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, symbol, or address" className="ml-auto h-10 min-w-64 rounded-md border border-line bg-bg px-3 text-sm text-white outline-none placeholder:text-muted focus:border-white" />
+        </div>
       </div>
 
       <DataSourceState status={sourceStatus} />
@@ -71,7 +116,11 @@ export default function ExplorePage() {
         <Empty title="No indexed launches" body="No on-chain TokenLaunched event matches the current filter." />
       ) : (
         <div className="grid gap-px border border-line bg-line md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((token) => (
+          {visible.map((token) => {
+            const raised = Number(formatEther(BigInt(token.hypeRaised ?? "0")));
+            const threshold = Number(protocol?.launchConfig.graduationThresholdHype ?? 0);
+            const progress = token.status === "graduated" ? 100 : threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
+            return (
             <Link key={token.address} href={`/token/${token.address}`} className="bg-bg p-5 hover:bg-surface">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -85,9 +134,29 @@ export default function ExplorePage() {
                 <div><dt className="text-muted">Config</dt><dd className="num mt-1 text-white">#{token.launchConfigId}</dd></div>
                 <div><dt className="text-muted">Creator</dt><dd className="num mt-1 text-white">{shortAddr(token.creator)}</dd></div>
                 <div><dt className="text-muted">Block</dt><dd className="num mt-1 text-white">{token.launchBlockNumber}</dd></div>
+                <div><dt className="text-muted">Volume 24h</dt><dd className="num mt-1 text-white">{fmtNum(Number(formatEther(BigInt(token.volume24hHype ?? "0"))), 4)} HYPE</dd></div>
+                <div><dt className="text-muted">Trades</dt><dd className="num mt-1 text-white">{token.tradeCount ?? 0}</dd></div>
               </dl>
+              <div className="mt-5 border-t border-line pt-4">
+                <div className="num mb-2 flex items-center justify-between text-[11px]">
+                  <span className="text-muted">{token.status === "graduated" ? "Liquidity migrated" : "Bonding progress"}</span>
+                  <span className="text-white">{progress.toFixed(1)}%</span>
+                </div>
+                <Progress value={progress} glow={progress >= 80} />
+                <div className="num mt-2 flex justify-between text-[10px] text-muted">
+                  <span>{fmtNum(raised, 4)} HYPE raised</span>
+                  <span>{threshold > 0 ? `${fmtNum(threshold, 4)} HYPE` : "Threshold unavailable"}</span>
+                </div>
+              </div>
             </Link>
-          ))}
+          );})}
+        </div>
+      )}
+      {!loading && !error && filtered.length > PAGE_SIZE && (
+        <div className="mt-5 flex items-center justify-between text-sm">
+          <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</Button>
+          <span className="num text-muted">Page {page} / {pages} · {filtered.length} tokens</span>
+          <Button variant="secondary" disabled={page >= pages} onClick={() => setPage((value) => Math.min(pages, value + 1))}>Next</Button>
         </div>
       )}
     </div>

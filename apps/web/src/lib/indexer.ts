@@ -21,6 +21,13 @@ export interface IndexedToken {
   launchTxHash: `0x${string}`;
   launchBlockNumber: string;
   launchLogIndex: number;
+  /** Latest curve reserve raised, in wei. Derived from indexed CurveTrade events. */
+  hypeRaised: string;
+  holdersCount?: number;
+  tradeCount: number;
+  volume24hHype: string;
+  lastHypeAmount: string;
+  lastTokenAmount: string;
 }
 
 export interface IndexedTrade {
@@ -49,6 +56,38 @@ export interface IndexedCreatorFee {
   txHash: `0x${string}`;
   blockNumber: string;
   logIndex: number;
+}
+
+export interface IndexedHolder {
+  account: Address;
+  balance: string;
+  updatedAt: string;
+  blockNumber: string;
+}
+
+export interface IndexedStats {
+  volume24hHype: string;
+  trades24h: number;
+  creatorFees24hHype: string;
+  protocolFees24hHype: string;
+  squeezBurned: string;
+  tokensLaunched: number;
+  tokensGraduated: number;
+}
+
+export interface IndexedMetadata {
+  schema: "squeez.token.v1" | null;
+  description: string;
+  links: { website?: string | null; x?: string | null; telegram?: string | null };
+  imagePath: string | null;
+}
+
+export interface ActiveQuote {
+  asset: Address;
+  decimals: number;
+  category: "crypto" | "stable" | "stock" | "unclassified";
+  symbol: string | null;
+  routeConfigured: boolean;
 }
 
 export interface DataSourceStatus {
@@ -83,6 +122,25 @@ export function listIndexedTrades(address: string, signal?: AbortSignal): Promis
 
 export function listIndexedCreatorFees(address: string, signal?: AbortSignal): Promise<IndexedCreatorFee[]> {
   return request<IndexedCreatorFee[]>(`/v1/tokens/${encodeURIComponent(address)}/fees`, signal);
+}
+
+export function listIndexedHolders(address: string, signal?: AbortSignal): Promise<IndexedHolder[]> {
+  return request<IndexedHolder[]>(`/v1/tokens/${encodeURIComponent(address)}/holders`, signal);
+}
+
+export async function getIndexedMetadata(address: string, signal?: AbortSignal): Promise<IndexedMetadata | null> {
+  const response = await fetch(`${apiUrl}/v1/tokens/${encodeURIComponent(address)}/metadata`, { signal });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Metadata request failed (${response.status}).`);
+  return response.json() as Promise<IndexedMetadata>;
+}
+
+export function getIndexedStats(signal?: AbortSignal): Promise<IndexedStats> {
+  return request<IndexedStats>("/v1/stats", signal);
+}
+
+export function listActiveQuotes(signal?: AbortSignal): Promise<ActiveQuote[]> {
+  return request<ActiveQuote[]>("/v1/quotes", signal);
 }
 
 export function getDataSourceStatus(signal?: AbortSignal): Promise<DataSourceStatus> {

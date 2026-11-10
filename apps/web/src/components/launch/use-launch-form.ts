@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MAX_CREATOR_FEE_BPS, TOTAL_SUPPLY } from "@squeez/shared";
 import { formatEther, parseEther } from "viem";
 import { useReadContract, useSignMessage } from "wagmi";
-import { content, quotePairs, tokens } from "@/lib/data";
+import { content, tokens } from "@/lib/data";
 import { launchFactoryAbi } from "@/lib/abis";
 import { apiUrl } from "@/lib/chain";
 import { fill, isAddress } from "@/lib/format";
@@ -43,12 +43,15 @@ const INITIAL: LaunchForm = {
 };
 
 const E = content.launch.errors;
+const nativeHypePair: QuotePair = {
+  symbol: "HYPE", name: "Native HYPE", category: "crypto", source: "SqueezQuoteRegistry",
+  status: "ready", enabled: true, decimals: 18, usd: 0, color: "#50E3C2",
+  address: "0x0000000000000000000000000000000000000000",
+};
 
 /** Quote pairs shown for a pair group in the Economics step. */
 export function pairsForGroup(group: PairGroup): QuotePair[] {
-  if (group === "hype") return quotePairs.filter((p) => p.symbol === "HYPE");
-  if (group === "stock") return quotePairs.filter((p) => p.category === "stock");
-  return quotePairs.filter((p) => p.symbol !== "HYPE" && (p.category === "crypto" || p.category === "stable"));
+  return group === "hype" ? [nativeHypePair] : [];
 }
 
 function validateIdentity(f: LaunchForm): FormErrors {
@@ -117,8 +120,8 @@ export function useLaunchForm() {
   }, [form, opening, openingPct, maxWalletPct, launchFeeHype, openingWei, openingRead.isError, wallet.status, wallet.balances.HYPE]);
 
   const selectGroup = (group: PairGroup) => {
-    const first = pairsForGroup(group).find((p) => group !== "crypto" || p.enabled) ?? quotePairs[0];
-    patch({ group, quote: first.symbol });
+    const first = pairsForGroup(group)[0];
+    if (first) patch({ group, quote: first.symbol });
   };
 
   /** Toggle wallet/buyback. Holders is exclusive and needs a confirmation, see `enableHolders`. */

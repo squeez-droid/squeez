@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-const clamp = (v: number) => Math.max(1, Math.min(100, v));
+const clamp = (v: number) => Math.max(0, Math.min(100, Number.isFinite(v) ? v : 0));
 
 export function Progress({ value, className, glow }: { value: number; className?: string; glow?: boolean }) {
   return (

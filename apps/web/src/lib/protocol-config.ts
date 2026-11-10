@@ -29,12 +29,12 @@ export interface RuntimeProtocolConfig {
   };
 }
 
-async function fetchProtocolConfig(): Promise<RuntimeProtocolConfig> {
-  const response = await fetch(`${apiUrl}/v1/config`);
+export async function getProtocolConfig(signal?: AbortSignal): Promise<RuntimeProtocolConfig> {
+  const response = await fetch(`${apiUrl}/v1/config`, { signal });
   if (!response.ok) throw new Error(`Protocol config request failed (${response.status}).`);
   return response.json() as Promise<RuntimeProtocolConfig>;
 }
 
 export function useProtocolConfig() {
-  return useQuery({ queryKey: ["protocol-config"], queryFn: fetchProtocolConfig, staleTime: 30_000 });
+  return useQuery({ queryKey: ["protocol-config"], queryFn: ({ signal }) => getProtocolConfig(signal), staleTime: 30_000 });
 }

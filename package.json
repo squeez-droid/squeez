@@ -59,6 +59,7 @@
     "check:pinata:mainnet": "node tools/with-env.mjs mainnet node scripts/verify-pinata.mjs",
     "reconcile:testnet": "node tools/with-env.mjs testnet node scripts/reconcile.mjs",
     "reconcile:mainnet": "node tools/with-env.mjs mainnet node scripts/reconcile.mjs",
+    "evidence:release-candidate": "node scripts/verify-release-candidate-evidence.mjs",
     "check:deploy:testnet": "node tools/with-env.mjs testnet node scripts/check-deploy-readiness.mjs",
     "verify:deployment:testnet": "node tools/with-env.mjs testnet node scripts/verify-deployment.mjs",
     "verify:curve-proxy:testnet": "node tools/with-env.mjs testnet node scripts/verify-curve-proxy.mjs",

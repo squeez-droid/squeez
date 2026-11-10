@@ -26,8 +26,10 @@ export function PairPicker({ api }: { api: LaunchFormApi }) {
         {content.launch.pairGroups.map((g) => (
           <button
             key={g.id}
+            disabled={pairsForGroup(g.id as PairGroup).length === 0}
+            title={pairsForGroup(g.id as PairGroup).length === 0 ? "Enabled only after the quote asset and graduation route are verified on-chain" : undefined}
             onClick={() => selectGroup(g.id as PairGroup)}
-            className={clsx("rounded-md border px-3 py-2 text-sm font-medium transition", f.group === g.id ? "border-white bg-white text-bg" : "border-line bg-bg text-muted hover:text-white")}
+            className={clsx("rounded-md border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40", f.group === g.id ? "border-white bg-white text-bg" : "border-line bg-bg text-muted hover:text-white")}
           >
             {g.label}
           </button>

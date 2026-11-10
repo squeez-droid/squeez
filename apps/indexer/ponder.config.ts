@@ -4,6 +4,7 @@ import { SqueezLaunchFactoryAbi } from "./abis/SqueezLaunchFactory";
 import { SqueezCurveAbi } from "./abis/SqueezCurve";
 import { SqueezFeeVaultAbi } from "./abis/SqueezFeeVault";
 import { SqueezSwapRouterAbi } from "./abis/SqueezSwapRouter";
+import { SqueezTokenAbi } from "./abis/SqueezToken";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -36,6 +37,19 @@ export default createConfig({
           "event TokenLaunched(address indexed token,address indexed curve,address indexed creator,address quote,uint16 creatorFeeBps,uint256 launchConfigId,address feeRecipient,uint8 feeDestinationKind,uint16 buybackBps)",
         ),
         parameter: "curve",
+        startBlock: Number(required("FACTORY_START_BLOCK")),
+      }),
+      startBlock: Number(required("FACTORY_START_BLOCK")),
+    },
+    SqueezToken: {
+      chain: "elysium",
+      abi: SqueezTokenAbi,
+      address: factory({
+        address: required("FACTORY_ADDRESS") as `0x${string}`,
+        event: parseAbiItem(
+          "event TokenLaunched(address indexed token,address indexed curve,address indexed creator,address quote,uint16 creatorFeeBps,uint256 launchConfigId,address feeRecipient,uint8 feeDestinationKind,uint16 buybackBps)",
+        ),
+        parameter: "token",
         startBlock: Number(required("FACTORY_START_BLOCK")),
       }),
       startBlock: Number(required("FACTORY_START_BLOCK")),
