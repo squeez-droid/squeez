@@ -13,6 +13,7 @@ const Endpoint = ({ name, meta, right }: { name: string; meta: string; right?: b
 /** 001: start point → end point, with the curve as the map between them. */
 export function RouteSection() {
   const R = L.route;
+  const displayThreshold = THRESHOLD > 0 ? THRESHOLD : 0.1;
   return (
     <section>
       <SectionHead id="route" n={1} tag={R.label} title={R.title} aside={R.body} />
@@ -21,7 +22,7 @@ export function RouteSection() {
         <div className="relative my-4 h-px bg-line sm:my-0" aria-hidden>
           <span className="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full border border-white bg-bg" />
           <span className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 bg-white" />
-          <span className="num absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap text-[11px] text-muted">{THRESHOLD} HYPE</span>
+          <span className="num absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap text-[11px] text-muted">{displayThreshold} HYPE</span>
         </div>
         <Endpoint name={R.toName} meta={R.toMeta} right />
       </div>
