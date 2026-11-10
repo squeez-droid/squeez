@@ -27,6 +27,7 @@ import { PriceChart, type Timeframe } from "@/components/price-chart";
 import { getProtocolConfig, type RuntimeProtocolConfig } from "@/lib/protocol-config";
 import type { Candle } from "@/lib/types";
 import { apiUrl } from "@/lib/chain";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 import { useRewards } from "@/components/rewards/use-rewards";
 
 function TokenImage({ src }: { src: string }) {
@@ -37,6 +38,7 @@ function TokenImage({ src }: { src: string }) {
 
 export default function TokenPage({ params }: { params: Promise<{ address: string }> }) {
   const { address } = use(params);
+  const selected = useSelectedTarget();
   const [token, setToken] = useState<IndexedToken | null>(null);
   const [trades, setTrades] = useState<IndexedTrade[]>([]);
   const [fees, setFees] = useState<IndexedCreatorFee[]>([]);
@@ -53,13 +55,13 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
   const load = useCallback((signal?: AbortSignal) => {
     if (!isIndexerConfigured) return;
     Promise.all([
-      getIndexedToken(address, signal),
-      listIndexedTrades(address, signal),
-      listIndexedCreatorFees(address, signal),
-      getDataSourceStatus(signal),
-      getProtocolConfig(signal),
-      listIndexedHolders(address, signal).then((rows) => ({ rows, ready: true })).catch(() => ({ rows: [], ready: false })),
-      getIndexedMetadata(address, signal).catch(() => null),
+      getIndexedToken(address, signal, selected.targetApiUrl),
+      listIndexedTrades(address, signal, selected.targetApiUrl),
+      listIndexedCreatorFees(address, signal, selected.targetApiUrl),
+      getDataSourceStatus(signal, selected.targetApiUrl),
+      getProtocolConfig(signal, selected.targetApiUrl),
+      listIndexedHolders(address, signal, selected.targetApiUrl).then((rows) => ({ rows, ready: true })).catch(() => ({ rows: [], ready: false })),
+      getIndexedMetadata(address, signal, selected.targetApiUrl).catch(() => null),
     ])
       .then(([indexedToken, indexedTrades, indexedFees, nextStatus, nextProtocol, indexedHolders, indexedMetadata]) => {
         setToken(indexedToken);
@@ -75,7 +77,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
         if (!signal?.aborted) setError(cause instanceof Error ? cause.message : "Indexer request failed.");
       })
       .finally(() => { if (!signal?.aborted) setLoading(false); });
-  }, [address]);
+  }, [address, selected.targetApiUrl]);
 
   const candles = useMemo<Candle[]>(() => trades
     .map((trade) => {

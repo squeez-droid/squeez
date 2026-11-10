@@ -1,0 +1,64 @@
+{
+  "adminMultisig": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+  "governanceTimelock": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+  "governanceSafe": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+  "governanceTimelockDelaySeconds": 300,
+  "governanceController": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+  "governanceRoles": {
+    "proposer": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+    "executor": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+    "canceller": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+    "admin": "0x32b623834Ce82e418a46D8c0daff1466871DED10"
+  },
+  "transactions": [
+    {
+      "purpose": "Deploy OpenZeppelin TimelockController with a 300-second minimum delay",
+      "hash": "0xf4e32a2eb0d08bbc46c0acfbc4127ec812eebe12dea3b46dd637e5d2839aa3e1",
+      "contractAddress": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+      "from": "0xB5c0ed0252D1906Fca50664eB2198aea0679920b",
+      "status": "1",
+      "blockNumber": "110987723",
+      "gasUsed": "1694028",
+      "effectiveGasPriceWei": "20296000",
+      "transactionFeeWei": "34381992288000"
+    },
+    {
+      "purpose": "Safe initiated ownership handoff of five UUPS proxies and transferred Curve Beacon ownership to the timelock",
+      "hash": "0x1fe309c5738f374c53e026d024ee1bd795a6647cb3197d9e810fca3a6f0e8da3",
+      "from": "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
+      "to": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+      "status": "1",
+      "blockNumber": "110995622",
+      "gasUsed": "271447",
+      "effectiveGasPriceWei": "21626000",
+      "transactionFeeWei": "5870312822000",
+      "safeTransactionHash": "0x8f1022427ba9510bf9b0f3c3d7d604c60074f85647de14659e2040370c6a908d"
+    },
+    {
+      "purpose": "Safe scheduled the five-contract ownership acceptance operation in the governance timelock",
+      "hash": "0x98c823d604726a7d01e231e5e14192c712d2966c82fb51d2aaab85313eb6f8c9",
+      "from": "0x4AEDEF2aA208737A2C672EC65402419c284e00fF",
+      "to": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+      "status": "1",
+      "blockNumber": "110999083",
+      "gasUsed": "385918",
+      "effectiveGasPriceWei": "20532000",
+      "transactionFeeWei": "7923668376000",
+      "safeTransactionHash": "0xbff09b58f4ad9c3b36624c77d8a099f0c5cb414c4be6ec3fff0d4aa544c30cad",
+      "timelockOperationId": "0x321e7973ce2e3ea1e9f9b61091e6ddbcf44815f534dab884748c05058508e2f4"
+    },
+    {
+      "purpose": "Safe executed the matured timelock operation and Timelock accepted all five UUPS ownerships",
+      "hash": "0x0442daadbe2e0c8a7dee929f40257fd06953ec9e4021cbfd519fcedaeae4791a",
+      "from": "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
+      "to": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+      "status": "1",
+      "blockNumber": "111004388",
+      "gasUsed": "188449",
+      "effectiveGasPriceWei": "20920000",
+      "transactionFeeWei": "3942353080000",
+      "safeTransactionHash": "0x7141ff8592674973dbabe171151c5374d98a0d3bbe21660167cb1ccf2c6aba37",
+      "timelockOperationId": "0x321e7973ce2e3ea1e9f9b61091e6ddbcf44815f534dab884748c05058508e2f4"
+    }
+  ]
+}

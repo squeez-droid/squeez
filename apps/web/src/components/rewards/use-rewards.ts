@@ -9,6 +9,7 @@ import { useProtocolConfig } from "@/lib/protocol-config";
 import type { Token } from "@/lib/types";
 import { useTx } from "@/providers/tx";
 import { useWallet } from "@/providers/wallet";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 interface CreatorReward {
   token: IndexedToken;
@@ -47,6 +48,7 @@ export const claimKey = {
 };
 
 export function useRewards() {
+  const selected = useSelectedTarget();
   const tx = useTx();
   const wallet = useWallet();
   const protocol = useProtocolConfig();
@@ -63,7 +65,7 @@ export function useRewards() {
     setLoading(true);
     setError(null);
     try {
-      const tokens = (await listIndexedTokens()).filter(
+      const tokens = (await listIndexedTokens(undefined, selected.targetApiUrl)).filter(
         (token) => token.feeRecipient.toLowerCase() === wallet.address!.toLowerCase(),
       );
       const rows = await Promise.all(tokens.map(async (token) => {
@@ -72,7 +74,7 @@ export function useRewards() {
             address: feeVault, abi: feeVaultAbi, functionName: "creatorFeesAccrued",
             args: [token.address, zeroAddress],
           }),
-          listIndexedCreatorFees(token.address),
+          listIndexedCreatorFees(token.address, undefined, selected.targetApiUrl),
         ]);
         const nativeEvents = events.filter((event) => event.asset.toLowerCase() === zeroAddress);
         const accrued = nativeEvents.filter((event) => event.kind === "accrued")
@@ -103,7 +105,7 @@ export function useRewards() {
     } finally {
       setLoading(false);
     }
-  }, [wallet.address, feeVault, publicClient]);
+  }, [wallet.address, feeVault, publicClient, selected.targetApiUrl]);
 
   useEffect(() => { void load(); }, [load]);
 

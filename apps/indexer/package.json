@@ -8,9 +8,9 @@
     "dev:raw": "ponder dev",
     "start:raw": "ponder start",
     "dev": "node ../../tools/with-env.mjs testnet ponder dev",
-    "dev:mainnet": "node ../../tools/with-env.mjs mainnet ponder dev",
+    "dev:mainnet": "node ../../tools/with-env.mjs robinhood mainnet ponder dev",
     "start:testnet": "node ../../tools/with-env.mjs testnet ponder start",
-    "start:mainnet": "node ../../tools/with-env.mjs mainnet ponder start",
+    "start:mainnet": "node ../../tools/with-env.mjs robinhood mainnet ponder start",
     "codegen": "ponder codegen",
     "typecheck": "tsc --noEmit"
   },

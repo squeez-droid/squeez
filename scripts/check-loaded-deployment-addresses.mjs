@@ -2,8 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const network = process.env.SQUEEZ_NETWORK;
+const chain = process.env.SQUEEZ_CHAIN ?? "elysium";
 if (!network) throw new Error("SQUEEZ_NETWORK is required");
-const deployment = JSON.parse(readFileSync(resolve("packages/contracts/deployments", `${network}.json`), "utf8"));
+const deploymentPath = chain === "elysium"
+  ? resolve("packages/contracts/deployments", `${network}.json`)
+  : resolve("packages/contracts/deployments", chain, `${network}.json`);
+const deployment = JSON.parse(readFileSync(deploymentPath, "utf8"));
 const checks = {
   FACTORY_ADDRESS: deployment.factory,
   FACTORY_START_BLOCK: String(deployment.startBlock),
@@ -12,6 +16,6 @@ const checks = {
   CURVE_BEACON_ADDRESS: deployment.curveBeacon,
 };
 for (const [name, expected] of Object.entries(checks)) {
-  if (process.env[name] !== expected) throw new Error(`${name} was not loaded from the ${network} address book`);
+  if (process.env[name] !== expected) throw new Error(`${name} was not loaded from the ${chain}:${network} address book`);
 }
-console.log(`${network} deployment addresses loaded from the address book.`);
+console.log(`${chain}:${network} deployment addresses loaded from the address book.`);

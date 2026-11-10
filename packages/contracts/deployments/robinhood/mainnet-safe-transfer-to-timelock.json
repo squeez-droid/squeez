@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "chainId": "4663",
+  "createdAt": 1794324800000,
+  "meta": {
+    "name": "Squeez mainnet transfer ownership to timelock",
+    "description": "Stage one: Safe initiates ownership handoff of five UUPS proxies and transfers Curve Beacon ownership to the 300-second governance timelock.",
+    "txBuilderVersion": "1.18.0",
+    "createdFromSafeAddress": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+    "createdFromOwnerAddress": "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED"
+  },
+  "transactions": [
+    {
+      "to": "0x7fd8F81f27d010f6550bA92203c1D5322Dd7B30E",
+      "value": "0",
+      "data": null,
+      "contractMethod": { "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }], "name": "transferOwnership", "payable": false },
+      "contractInputsValues": { "newOwner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57" }
+    },
+    {
+      "to": "0xB2D9616f17217462699E2851c15A53922011F852",
+      "value": "0",
+      "data": null,
+      "contractMethod": { "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }], "name": "transferOwnership", "payable": false },
+      "contractInputsValues": { "newOwner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57" }
+    },
+    {
+      "to": "0x0183B7978F5216F7F6225255DE3746917736EA3A",
+      "value": "0",
+      "data": null,
+      "contractMethod": { "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }], "name": "transferOwnership", "payable": false },
+      "contractInputsValues": { "newOwner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57" }
+    },
+    {
+      "to": "0x0cD83bc632601b0Ef7445aED820A604D7BB0B9a2",
+      "value": "0",
+      "data": null,
+      "contractMethod": { "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }], "name": "transferOwnership", "payable": false },
+      "contractInputsValues": { "newOwner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57" }
+    },
+    {
+      "to": "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551",
+      "value": "0",
+      "data": null,
+      "contractMethod": { "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }], "name": "transferOwnership", "payable": false },
+      "contractInputsValues": { "newOwner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57" }
+    },
+    {
+      "to": "0x0E5D8da8a23Dc5C9a755C194a25A5074Fb65e66F",
+      "value": "0",
+      "data": null,
+      "contractMethod": { "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }], "name": "transferOwnership", "payable": false },
+      "contractInputsValues": { "newOwner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57" }
+    }
+  ]
+}

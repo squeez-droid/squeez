@@ -53,6 +53,17 @@ if (!existsSync(envFile) && process.env.SQUEEZ_NETWORK !== network) {
   fail(`${envFile} not found and SQUEEZ_NETWORK=${network} was not supplied by the runtime.`);
 }
 
+// Local testnet and mainnet intentionally share one PostgreSQL instance. Mainnet may omit DATABASE_URL and inherit
+// only that credential from the root testnet env; DATABASE_SCHEMA remains selected independently below. Hosted
+// services should inject the same DATABASE_URL secret into both process definitions.
+if (network === "mainnet" && !fileEnv.DATABASE_URL && !process.env.DATABASE_URL) {
+  const testnetEnvFile = resolve(repositoryRoot, ".env.testnet");
+  if (existsSync(testnetEnvFile)) {
+    const sharedDatabaseUrl = parseEnvFile(readFileSync(testnetEnvFile, "utf8")).DATABASE_URL;
+    if (sharedDatabaseUrl) fileEnv.DATABASE_URL = sharedDatabaseUrl;
+  }
+}
+
 let deploymentEnv = {};
 try {
   deploymentEnv = loadDeploymentEnv(repositoryRoot, network, chain).values;
@@ -63,7 +74,10 @@ try {
 // intentional emergency override (for example in CI); empty Coolify variables do not hide the address book.
 const runtimeEnv = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value?.trim()));
 const legacyDeploymentKeys = new Set(Object.values(FIELD_TO_ENV));
-const walletKeys = ["DEPLOYER_PRIVATE_KEY", "UPGRADE_ADMIN_PRIVATE_KEY", "ADMIN_MULTISIG", "TREASURY", "KEEPER_PRIVATE_KEY"];
+const walletKeys = [
+  "DEPLOYER_PRIVATE_KEY", "UPGRADE_ADMIN_PRIVATE_KEY", "ADMIN_MULTISIG", "NEXT_ADMIN_MULTISIG", "TREASURY",
+  "KEEPER_PRIVATE_KEY",
+];
 if (chain !== "elysium") {
   // The original root env used unprefixed contract fields for Elysium. Never let those values leak into another
   // chain; Robinhood receives addresses only from its own address book or an explicit runtime override.
@@ -79,6 +93,8 @@ for (const key of [
   ...legacyDeploymentKeys,
   ...walletKeys,
   "MAX_BUY_BPS_PER_TRANSACTION", "TICKER_LOCK_SECONDS",
+  "GOVERNANCE_TIMELOCK_DELAY_SECONDS", "GOVERNANCE_TIMELOCK_ADDRESS",
+  "GOVERNANCE_SAFE_ADDRESS",
 ]) {
   const value = chainSource[`${chainPrefix}_${key}`];
   if (value?.trim()) prefixedOverrides[key] = value;
@@ -86,6 +102,7 @@ for (const key of [
 const selectedChainEnv = {
   SQUEEZ_CHAIN_ID: chainSource[`${chainPrefix}_CHAIN_ID`],
   SQUEEZ_RPC: chainSource[`${chainPrefix}_RPC`],
+  SQUEEZ_RPC_FALLBACK: chainSource[`${chainPrefix}_RPC_FALLBACK`],
   SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`],
   DATABASE_SCHEMA: chainSource[`${chainPrefix}_DATABASE_SCHEMA`] ?? chainSource.DATABASE_SCHEMA,
   CROSS_CHAIN_DATABASE_SCHEMA: chain === "robinhood"

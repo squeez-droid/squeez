@@ -2,10 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { Address } from "@squeez/shared";
-import { apiUrl } from "./chain";
+import { targetApiUrl } from "./chain";
+import { useSelectedTarget } from "./use-selected-target";
 
 export interface RuntimeProtocolConfig {
   configured: boolean;
+  capability: "enabled" | "read-only";
   network: "testnet" | "mainnet";
   creatorAttestation: {
     enabled: boolean;
@@ -35,12 +37,14 @@ export interface RuntimeProtocolConfig {
   };
 }
 
-export async function getProtocolConfig(signal?: AbortSignal): Promise<RuntimeProtocolConfig> {
-  const response = await fetch(`${apiUrl}/v1/config`, { signal });
+export async function getProtocolConfig(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<RuntimeProtocolConfig> {
+  const response = await fetch(`${baseUrl}/config`, { signal });
   if (!response.ok) throw new Error(`Protocol config request failed (${response.status}).`);
   return response.json() as Promise<RuntimeProtocolConfig>;
 }
 
 export function useProtocolConfig() {
-  return useQuery({ queryKey: ["protocol-config"], queryFn: ({ signal }) => getProtocolConfig(signal), staleTime: 30_000 });
+  const selected = useSelectedTarget();
+  return useQuery({ queryKey: ["protocol-config", selected.targetApiUrl],
+    queryFn: ({ signal }) => getProtocolConfig(signal, selected.targetApiUrl), staleTime: 30_000 });
 }

@@ -7,11 +7,11 @@ const required = (name) => {
   return value;
 };
 
-const rpc = required("ELYSIUM_RPC");
+const rpc = required("SQUEEZ_RPC");
 const databaseUrl = required("DATABASE_URL");
 const schema = required("DATABASE_SCHEMA");
 const feeVault = required("FEE_VAULT_ADDRESS");
-const chainId = Number(required("ELYSIUM_CHAIN_ID"));
+const chainId = Number(required("SQUEEZ_CHAIN_ID"));
 if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error("DATABASE_SCHEMA is invalid");
 if (!isAddress(feeVault)) throw new Error("FEE_VAULT_ADDRESS is invalid");
 
@@ -70,7 +70,7 @@ try {
   if (vaultBalance !== accountedVaultBalance) mismatches.push({ kind: "vault-native-balance",
     expected: accountedVaultBalance.toString(), onchain: vaultBalance.toString() });
 
-  console.log(JSON.stringify({ network: process.env.SQUEEZ_NETWORK, chainId, tokenCount: tokens.length,
+  console.log(JSON.stringify({ chain: process.env.SQUEEZ_CHAIN, network: process.env.SQUEEZ_NETWORK, schema, chainId, tokenCount: tokens.length,
     vault: { balance: vaultBalance.toString(), accounted: accountedVaultBalance.toString(),
       creatorLiabilities: creatorLiabilities.toString(), buyback: buyback.toString(), treasury: treasury.toString() },
     mismatchCount: mismatches.length, mismatches }, null, 2));

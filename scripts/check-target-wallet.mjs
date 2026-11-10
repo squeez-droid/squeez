@@ -17,10 +17,17 @@ if (!isAddress(admin) || !isAddress(treasury)) throw new Error("ADMIN_MULTISIG o
 
 const account = privateKeyToAccount(privateKey);
 const client = createPublicClient({ transport: http(rpc) });
-const [liveChainId, balance] = await Promise.all([client.getChainId(), client.getBalance({ address: account.address })]);
+const [liveChainId, balance, adminCode, treasuryCode] = await Promise.all([
+  client.getChainId(),
+  client.getBalance({ address: account.address }),
+  client.getCode({ address: admin }),
+  client.getCode({ address: treasury }),
+]);
 if (liveChainId !== chainId) throw new Error(`RPC chain ${liveChainId} does not match ${chainId}`);
 
 const masked = `${account.address.slice(0, 6)}…${account.address.slice(-4)}`;
 console.log(`Target wallet ${masked}: chain ${chainId}, balance ${formatEther(balance)} native.`);
 console.log(`Admin configured: ${admin.toLowerCase() === account.address.toLowerCase() ? "deployer" : "separate address"}.`);
 console.log(`Treasury configured: ${treasury.toLowerCase() === account.address.toLowerCase() ? "deployer" : "separate address"}.`);
+console.log(`Admin account type: ${adminCode && adminCode !== "0x" ? "contract wallet" : "EOA"}.`);
+console.log(`Treasury account type: ${treasuryCode && treasuryCode !== "0x" ? "contract wallet" : "EOA"}.`);

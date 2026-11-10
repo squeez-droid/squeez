@@ -2,8 +2,24 @@
 
 import pg from "pg";
 
-const confirmation = "--confirm-reset-testnet";
-if (!process.argv.includes(confirmation)) {
+const chain = process.env.SQUEEZ_CHAIN?.trim() || "elysium";
+const targets = {
+  elysium: {
+    schema: "testnet",
+    confirmation: "--confirm-reset-elysium-testnet",
+    legacyConfirmation: "--confirm-reset-testnet",
+    description: "Squeez indexed Elysium testnet data (owned by Ponder)",
+  },
+  robinhood: {
+    schema: "robinhood_testnet",
+    confirmation: "--confirm-reset-robinhood-testnet",
+    description: "Squeez indexed Robinhood testnet data (owned by Ponder)",
+  },
+};
+const target = targets[chain];
+if (!target) throw new Error(`Unsupported reset target: ${chain}`);
+const confirmation = target.confirmation;
+if (!process.argv.includes(confirmation) && !(target.legacyConfirmation && process.argv.includes(target.legacyConfirmation))) {
   throw new Error(`Refusing to reset without ${confirmation}`);
 }
 
@@ -21,19 +37,18 @@ const client = await pool.connect();
 try {
   await client.query("begin");
 
-  // Fixed identifiers only: never accept schema names from arguments or environment.
-  await client.query('drop schema if exists "testnet_v3" cascade');
-  await client.query('drop schema if exists "testnet_v2" cascade');
-  await client.query('drop schema if exists "testnet" cascade');
-  await client.query('create schema "testnet"');
-  await client.query("comment on schema testnet is 'Squeez indexed Elysium testnet data (owned by Ponder)'");
-  await client.query("grant usage on schema testnet to anon, authenticated, service_role");
-  await client.query("alter default privileges in schema testnet grant select on tables to anon, authenticated");
-  await client.query("alter default privileges in schema testnet grant all on tables to service_role");
+  // Identifiers come only from the fixed map above; environment values are never interpolated as schema names.
+  const schema = `"${target.schema}"`;
+  await client.query(`drop schema if exists ${schema} cascade`);
+  await client.query(`create schema ${schema}`);
+  await client.query(`comment on schema ${schema} is '${target.description}'`);
+  await client.query(`grant usage on schema ${schema} to anon, authenticated, service_role`);
+  await client.query(`alter default privileges in schema ${schema} grant select on tables to anon, authenticated`);
+  await client.query(`alter default privileges in schema ${schema} grant all on tables to service_role`);
 
   await client.query("commit");
-  console.log("Reset testnet indexer schemas successfully.");
-  console.log("Preserved testnet_system and all mainnet schemas.");
+  console.log(`Reset ${chain} testnet indexer schema successfully.`);
+  console.log("Preserved operational-log schemas, the other testnet target, and all mainnet schemas.");
 } catch (error) {
   await client.query("rollback");
   throw error;

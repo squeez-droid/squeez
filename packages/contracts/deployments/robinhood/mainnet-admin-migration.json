@@ -1,0 +1,31 @@
+{
+  "adminMultisig": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+  "adminGovernance": {
+    "type": "Safe",
+    "version": "1.5.0",
+    "threshold": 2,
+    "owners": [
+      "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
+      "0x4AEDEF2aA208737A2C672EC65402419c284e00fF",
+      "0x48E7bCFE8F469fbC72e6bcEf0D0CE70D51FfBbEd"
+    ]
+  },
+  "transactions": [
+    {
+      "purpose": "Safe batch accepted ownership of the five UUPS proxies",
+      "hash": "0xc976d8e850b23ed74441a4023f24ba85664fa97dec3a4f52c2e6d037efffdc0b",
+      "status": "1"
+    },
+    {
+      "purpose": "Transferred Curve Beacon ownership to the Safe",
+      "hash": "0xfd0bfa9ef48660833de9dfa6e3acfed66b81e51b789663788cf498e40ca223e1",
+      "from": "0x2E8ca95e429F34E6e876E078DCd8E51eB31645B9",
+      "to": "0x0E5D8da8a23Dc5C9a755C194a25A5074Fb65e66F",
+      "status": "1",
+      "blockNumber": "110985901",
+      "gasUsed": "28592",
+      "effectiveGasPriceWei": "20404000",
+      "transactionFeeWei": "583391168000"
+    }
+  ]
+}

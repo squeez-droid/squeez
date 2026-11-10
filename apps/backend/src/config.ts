@@ -1,4 +1,4 @@
-import { operationalSchema, parseDeploymentTarget } from "@squeez/shared";
+import { deploymentSchema, operationalSchema, parseDeploymentTarget } from "@squeez/shared";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -18,15 +18,19 @@ function optional(name: string): string | null {
 }
 
 const target = parseDeploymentTarget(process.env.SQUEEZ_CHAIN, process.env.SQUEEZ_NETWORK);
+const capability = process.env.SQUEEZ_API_CAPABILITY?.trim() || "enabled";
+if (!['enabled', 'read-only'].includes(capability)) throw new Error("SQUEEZ_API_CAPABILITY must be enabled or read-only");
 
 export const backendConfig = {
   chain: target.chain,
   network: target.stage,
   target,
+  capability: capability as "enabled" | "read-only",
   systemLogSchema: operationalSchema(target),
   port: Number(process.env.PORT ?? 8080),
   allowedOrigins: new Set(required("ALLOWED_ORIGINS").split(",").map((origin) => origin.trim())),
   rpcUrl: required("SQUEEZ_RPC"),
+  rpcFallbackUrl: optional("SQUEEZ_RPC_FALLBACK"),
   chainId: Number(required("SQUEEZ_CHAIN_ID")),
   explorer: required("SQUEEZ_EXPLORER"),
   databaseUrl: required("DATABASE_URL"),
@@ -89,6 +93,10 @@ if (backendConfig.xAttestation.attesterPrivateKey
   throw new Error("SQUEEZ_ATTESTER_PRIVATE_KEY must be a 32-byte hex private key");
 }
 if (!/^[a-z_][a-z0-9_]*$/.test(backendConfig.databaseSchema)) throw new Error("DATABASE_SCHEMA is invalid");
+const expectedDatabaseSchema = deploymentSchema(target);
+if (backendConfig.databaseSchema !== expectedDatabaseSchema) {
+  throw new Error(`DATABASE_SCHEMA mismatch: ${target.chain}:${target.stage} requires ${expectedDatabaseSchema}`);
+}
 if (backendConfig.crossChainDatabaseSchema
   && !/^[a-z_][a-z0-9_]*$/.test(backendConfig.crossChainDatabaseSchema)) {
   throw new Error("CROSS_CHAIN_DATABASE_SCHEMA is invalid");

@@ -1,4 +1,5 @@
 import { createConfig, factory } from "ponder";
+import { deploymentSchema, parseDeploymentTarget } from "@squeez/shared";
 import { parseAbiItem } from "viem";
 import { SqueezLaunchFactoryAbi } from "./abis/SqueezLaunchFactory";
 import { SqueezCurveAbi } from "./abis/SqueezCurve";
@@ -13,24 +14,45 @@ function required(name: string): string {
   return value;
 }
 
+const target = parseDeploymentTarget(process.env.SQUEEZ_CHAIN, process.env.SQUEEZ_NETWORK);
+const configuredSchema = required("DATABASE_SCHEMA");
+const expectedSchema = deploymentSchema(target);
+if (configuredSchema !== expectedSchema) {
+  throw new Error(`DATABASE_SCHEMA mismatch: ${target.chain}:${target.stage} requires ${expectedSchema}`);
+}
+const chainId = Number(required("SQUEEZ_CHAIN_ID"));
+const factoryStartBlock = Number(required("FACTORY_START_BLOCK"));
+if (!Number.isSafeInteger(chainId) || chainId <= 0) throw new Error("SQUEEZ_CHAIN_ID must be a positive integer");
+if (!Number.isSafeInteger(factoryStartBlock) || factoryStartBlock < 0) {
+  throw new Error("FACTORY_START_BLOCK must be a non-negative integer");
+}
+const swapRouterAddress = process.env.SWAP_ROUTER_ADDRESS?.trim();
+const swapRouterStartBlock = process.env.SWAP_ROUTER_START_BLOCK?.trim();
+if ((swapRouterAddress && !swapRouterStartBlock) || (!swapRouterAddress && swapRouterStartBlock)) {
+  throw new Error("SWAP_ROUTER_ADDRESS and SWAP_ROUTER_START_BLOCK must be configured together");
+}
+
 // Loaded from the selected root .env.testnet / .env.mainnet file.
 // DATABASE_URL + DATABASE_SCHEMA are read by Ponder itself (one Supabase schema per network).
 export default createConfig({
   chains: {
-    elysium: {
-      id: Number(required("SQUEEZ_CHAIN_ID")),
+    target: {
+      id: chainId,
       rpc: required("SQUEEZ_RPC"),
+      // Keep historical backfills within entry-level provider capacity; production may raise this explicitly.
+      maxRequestsPerSecond: Number(process.env.INDEXER_MAX_REQUESTS_PER_SECOND?.trim() || "2"),
+      ethGetLogsBlockRange: Number(process.env.INDEXER_LOG_BLOCK_RANGE?.trim() || "10"),
     },
   },
   contracts: {
     SqueezLaunchFactory: {
-      chain: "elysium",
+      chain: "target",
       abi: SqueezLaunchFactoryAbi,
       address: required("FACTORY_ADDRESS") as `0x${string}`,
-      startBlock: Number(required("FACTORY_START_BLOCK")),
+      startBlock: factoryStartBlock,
     },
     SqueezCurve: {
-      chain: "elysium",
+      chain: "target",
       abi: SqueezCurveAbi,
       address: factory({
         address: required("FACTORY_ADDRESS") as `0x${string}`,
@@ -38,12 +60,12 @@ export default createConfig({
           "event TokenLaunched(address indexed token,address indexed curve,address indexed creator,address quote,uint16 creatorFeeBps,uint256 launchConfigId,address feeRecipient,uint8 feeDestinationKind,uint16 buybackBps)",
         ),
         parameter: "curve",
-        startBlock: Number(required("FACTORY_START_BLOCK")),
+        startBlock: factoryStartBlock,
       }),
-      startBlock: Number(required("FACTORY_START_BLOCK")),
+      startBlock: factoryStartBlock,
     },
     SqueezToken: {
-      chain: "elysium",
+      chain: "target",
       abi: SqueezTokenAbi,
       address: factory({
         address: required("FACTORY_ADDRESS") as `0x${string}`,
@@ -51,29 +73,30 @@ export default createConfig({
           "event TokenLaunched(address indexed token,address indexed curve,address indexed creator,address quote,uint16 creatorFeeBps,uint256 launchConfigId,address feeRecipient,uint8 feeDestinationKind,uint16 buybackBps)",
         ),
         parameter: "token",
-        startBlock: Number(required("FACTORY_START_BLOCK")),
+        startBlock: factoryStartBlock,
       }),
-      startBlock: Number(required("FACTORY_START_BLOCK")),
+      startBlock: factoryStartBlock,
     },
     SqueezFeeVault: {
-      chain: "elysium",
+      chain: "target",
       abi: SqueezFeeVaultAbi,
       address: required("FEE_VAULT_ADDRESS") as `0x${string}`,
-      startBlock: Number(required("FACTORY_START_BLOCK")),
+      startBlock: factoryStartBlock,
     },
     SqueezSwapRouter: {
-      chain: "elysium",
+      chain: "target",
       abi: SqueezSwapRouterAbi,
-      address: required("SWAP_ROUTER_ADDRESS") as `0x${string}`,
-      startBlock: Number(required("SWAP_ROUTER_START_BLOCK")),
+      // Zero address is a no-op target until the router has an authoritative deployment fragment.
+      address: (swapRouterAddress || "0x0000000000000000000000000000000000000000") as `0x${string}`,
+      startBlock: swapRouterStartBlock ? Number(swapRouterStartBlock) : factoryStartBlock,
     },
     SqueezIdentityRegistry: {
-      chain: "elysium",
+      chain: "target",
       abi: SqueezIdentityRegistryAbi,
       // Zero address is an intentional no-op compatibility target until a registry is deployed on this chain.
       address: (process.env.IDENTITY_REGISTRY_ADDRESS?.trim()
         || "0x0000000000000000000000000000000000000000") as `0x${string}`,
-      startBlock: Number(required("FACTORY_START_BLOCK")),
+      startBlock: factoryStartBlock,
     },
   },
 });

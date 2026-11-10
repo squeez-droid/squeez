@@ -7,6 +7,7 @@ import { loadDeploymentEnv } from "../tools/deployment-address-book.mjs";
 const root = mkdtempSync(join(tmpdir(), "squeez-address-book-"));
 mkdirSync(join(root, "packages/contracts/deployments"), { recursive: true });
 writeFileSync(join(root, "packages/contracts/deployments/testnet.json"), JSON.stringify({
+  chainId: 99801,
   network: "testnet",
   startBlock: 123,
   factory: "0x0000000000000000000000000000000000000001",
@@ -15,6 +16,7 @@ writeFileSync(join(root, "packages/contracts/deployments/testnet.json"), JSON.st
 }));
 writeFileSync(join(root, "packages/contracts/deployments/testnet-core-upgrade.json"), JSON.stringify({
   network: "testnet",
+  chainId: 99801,
   factoryImplementation: "0x0000000000000000000000000000000000000004",
 }));
 writeFileSync(join(root, "packages/contracts/deployments/testnet-graduation.json"), JSON.stringify({
@@ -33,11 +35,47 @@ mkdirSync(join(root, "packages/contracts/deployments/robinhood"), { recursive: t
 writeFileSync(join(root, "packages/contracts/deployments/robinhood/testnet.json"), JSON.stringify({
   chain: "robinhood",
   network: "testnet",
+  chainId: 46630,
   startBlock: 46630,
   factory: "0x0000000000000000000000000000000000004663",
+  maxBuyBpsPerTransaction: 100,
 }));
 const robinhood = loadDeploymentEnv(root, "testnet", "robinhood");
 assert.equal(robinhood.values.FACTORY_START_BLOCK, "46630");
 assert.equal(robinhood.values.FACTORY_ADDRESS, "0x0000000000000000000000000000000000004663");
+assert.equal(robinhood.values.MAX_BUY_BPS_PER_TRANSACTION, "100");
 assert.equal(robinhood.values.FEE_VAULT_ADDRESS, undefined, "Robinhood must never inherit Elysium addresses");
+
+writeFileSync(join(root, "packages/contracts/deployments/robinhood/testnet-core-upgrade.json"), JSON.stringify({
+  chain: "elysium",
+  network: "testnet",
+  chainId: 46630,
+}));
+assert.throws(
+  () => loadDeploymentEnv(root, "testnet", "robinhood"),
+  /deployment chain mismatch/,
+  "A Robinhood target must reject an Elysium fragment",
+);
+
+writeFileSync(join(root, "packages/contracts/deployments/robinhood/testnet-core-upgrade.json"), JSON.stringify({
+  chain: "robinhood",
+  network: "mainnet",
+  chainId: 46630,
+}));
+assert.throws(
+  () => loadDeploymentEnv(root, "testnet", "robinhood"),
+  /deployment network mismatch/,
+  "A testnet target must reject a mainnet fragment",
+);
+
+writeFileSync(join(root, "packages/contracts/deployments/robinhood/testnet-core-upgrade.json"), JSON.stringify({
+  chain: "robinhood",
+  network: "testnet",
+  chainId: 4663,
+}));
+assert.throws(
+  () => loadDeploymentEnv(root, "testnet", "robinhood"),
+  /deployment chain ID mismatch/,
+  "Fragments for one target must use one chain ID",
+);
 console.log("Deployment address-book mapping passed.");

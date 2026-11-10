@@ -16,13 +16,22 @@ export const network = deploymentTarget.stage;
 export const networkInfo = SQUEEZ_NETWORKS[deploymentTargetId(deploymentTarget)];
 export const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
 if (!apiUrl) throw new Error(`NEXT_PUBLIC_API_URL must be set in .env.${network}.`);
-export const activeChain = makeSqueezChain(networkInfo, `${apiUrl}/rpc`);
+export const targetApiUrl = `${apiUrl}/v1/${deploymentTarget.chain}/${deploymentTarget.stage}`;
+export const activeChain = makeSqueezChain(networkInfo, `${targetApiUrl}/rpc`);
 /** @deprecated Existing transaction components migrate to `activeChain` incrementally. */
 export const elysium = activeChain;
 
+export const supportedChains = Object.values(SQUEEZ_NETWORKS).map((info) => {
+  const url = `${apiUrl}/v1/${info.chain}/${info.stage}`;
+  return makeSqueezChain(info, `${url}/rpc`);
+}) as [ReturnType<typeof makeSqueezChain>, ...ReturnType<typeof makeSqueezChain>[]];
+
 export const wagmiConfig = createConfig({
-  chains: [activeChain],
+  chains: supportedChains,
   connectors: [injected()],
-  transports: { [activeChain.id]: http(`${apiUrl}/rpc`) },
+  transports: Object.fromEntries(Object.values(SQUEEZ_NETWORKS).map((info) => [
+    info.chainId,
+    http(`${apiUrl}/v1/${info.chain}/${info.stage}/rpc`),
+  ])),
   ssr: true,
 });

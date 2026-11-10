@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node ../../tools/with-env.mjs testnet tsx watch src/index.ts",
     "start:testnet": "node ../../tools/with-env.mjs testnet tsx src/index.ts",
-    "start:mainnet": "node ../../tools/with-env.mjs mainnet tsx src/index.ts",
+    "start:mainnet": "node ../../tools/with-env.mjs robinhood mainnet tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

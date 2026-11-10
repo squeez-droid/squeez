@@ -1,5 +1,5 @@
 import type { Address } from "@squeez/shared";
-import { apiUrl } from "./chain";
+import { targetApiUrl } from "./chain";
 
 export interface IndexedToken {
   address: Address;
@@ -103,52 +103,52 @@ export interface DataSourceStatus {
   indexer: { ok: boolean; blockNumber: number | null; updatedAt: number | null; lagBlocks: number | null; stale: boolean };
 }
 
-export const isIndexerConfigured = Boolean(apiUrl);
+export const isIndexerConfigured = Boolean(targetApiUrl);
 
-async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${apiUrl}${path}`, { signal });
+async function request<T>(path: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<T> {
+  const response = await fetch(`${baseUrl}${path.replace(/^\/v1/, "")}`, { signal });
   if (!response.ok) throw new Error(`Indexer request failed (${response.status}).`);
   return response.json() as Promise<T>;
 }
 
-export function listIndexedTokens(signal?: AbortSignal): Promise<IndexedToken[]> {
-  return request<IndexedToken[]>("/v1/tokens", signal);
+export function listIndexedTokens(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedToken[]> {
+  return request<IndexedToken[]>("/v1/tokens", signal, baseUrl);
 }
 
-export async function getIndexedToken(address: string, signal?: AbortSignal): Promise<IndexedToken | null> {
-  const response = await fetch(`${apiUrl}/v1/tokens/${encodeURIComponent(address)}`, { signal });
+export async function getIndexedToken(address: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedToken | null> {
+  const response = await fetch(`${baseUrl}/tokens/${encodeURIComponent(address)}`, { signal });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Indexer request failed (${response.status}).`);
   return response.json() as Promise<IndexedToken>;
 }
 
-export function listIndexedTrades(address: string, signal?: AbortSignal): Promise<IndexedTrade[]> {
-  return request<IndexedTrade[]>(`/v1/tokens/${encodeURIComponent(address)}/trades`, signal);
+export function listIndexedTrades(address: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedTrade[]> {
+  return request<IndexedTrade[]>(`/v1/tokens/${encodeURIComponent(address)}/trades`, signal, baseUrl);
 }
 
-export function listIndexedCreatorFees(address: string, signal?: AbortSignal): Promise<IndexedCreatorFee[]> {
-  return request<IndexedCreatorFee[]>(`/v1/tokens/${encodeURIComponent(address)}/fees`, signal);
+export function listIndexedCreatorFees(address: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedCreatorFee[]> {
+  return request<IndexedCreatorFee[]>(`/v1/tokens/${encodeURIComponent(address)}/fees`, signal, baseUrl);
 }
 
-export function listIndexedHolders(address: string, signal?: AbortSignal): Promise<IndexedHolder[]> {
-  return request<IndexedHolder[]>(`/v1/tokens/${encodeURIComponent(address)}/holders`, signal);
+export function listIndexedHolders(address: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedHolder[]> {
+  return request<IndexedHolder[]>(`/v1/tokens/${encodeURIComponent(address)}/holders`, signal, baseUrl);
 }
 
-export async function getIndexedMetadata(address: string, signal?: AbortSignal): Promise<IndexedMetadata | null> {
-  const response = await fetch(`${apiUrl}/v1/tokens/${encodeURIComponent(address)}/metadata`, { signal });
+export async function getIndexedMetadata(address: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedMetadata | null> {
+  const response = await fetch(`${baseUrl}/tokens/${encodeURIComponent(address)}/metadata`, { signal });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Metadata request failed (${response.status}).`);
   return response.json() as Promise<IndexedMetadata>;
 }
 
-export function getIndexedStats(signal?: AbortSignal): Promise<IndexedStats> {
-  return request<IndexedStats>("/v1/stats", signal);
+export function getIndexedStats(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedStats> {
+  return request<IndexedStats>("/v1/stats", signal, baseUrl);
 }
 
-export function listActiveQuotes(signal?: AbortSignal): Promise<ActiveQuote[]> {
-  return request<ActiveQuote[]>("/v1/quotes", signal);
+export function listActiveQuotes(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<ActiveQuote[]> {
+  return request<ActiveQuote[]>("/v1/quotes", signal, baseUrl);
 }
 
-export function getDataSourceStatus(signal?: AbortSignal): Promise<DataSourceStatus> {
-  return request<DataSourceStatus>("/v1/status", signal);
+export function getDataSourceStatus(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<DataSourceStatus> {
+  return request<DataSourceStatus>("/v1/status", signal, baseUrl);
 }

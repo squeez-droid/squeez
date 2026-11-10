@@ -1,0 +1,18 @@
+{
+  "chain": "robinhood",
+  "chainId": 4663,
+  "curveBeacon": "0x0E5D8da8a23Dc5C9a755C194a25A5074Fb65e66F",
+  "curveImplementation": "0x4681a99B64940B242a9BF30F2d9c81E256680461",
+  "factory": "0x7fd8F81f27d010f6550bA92203c1D5322Dd7B30E",
+  "factoryImplementation": "0x0F1FF44fbE5992f4DCCCD43EC9E745887bC0B187",
+  "feeVault": "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551",
+  "feeVaultImplementation": "0x8B5EfE88eed48c53DDA18CfA9E2B90dc8f087844",
+  "identityRegistry": "0x0cD83bc632601b0Ef7445aED820A604D7BB0B9a2",
+  "identityRegistryImplementation": "0xb48268D5B08974e0feDE94652DB8169D3b48adca",
+  "network": "mainnet",
+  "protectionPolicyRegistry": "0x0183B7978F5216F7F6225255DE3746917736EA3A",
+  "protectionPolicyRegistryImplementation": "0xc768E59d4252d8C9246CBa707f3787370bA55c13",
+  "quoteRegistry": "0xB2D9616f17217462699E2851c15A53922011F852",
+  "quoteRegistryImplementation": "0xdaf609bb21529b553705705F278b2bD45B058239",
+  "startBlock": 110951498
+}

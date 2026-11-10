@@ -2,7 +2,8 @@
 
 import { SQUEEZ_NETWORKS, type SqueezNetworkInfo } from "@squeez/shared";
 import clsx from "clsx";
-import { deploymentTarget, networkInfo } from "@/lib/chain";
+import { useDeploymentRegistry, type DeploymentCapability } from "@/lib/deployments";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const options = Object.values(SQUEEZ_NETWORKS) as SqueezNetworkInfo[];
 
@@ -11,15 +12,20 @@ function Dot({ active }: { active: boolean }) {
 }
 
 export function NetworkSelector() {
-  const activeId = `${deploymentTarget.chain}:${deploymentTarget.stage}`;
+  const selected = useSelectedTarget();
+  const activeId = selected.id;
+  const registry = useDeploymentRegistry();
+  const capabilities = new Map(registry.data?.map((target) => [`${target.chain}:${target.stage}`, target.capability]));
+  const label = (capability: DeploymentCapability, active: boolean) => active && capability === "enabled"
+    ? "Active" : capability === "read-only" ? "Read only" : capability === "maintenance" ? "Maintenance" : "Coming soon";
 
   return (
     <details className="group relative">
       <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-line bg-surface px-3 text-left text-xs text-white transition-colors hover:border-muted [&::-webkit-details-marker]:hidden">
         <Dot active />
-        <span className="hidden max-w-32 truncate sm:inline">{networkInfo.name}</span>
-        <span className="sm:hidden">{networkInfo.shortName}</span>
-        <span className="num text-[10px] text-muted">{networkInfo.nativeCurrency.symbol}</span>
+        <span className="hidden max-w-32 truncate sm:inline">{selected.info.name}</span>
+        <span className="sm:hidden">{selected.info.shortName}</span>
+        <span className="num text-[10px] text-muted">{selected.info.nativeCurrency.symbol}</span>
         <span aria-hidden className="ml-1 text-[10px] text-muted transition-transform group-open:rotate-180">⌄</span>
       </summary>
 
@@ -32,16 +38,26 @@ export function NetworkSelector() {
           {options.map((option) => {
             const id = `${option.chain}:${option.stage}`;
             const active = id === activeId;
+            const capability = capabilities.get(id) ?? (active ? "enabled" : "coming-soon");
+            const available = capability === "enabled" || capability === "read-only";
             return (
               <button
                 key={id}
                 type="button"
-                disabled={!active}
+                disabled={!available}
+                onClick={() => {
+                  if (active || !available) return;
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("chain", option.chain);
+                  url.searchParams.set("network", option.stage);
+                  window.localStorage.setItem("squeez.deploymentTarget", id);
+                  window.location.assign(url.toString());
+                }}
                 aria-current={active ? "true" : undefined}
-                title={active ? `Currently using ${option.name}` : `${option.name} is coming soon`}
+                title={active ? `Currently using ${option.name}` : `${option.name}: ${label(capability, false)}`}
                 className={clsx(
                   "flex w-full items-center gap-3 rounded px-3 py-2.5 text-left",
-                  active ? "bg-bg text-white" : "cursor-not-allowed text-muted opacity-60",
+                  active ? "bg-bg text-white" : available ? "text-white hover:bg-bg" : "cursor-not-allowed text-muted opacity-60",
                 )}
               >
                 <Dot active={active} />
@@ -52,7 +68,7 @@ export function NetworkSelector() {
                   </span>
                 </span>
                 <span className={clsx("rounded border px-1.5 py-0.5 text-[9px] uppercase", active ? "border-emerald-400/40 text-emerald-300" : "border-line text-muted")}>
-                  {active ? "Active" : "Coming soon"}
+                  {registry.isError && active ? "Registry offline" : label(capability, active)}
                 </span>
               </button>
             );

@@ -74,9 +74,11 @@ contract Deploy is Script {
         vm.serializeAddress(object, "identityRegistry", deployment.identityRegistry);
         vm.serializeAddress(object, "identityRegistryImplementation", deployment.identityRegistryImplementation);
         string memory json = vm.serializeAddress(object, "factory", deployment.factory);
-        string memory directory = string.concat(vm.projectRoot(), "/deployments/", chain);
-        vm.createDir(directory, true);
-        vm.writeJson(json, string.concat(directory, "/", stage, ".json"));
+        if (!vm.envOr("DEPLOYMENT_DRY_RUN", false)) {
+            string memory directory = string.concat(vm.projectRoot(), "/deployments/", chain);
+            vm.createDir(directory, true);
+            vm.writeJson(json, string.concat(directory, "/", stage, ".json"));
+        }
     }
 
     function _deployRegistry(address admin) private returns (address proxy, address implementation) {

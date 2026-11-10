@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { LOG_EVENTS } from "@squeez/shared";
-import { apiUrl } from "@/lib/chain";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 export type TxPhase = "signing" | "pending" | "success" | "error";
 
@@ -43,6 +43,7 @@ interface TxCtx {
 const Ctx = createContext<TxCtx | null>(null);
 
 export function TxProvider({ children }: { children: ReactNode }) {
+  const { targetApiUrl } = useSelectedTarget();
   const [state, setState] = useState<TxState | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -53,9 +54,9 @@ export function TxProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const log = useCallback((event: string, requestId: string, request: TxRequest, extra: Record<string, string> = {}) => {
-    void fetch(`${apiUrl}/v1/logs`, { method: "POST", headers: { "content-type": "application/json" },
+    void fetch(`${targetApiUrl}/logs`, { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ event, requestId, wallet: request.wallet, ...extra }) }).catch(() => undefined);
-  }, []);
+  }, [targetApiUrl]);
 
   const run = useCallback(async (request: TxRequest, execute?: (requestId: string) => Promise<{ hash: string; wait: () => Promise<void> }>) => {
     const requestId = crypto.randomUUID();

@@ -1,13 +1,13 @@
 import { content, NOW } from "@/lib/data";
-import { elysium } from "@/lib/chain";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 import { fmtNum, shortAddr, timeAgo } from "@/lib/format";
 import { Badge, Card } from "@/components/ui";
 import type { RewardsApi } from "./use-rewards";
 
 const T = content.rewards.history;
-const explorer = elysium.blockExplorers?.default.url ?? "";
-
 export function ClaimHistoryCard({ api }: { api: RewardsApi }) {
+  const selected = useSelectedTarget();
+  const explorer = selected.chain.blockExplorers?.default.url ?? "";
   return (
     <Card title={T.title}>
       {api.history.length === 0 ? (

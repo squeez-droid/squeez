@@ -2,12 +2,14 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useWallet } from "@/providers/wallet";
-import { elysium, networkInfo } from "@/lib/chain";
+import { useSelectedTarget } from "@/lib/use-selected-target";
+import { useProtocolConfig } from "@/lib/protocol-config";
 import { fmtNum, shortAddr } from "@/lib/format";
 import { Button, Modal, Spinner } from "./ui";
 import { IconBrowser } from "./icons";
 
 export function WalletButton() {
+  const selected = useSelectedTarget();
   const w = useWallet();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -25,7 +27,7 @@ export function WalletButton() {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="flex h-10 items-center gap-2 rounded-md border border-line px-3 text-sm hover:border-white/60">
-        <span className="num hidden text-white sm:inline">{fmtNum(w.balances.HYPE ?? 0, 2)} HYPE</span>
+        <span className="num hidden text-white sm:inline">{fmtNum(w.balances[selected.info.nativeCurrency.symbol] ?? 0, 2)} {selected.info.nativeCurrency.symbol}</span>
         <span className="hidden h-4 w-px bg-line sm:inline" />
         <span aria-hidden className="h-3 w-3 bg-white" />
         <span className="num text-white">{shortAddr(w.address)}</span>
@@ -35,7 +37,7 @@ export function WalletButton() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <div className="num text-sm text-white">{shortAddr(w.address, 6)}</div>
-              <div className="text-xs text-muted">Browser wallet · {elysium.name}</div>
+              <div className="text-xs text-muted">Browser wallet · {selected.chain.name}</div>
             </div>
             <span className="num text-[10px] uppercase text-muted">online</span>
           </div>
@@ -46,11 +48,11 @@ export function WalletButton() {
           </div>
           <div className="mt-3 grid gap-1 text-sm">
             <Link href="/rewards" onClick={() => setOpen(false)} className="rounded-md px-2 py-1.5 text-white/90 hover:bg-bg">Creator rewards</Link>
-            {networkInfo.faucet && (
-              <a href={networkInfo.faucet} target="_blank" rel="noreferrer" className="rounded-md px-2 py-1.5 text-white/90 hover:bg-bg">Faucet HYPE testnet ↗</a>
+            {selected.info.faucet && (
+              <a href={selected.info.faucet} target="_blank" rel="noreferrer" className="rounded-md px-2 py-1.5 text-white/90 hover:bg-bg">Faucet testnet ↗</a>
             )}
-            {networkInfo.bridge && (
-              <a href={networkInfo.bridge} target="_blank" rel="noreferrer" className="rounded-md px-2 py-1.5 text-white/90 hover:bg-bg">Bridge from HyperEVM ↗</a>
+            {selected.info.bridge && (
+              <a href={selected.info.bridge} target="_blank" rel="noreferrer" className="rounded-md px-2 py-1.5 text-white/90 hover:bg-bg">Bridge ↗</a>
             )}
             <button onClick={() => { w.disconnect(); setOpen(false); }} className="rounded-md px-2 py-1.5 text-left text-down hover:bg-bg">Disconnect</button>
           </div>
@@ -62,6 +64,7 @@ export function WalletButton() {
 
 export function WalletModal() {
   const w = useWallet();
+  const selected = useSelectedTarget();
   const connecting = w.status === "connecting";
   return (
     <Modal open={w.modalOpen} onClose={w.closeModal} title="Connect wallet">
@@ -70,11 +73,11 @@ export function WalletModal() {
       </div>
       {w.error && <p className="mt-3 rounded-lg bg-down/10 px-3 py-2 text-xs text-down">{w.error}</p>}
       <p className="mt-4 text-xs leading-relaxed text-muted">
-        Squeez runs on {elysium.name}. Gas and the bonding curve use HYPE.
-        {networkInfo.faucet && (
+        Squeez runs on {selected.chain.name}. Gas uses {selected.info.nativeCurrency.symbol}.
+        {selected.info.faucet && (
           <>
             {" "}Need testnet HYPE? Get some from the{" "}
-            <a className="text-white underline underline-offset-2" href={networkInfo.faucet} target="_blank" rel="noreferrer">faucet</a>.
+            <a className="text-white underline underline-offset-2" href={selected.info.faucet} target="_blank" rel="noreferrer">faucet</a>.
           </>
         )}
       </p>
@@ -97,11 +100,12 @@ function WalletOption({ icon, title, sub, onClick, disabled, loading }: { icon: 
 
 export function NetworkBanner() {
   const w = useWallet();
+  const selected = useSelectedTarget();
   if (w.status !== "wrong-network") return null;
   return (
     <div className="border-b border-down/40 bg-bg">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2 text-sm">
-        <span className="text-down">Your wallet is not on {elysium.name}. Trading and launching are disabled.</span>
+        <span className="text-down">Your wallet is not on {selected.chain.name}. Trading and launching are disabled.</span>
         <Button size="sm" variant="danger" onClick={w.switchNetwork}>Switch network</Button>
       </div>
     </div>
@@ -111,8 +115,11 @@ export function NetworkBanner() {
 /** Action button that follows wallet state: connect → switch network → action. */
 export function WalletGateButton({ children, onClick, disabled, className, variant = "primary", size = "lg" }: { children: React.ReactNode; onClick: () => void; disabled?: boolean; className?: string; variant?: "primary" | "sell"; size?: "md" | "lg" }) {
   const w = useWallet();
+  const selected = useSelectedTarget();
+  const protocol = useProtocolConfig();
+  if (protocol.data?.capability === "read-only") return <Button size={size} className={className} variant="secondary" disabled>Read only</Button>;
   if (w.status === "disconnected") return <Button size={size} className={className} onClick={w.openModal}>Connect wallet</Button>;
   if (w.status === "connecting") return <Button size={size} className={className} variant="secondary" loading>Connecting</Button>;
-  if (w.status === "wrong-network") return <Button size={size} className={className} variant="danger" onClick={w.switchNetwork}>Switch to {elysium.name}</Button>;
+  if (w.status === "wrong-network") return <Button size={size} className={className} variant="danger" onClick={w.switchNetwork}>Switch to {selected.chain.name}</Button>;
   return <Button size={size} variant={variant} className={className} onClick={onClick} disabled={disabled}>{children}</Button>;
 }

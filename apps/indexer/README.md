@@ -11,7 +11,15 @@ Launch and metadata events are wired. Add handlers for the remaining indexed eve
 the public web reads indexed rows through `apps/backend`, never through a database credential.
 
 Storage: with `DATABASE_URL` empty Ponder uses local PGlite. In production it writes to Supabase Postgres,
-into the schema named by `DATABASE_SCHEMA` (`testnet` or `mainnet`). See `supabase/README.md`.
+into the target-qualified schema named by `DATABASE_SCHEMA` (`testnet`, `robinhood_testnet`, or
+`robinhood_mainnet` for currently enabled targets). See `supabase/README.md`.
+
+Before starting the Robinhood mainnet indexer, run `npm run preflight:indexer:robinhood:mainnet`. The preflight
+verifies the selected chain, stable schema, factory bytecode, deployment-derived start block, and RPC head. Ponder
+then backfills automatically from that start block. Optional post-graduation contracts are indexed only after both
+their address and deployment block exist in the address book; a core-only deployment does not receive dummy values.
+`INDEXER_MAX_REQUESTS_PER_SECOND` defaults to `2` and `INDEXER_LOG_BLOCK_RANGE` to `10` so an initial backfill does
+not overwhelm a low-throughput RPC plan. Raise them only after confirming the provider's sustained allowance.
 
 Ponder exclusively owns the network schema. After a testnet contract/config replacement, reset and backfill
 the stable `testnet` schema with `npm run db:reset-indexer:testnet`; never create versioned schemas such as

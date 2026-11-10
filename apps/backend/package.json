@@ -7,9 +7,9 @@
     "dev:raw": "tsx watch src/index.ts",
     "start:raw": "tsx src/index.ts",
     "dev": "node ../../tools/with-env.mjs testnet tsx watch src/index.ts",
-    "dev:mainnet": "node ../../tools/with-env.mjs mainnet tsx watch src/index.ts",
+    "dev:mainnet": "node ../../tools/with-env.mjs robinhood mainnet tsx watch src/index.ts",
     "start:testnet": "node ../../tools/with-env.mjs testnet tsx src/index.ts",
-    "start:mainnet": "node ../../tools/with-env.mjs mainnet tsx src/index.ts",
+    "start:mainnet": "node ../../tools/with-env.mjs robinhood mainnet tsx src/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

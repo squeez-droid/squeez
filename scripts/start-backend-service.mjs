@@ -4,6 +4,7 @@ const network = process.env.SQUEEZ_NETWORK === "mainnet" ? "mainnet" : "testnet"
 const service = process.env.SQUEEZ_SERVICE ?? "api";
 const workspaces = {
   api: "@squeez/backend",
+  gateway: "@squeez/gateway",
   indexer: "@squeez/indexer",
   keeper: "@squeez/keeper",
 };
@@ -14,7 +15,8 @@ if (!workspace) {
   process.exit(64);
 }
 
-const child = spawn("npm", ["run", `start:${network}`, "-w", workspace], {
+const script = service === "gateway" ? "start" : `start:${network}`;
+const child = spawn("npm", ["run", script, "-w", workspace], {
   env: process.env,
   stdio: "inherit",
 });

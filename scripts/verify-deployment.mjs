@@ -8,9 +8,13 @@ const required = (name) => {
 const addresses = {
   factory: required("FACTORY_ADDRESS"),
   registry: required("QUOTE_REGISTRY_ADDRESS"),
+  protectionPolicyRegistry: required("PROTECTION_POLICY_REGISTRY_ADDRESS"),
+  identityRegistry: required("IDENTITY_REGISTRY_ADDRESS"),
   vault: required("FEE_VAULT_ADDRESS"),
   factoryImplementation: required("FACTORY_IMPLEMENTATION_ADDRESS"),
   registryImplementation: required("QUOTE_REGISTRY_IMPLEMENTATION_ADDRESS"),
+  protectionPolicyRegistryImplementation: required("PROTECTION_POLICY_REGISTRY_IMPLEMENTATION_ADDRESS"),
+  identityRegistryImplementation: required("IDENTITY_REGISTRY_IMPLEMENTATION_ADDRESS"),
   vaultImplementation: required("FEE_VAULT_IMPLEMENTATION_ADDRESS"),
   curveBeacon: required("CURVE_BEACON_ADDRESS"),
   curveImplementation: required("CURVE_IMPLEMENTATION_ADDRESS"),
@@ -34,7 +38,10 @@ const factoryAbi = [
 ];
 const registryAbi = [{ type: "function", name: "isActive", stateMutability: "view",
   inputs: [{ type: "address" }], outputs: [{ type: "bool" }] }];
-const beaconAbi = [{ type: "function", name: "implementation", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }];
+const beaconAbi = [
+  { type: "function", name: "implementation", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+];
 const implementationSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 const proxyImplementation = async (address) => {
   const value = await client.getStorageAt({ address, slot: implementationSlot });
@@ -42,10 +49,14 @@ const proxyImplementation = async (address) => {
 };
 const codes = await Promise.all(Object.values(addresses).map((address) => client.getCode({ address })));
 if (codes.some((code) => !code || code === "0x")) throw new Error("One or more deployment addresses have no bytecode");
-const [factoryOwner, registryOwner, vaultOwner, registry, vault, treasury, curveBeacon, activeConfigId, hypeActive,
-  factoryImplementation, registryImplementation, vaultImplementation, curveImplementation] = await Promise.all([
+const [factoryOwner, registryOwner, protectionPolicyRegistryOwner, identityRegistryOwner, vaultOwner,
+  registry, vault, treasury, curveBeacon, activeConfigId, hypeActive, factoryImplementation,
+  registryImplementation, protectionPolicyRegistryImplementation, identityRegistryImplementation,
+  vaultImplementation, curveImplementation, curveBeaconOwner] = await Promise.all([
   client.readContract({ address: addresses.factory, abi: ownerAbi, functionName: "owner" }),
   client.readContract({ address: addresses.registry, abi: ownerAbi, functionName: "owner" }),
+  client.readContract({ address: addresses.protectionPolicyRegistry, abi: ownerAbi, functionName: "owner" }),
+  client.readContract({ address: addresses.identityRegistry, abi: ownerAbi, functionName: "owner" }),
   client.readContract({ address: addresses.vault, abi: ownerAbi, functionName: "owner" }),
   client.readContract({ address: addresses.factory, abi: factoryAbi, functionName: "quoteRegistry" }),
   client.readContract({ address: addresses.factory, abi: factoryAbi, functionName: "feeVault" }),
@@ -55,23 +66,32 @@ const [factoryOwner, registryOwner, vaultOwner, registry, vault, treasury, curve
   client.readContract({ address: addresses.registry, abi: registryAbi, functionName: "isActive", args: [zeroAddress] }),
   proxyImplementation(addresses.factory),
   proxyImplementation(addresses.registry),
+  proxyImplementation(addresses.protectionPolicyRegistry),
+  proxyImplementation(addresses.identityRegistry),
   proxyImplementation(addresses.vault),
   client.readContract({ address: addresses.curveBeacon, abi: beaconAbi, functionName: "implementation" }),
+  client.readContract({ address: addresses.curveBeacon, abi: beaconAbi, functionName: "owner" }),
 ]);
 const config = await client.readContract({ address: addresses.factory, abi: factoryAbi,
   functionName: "launchConfigs", args: [activeConfigId] });
 const expectedOwner = required("ADMIN_MULTISIG").toLowerCase();
 const checks = {
   bytecode: true,
-  owners: [factoryOwner, registryOwner, vaultOwner].every((owner) => owner.toLowerCase() === expectedOwner),
+  owners: [factoryOwner, registryOwner, protectionPolicyRegistryOwner, identityRegistryOwner, vaultOwner]
+    .every((owner) => owner.toLowerCase() === expectedOwner),
   factoryRegistry: registry.toLowerCase() === addresses.registry.toLowerCase(),
   factoryVault: vault.toLowerCase() === addresses.vault.toLowerCase(),
   treasury: treasury.toLowerCase() === required("TREASURY").toLowerCase(),
   factoryImplementation: factoryImplementation === addresses.factoryImplementation.toLowerCase(),
   registryImplementation: registryImplementation === addresses.registryImplementation.toLowerCase(),
+  protectionPolicyRegistryImplementation:
+    protectionPolicyRegistryImplementation === addresses.protectionPolicyRegistryImplementation.toLowerCase(),
+  identityRegistryImplementation:
+    identityRegistryImplementation === addresses.identityRegistryImplementation.toLowerCase(),
   vaultImplementation: vaultImplementation === addresses.vaultImplementation.toLowerCase(),
   curveBeacon: curveBeacon.toLowerCase() === addresses.curveBeacon.toLowerCase(),
   curveImplementation: curveImplementation.toLowerCase() === addresses.curveImplementation.toLowerCase(),
+  curveBeaconOwner: curveBeaconOwner.toLowerCase() === expectedOwner,
   nativeHypeActive: hypeActive,
   config: {
     threshold: config[0].toString(), virtualHype: config[1].toString(), virtualTokens: config[2].toString(),

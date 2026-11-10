@@ -47,6 +47,11 @@ export function deploymentTargetId({ chain, stage }: DeploymentTarget): `${Squee
   return `${chain}:${stage}`;
 }
 
+/** Stable Ponder/API data schema for one deployment target on the shared PostgreSQL instance. */
+export function deploymentSchema({ chain, stage }: DeploymentTarget): string {
+  return chain === "elysium" ? stage : `${chain}_${stage}`;
+}
+
 /** Keeps the deployed Elysium schema names stable while isolating every additional chain. */
 export function operationalSchema({ chain, stage }: DeploymentTarget): string {
   return chain === "elysium" ? `${stage}_system` : `${chain}_${stage}_system`;

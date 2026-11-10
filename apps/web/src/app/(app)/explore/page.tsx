@@ -10,6 +10,7 @@ import { Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
 import { DataSourceState } from "@/components/data-source-state";
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
@@ -17,6 +18,7 @@ type PairFilter = "all" | "crypto" | "stock" | "stable";
 const PAGE_SIZE = 12;
 
 export default function ExplorePage() {
+  const selected = useSelectedTarget();
   const [tokens, setTokens] = useState<IndexedToken[]>([]);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortMode>("trending");
@@ -36,14 +38,14 @@ export default function ExplorePage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    Promise.all([listIndexedTokens(controller.signal), getDataSourceStatus(controller.signal), getProtocolConfig(controller.signal), getIndexedStats(controller.signal), listActiveQuotes(controller.signal).catch(() => [])])
+    Promise.all([listIndexedTokens(controller.signal, selected.targetApiUrl), getDataSourceStatus(controller.signal, selected.targetApiUrl), getProtocolConfig(controller.signal, selected.targetApiUrl), getIndexedStats(controller.signal, selected.targetApiUrl), listActiveQuotes(controller.signal, selected.targetApiUrl).catch(() => [])])
       .then(([nextTokens, nextStatus, nextProtocol, nextStats, nextQuotes]) => { setTokens(nextTokens); setSourceStatus(nextStatus); setProtocol(nextProtocol); setStats(nextStats); setQuotes(nextQuotes); })
       .catch((cause) => {
         if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Indexer request failed.");
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [reload]);
+  }, [reload, selected.targetApiUrl]);
 
   const threshold = Number(protocol?.launchConfig.graduationThresholdHype ?? 0);
   const progressOf = useCallback((token: IndexedToken) => {

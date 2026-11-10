@@ -31,6 +31,8 @@ const fragments = [
   `${network}-launch-config.json`,
   `${network}-protected-launch.json`,
   `${network}-attester.json`,
+  `${network}-admin-migration.json`,
+  `${network}-governance.json`,
 ].filter((name) => existsSync(join(deploymentDirectory, name)));
 const deployment = Object.assign({}, ...fragments.map((name) => JSON.parse(readFileSync(join(deploymentDirectory, name)))));
 const directDeploymentTransactions = fragments.flatMap((name) => {

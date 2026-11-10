@@ -3,11 +3,12 @@ import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, keccak256, toBytes, verifyMessage, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { LOG_EVENTS, WEB_LOG_EVENTS, type LogEvent } from "@squeez/shared";
+import { LOG_EVENTS, SQUEEZ_NETWORKS, WEB_LOG_EVENTS, type LogEvent } from "@squeez/shared";
 import { backendConfig as config } from "./config.js";
 import { writeSystemLog } from "./logger.js";
 import { pinLaunchMetadata } from "./pinata.js";
 import { computeImageEvidence } from "./image-evidence.js";
+import { resolveTargetRoute } from "./target-routing.js";
 
 const pool = new Pool({ connectionString: config.databaseUrl, max: 10 });
 const safeRpcMethods = new Set([
@@ -224,14 +225,81 @@ async function tokenColumns(): Promise<string> {
 }
 
 async function rpc(method: string, params: unknown[] = []) {
-  const response = await fetch(config.rpcUrl, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`RPC returned ${response.status}`);
-  const payload = await response.json() as { result?: string; error?: { message?: string } };
-  if (!payload.result) throw new Error(payload.error?.message ?? "RPC response is missing a result");
-  return payload.result;
+  const providers = [config.rpcUrl, config.rpcFallbackUrl].filter(Boolean) as string[];
+  let lastError: unknown;
+  for (const provider of providers) {
+    try {
+      const response = await fetch(provider, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error(`RPC returned ${response.status}`);
+      const payload = await response.json() as { result?: string; error?: { message?: string } };
+      if (!payload.result) throw new Error(payload.error?.message ?? "RPC response is missing a result");
+      return payload.result;
+    } catch (error) { lastError = error; }
+  }
+  throw lastError instanceof Error ? lastError : new Error("All RPC providers failed");
+}
+
+async function readiness() {
+  const checks = {
+    database: false,
+    schema: false,
+    rpc: false,
+    contract: false,
+    indexer: false,
+  };
+  let rpcBlock: number | null = null;
+  let indexerBlock: number | null = null;
+  const errors: string[] = [];
+
+  const database = await Promise.allSettled([
+    pool.query("select 1"),
+    pool.query("select to_regnamespace($1) is not null as available", [config.databaseSchema]),
+    pool.query("select to_regclass($1) is not null as available", [`${config.databaseSchema}._ponder_checkpoint`]),
+  ]);
+  checks.database = database[0].status === "fulfilled";
+  checks.schema = database[1].status === "fulfilled" && Boolean(database[1].value.rows[0]?.available);
+  const checkpointTable = database[2].status === "fulfilled" && Boolean(database[2].value.rows[0]?.available);
+  if (!checks.database) errors.push("database unavailable");
+  if (!checks.schema) errors.push("database schema unavailable");
+
+  const chain = await Promise.allSettled([
+    rpc("eth_chainId"),
+    rpc("eth_blockNumber"),
+    config.contracts.factory ? rpc("eth_getCode", [config.contracts.factory, "latest"]) : Promise.resolve("0x"),
+  ]);
+  if (chain[0].status === "fulfilled") {
+    checks.rpc = Number(BigInt(chain[0].value)) === config.chainId;
+    if (!checks.rpc) errors.push("RPC chain ID mismatch");
+  } else errors.push("RPC unavailable");
+  if (chain[1].status === "fulfilled") rpcBlock = Number(BigInt(chain[1].value));
+  checks.contract = chain[2].status === "fulfilled" && chain[2].value !== "0x";
+  if (!checks.contract) errors.push("Factory bytecode unavailable");
+
+  if (checkpointTable) {
+    try {
+      const result = await pool.query(`select substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber"
+        from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]);
+      indexerBlock = result.rows[0] ? Number(result.rows[0].blockNumber) : null;
+      checks.indexer = rpcBlock !== null && indexerBlock !== null && Math.max(0, rpcBlock - indexerBlock) <= 2_000;
+    } catch { checks.indexer = false; }
+  }
+  if (!checks.indexer) errors.push("indexer checkpoint unavailable or stale");
+
+  const coreReady = checks.database && checks.schema && checks.rpc && checks.contract;
+  const ready = coreReady && (config.capability === "read-only" || checks.indexer);
+  return {
+    ready,
+    degraded: ready && !checks.indexer,
+    capability: config.capability,
+    target: `${config.chain}:${config.network}`,
+    chainId: config.chainId,
+    checks,
+    blocks: { rpc: rpcBlock, indexer: indexerBlock },
+    errors,
+  };
 }
 
 const server = createServer(async (req, res) => {
@@ -239,6 +307,29 @@ const server = createServer(async (req, res) => {
     if (!cors(req, res)) return;
     if (req.method === "OPTIONS") return void res.writeHead(204).end();
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    const targetRoute = resolveTargetRoute(url.pathname, { chain: config.chain, stage: config.network });
+    if (targetRoute.kind === "mismatch") {
+        return json(res, 404, {
+          error: "Deployment target is not served by this backend",
+          requestedTarget: targetRoute.requestedTarget,
+          servedTarget: targetRoute.servedTarget,
+        });
+    }
+    if (targetRoute.kind === "canonical") {
+      url.pathname = targetRoute.pathname;
+      res.setHeader("x-squeez-target", `${config.chain}:${config.network}`);
+    } else if (targetRoute.kind === "legacy") {
+      res.setHeader("deprecation", "true");
+      res.setHeader("sunset", "Tue, 01 Jun 2027 00:00:00 GMT");
+      res.setHeader("link", `<${targetRoute.successor}>; rel=\"successor-version\"`);
+    }
+
+    const readOnlyAllowed = ["GET", "HEAD", "OPTIONS"].includes(req.method ?? "GET")
+      || (req.method === "POST" && (url.pathname === "/rpc" || url.pathname === "/v1/rpc"));
+    const readOnlyCredentialPath = url.pathname === "/v1/auth/x/nonce" || url.pathname === "/v1/metadata/nonce";
+    if (config.capability === "read-only" && (!readOnlyAllowed || readOnlyCredentialPath)) {
+      return json(res, 403, { error: "Deployment target is read-only", target: `${config.chain}:${config.network}` });
+    }
     const qualified = url.pathname.match(/^\/v1\/chains\/(\d+)(\/.*)?$/);
     if (qualified) {
       const requestedChainId = Number(qualified[1]);
@@ -248,16 +339,28 @@ const server = createServer(async (req, res) => {
       url.pathname = `/v1${qualified[2] ?? ""}`;
     }
 
-    if (req.method === "GET" && url.pathname === "/health") {
+    if (req.method === "GET" && url.pathname === "/v1/deployments") {
+      return json(res, 200, Object.values(SQUEEZ_NETWORKS).map((target) => {
+        const active = target.chain === config.chain && target.stage === config.network;
+        return {
+          chain: target.chain,
+          stage: target.stage,
+          chainId: target.chainId,
+          name: target.name,
+          shortName: target.shortName,
+          nativeCurrency: target.nativeCurrency,
+          explorer: target.explorer,
+          capability: active ? "enabled" : "coming-soon",
+          apiBasePath: `/v1/${target.chain}/${target.stage}`,
+        };
+      }));
+    }
+    if (req.method === "GET" && (url.pathname === "/health" || url.pathname === "/v1/health")) {
       return json(res, 200, { ok: true, chain: config.chain, chainId: config.chainId, network: config.network });
     }
-    if (req.method === "GET" && url.pathname === "/ready") {
-      try {
-        await pool.query("select 1");
-        return json(res, 200, { ready: true, chain: config.chain, chainId: config.chainId, network: config.network });
-      } catch {
-        return json(res, 503, { ready: false, chain: config.chain, chainId: config.chainId, network: config.network });
-      }
+    if (req.method === "GET" && (url.pathname === "/ready" || url.pathname === "/v1/ready")) {
+      const result = await readiness();
+      return json(res, result.ready ? 200 : 503, result);
     }
     if (req.method === "GET" && url.pathname === "/v1/status") {
       const checkedAt = Math.floor(Date.now() / 1000);
@@ -691,6 +794,7 @@ const server = createServer(async (req, res) => {
       };
       return json(res, 200, {
         configured,
+        capability: config.capability,
         network: config.network,
         creatorAttestation: {
           enabled: config.xAttestation.enabled,
@@ -797,7 +901,7 @@ const server = createServer(async (req, res) => {
           x: safeMetadataUrl(rawLinks.x),
           telegram: safeMetadataUrl(rawLinks.telegram),
         },
-        imagePath: imageCid ? `/v1/ipfs/${imageCid}` : null,
+        imagePath: imageCid ? `/v1/${config.chain}/${config.network}/ipfs/${imageCid}` : null,
       });
     }
     const ipfsMatch = url.pathname.match(/^\/v1\/ipfs\/([a-zA-Z0-9]+)$/);
@@ -841,13 +945,15 @@ const server = createServer(async (req, res) => {
       const result = await pool.query(`select ${columns} from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`, [tokenMatch[1]]);
       return result.rows[0] ? json(res, 200, chainQualified(result.rows[0])) : json(res, 404, { error: "Token not found" });
     }
-    if (req.method === "POST" && url.pathname === "/rpc") {
+    if (req.method === "POST" && (url.pathname === "/rpc" || url.pathname === "/v1/rpc")) {
       const payload = await body(req) as { method?: string };
       if (!payload.method || !safeRpcMethods.has(payload.method)) return json(res, 403, { error: "RPC method not allowed" });
-      const upstream = await fetch(config.rpcUrl, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(15_000),
-      });
-      return json(res, upstream.status, await upstream.json());
+      try {
+        const result = await rpc(payload.method, (payload as { params?: unknown[] }).params ?? []);
+        return json(res, 200, { jsonrpc: "2.0", id: (payload as { id?: unknown }).id ?? 1, result });
+      } catch (error) {
+        return json(res, 502, { error: error instanceof Error ? error.message : "RPC providers unavailable" });
+      }
     }
     return json(res, 404, { error: "Not found" });
   } catch (error) {

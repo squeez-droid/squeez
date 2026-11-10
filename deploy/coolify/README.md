@@ -39,3 +39,17 @@ Recommended API settings in Coolify:
 - Stop Grace Period: `30` seconds
 - Container name: generated/default, not consistent or custom
 - Host port mapping: none
+
+## Robinhood mainnet temporary read-only mode
+
+Until the archive-RPC backfill and release gate are complete, deploy `api-robinhood-mainnet` with
+`SQUEEZ_API_CAPABILITY=read-only` and expose it through the gateway with
+`ROBINHOOD_MAINNET_CAPABILITY=read-only`. Read endpoints and the allowlisted read-only RPC proxy remain available;
+metadata upload, OAuth issuance, attestations, operational-log writes, and every other mutating HTTP request return
+`403`. Readiness requires database, isolated schema, correct-chain RPC, and factory bytecode. A missing/stale indexer
+is reported as `degraded` but does not kill the read-only API or the already healthy testnet services.
+
+Run the mainnet indexer as its own private application/resource with schema `robinhood_mainnet`, initial defaults
+`INDEXER_MAX_REQUESTS_PER_SECOND=2` and `INDEXER_LOG_BLOCK_RANGE=10`. Its failure or restart must not participate in
+the API container lifecycle. Do not deploy a mainnet keeper and do not change either capability to `enabled` until
+historical backfill, reconciliation, and the release gate pass.

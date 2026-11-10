@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useAccount, useBalance, useConnect, useDisconnect, useSwitchChain } from "wagmi";
-import { elysium } from "@/lib/chain";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 export type WalletStatus = "disconnected" | "connecting" | "connected" | "wrong-network";
 
@@ -24,10 +24,12 @@ interface WalletCtx {
 const Ctx = createContext<WalletCtx | null>(null);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
+  const selected = useSelectedTarget();
+  const activeChain = selected.chain;
   const [modalOpen, setModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const account = useAccount();
-  const balance = useBalance({ address: account.address, chainId: elysium.id });
+  const balance = useBalance({ address: account.address, chainId: activeChain.id });
   const { connectors, connectAsync } = useConnect();
   const { disconnect: disconnectWallet } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
@@ -38,32 +40,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!injectedConnector) return;
     setError(null);
     try {
-      await connectAsync({ connector: injectedConnector, chainId: elysium.id });
+      await connectAsync({ connector: injectedConnector, chainId: activeChain.id });
       setModalOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message.split("\n")[0] : "Wallet connection failed.");
     }
-  }, [connectAsync, injectedConnector]);
+  }, [connectAsync, injectedConnector, activeChain.id]);
 
   const switchNetwork = useCallback(async () => {
     setError(null);
     try {
-      await switchChainAsync({ chainId: elysium.id });
+      await switchChainAsync({ chainId: activeChain.id });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message.split("\n")[0] : "Network switch failed.");
     }
-  }, [switchChainAsync]);
+  }, [switchChainAsync, activeChain.id]);
 
   const value = useMemo<WalletCtx>(() => {
     let status: WalletStatus = "disconnected";
     if (account.status === "connecting" || account.status === "reconnecting") status = "connecting";
-    if (account.status === "connected") status = account.chainId === elysium.id ? "connected" : "wrong-network";
+    if (account.status === "connected") status = account.chainId === activeChain.id ? "connected" : "wrong-network";
 
     return {
       status,
       mode: account.status === "connected" ? "injected" : null,
       address: account.address ?? null,
-      balances: { HYPE: balance.data ? Number(balance.data.value) / 10 ** balance.data.decimals : 0 },
+      balances: { [selected.info.nativeCurrency.symbol]: balance.data ? Number(balance.data.value) / 10 ** balance.data.decimals : 0 },
       modalOpen,
       error,
       hasInjected,
@@ -73,7 +75,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       disconnect: () => disconnectWallet(),
       switchNetwork,
     };
-  }, [account.status, account.chainId, account.address, balance.data, modalOpen, error, hasInjected, connectInjected, disconnectWallet, switchNetwork]);
+  }, [account.status, account.chainId, account.address, activeChain.id, selected.info.nativeCurrency.symbol, balance.data, modalOpen, error, hasInjected, connectInjected, disconnectWallet, switchNetwork]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

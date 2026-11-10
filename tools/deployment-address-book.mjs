@@ -36,6 +36,7 @@ export const FIELD_TO_ENV = {
   virtualTokenReserve: "VIRTUAL_TOKEN_RESERVE",
   sniperTaxStartBps: "SNIPER_TAX_START_BPS",
   sniperTaxDecaySeconds: "SNIPER_TAX_DECAY_SECONDS",
+  maxBuyBpsPerTransaction: "MAX_BUY_BPS_PER_TRANSACTION",
   maxWalletBps: "MAX_WALLET_BPS",
   maxWalletWindowSeconds: "MAX_WALLET_WINDOW_SECONDS",
   launchFeeHype: "LAUNCH_FEE_HYPE",
@@ -56,6 +57,7 @@ export function loadDeploymentEnv(repositoryRoot, network, chain = "elysium") {
   if (existingPaths.length === 0) return { paths, values: {} };
 
   const deployment = {};
+  let deploymentChainId;
   for (const path of existingPaths) {
     const fragment = JSON.parse(readFileSync(path, "utf8"));
     if (fragment.network && fragment.network !== network) {
@@ -63,6 +65,16 @@ export function loadDeploymentEnv(repositoryRoot, network, chain = "elysium") {
     }
     if (fragment.chain && fragment.chain !== chain) {
       throw new Error(`deployment chain mismatch in ${path}`);
+    }
+    if (fragment.chainId !== undefined) {
+      const fragmentChainId = Number(fragment.chainId);
+      if (!Number.isSafeInteger(fragmentChainId) || fragmentChainId <= 0) {
+        throw new Error(`deployment chain ID is invalid in ${path}`);
+      }
+      if (deploymentChainId !== undefined && fragmentChainId !== deploymentChainId) {
+        throw new Error(`deployment chain ID mismatch in ${path}`);
+      }
+      deploymentChainId = fragmentChainId;
     }
     Object.assign(deployment, fragment);
   }

@@ -5,7 +5,7 @@ import { formatEther, parseEther } from "viem";
 import { useReadContract, useSignMessage } from "wagmi";
 import { content } from "@/lib/data";
 import { launchFactoryAbi } from "@/lib/abis";
-import { apiUrl } from "@/lib/chain";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 import { fill, isAddress } from "@/lib/format";
 import { useProtocolConfig } from "@/lib/protocol-config";
 import type { QuotePair } from "@/lib/types";
@@ -95,6 +95,8 @@ function validateIdentity(f: LaunchForm): FormErrors {
 
 /** Form state, validation and derived numbers for the launch wizard. */
 export function useLaunchForm() {
+  const selected = useSelectedTarget();
+  const targetApiUrl = selected.targetApiUrl;
   const wallet = useWallet();
   const signer = useSignMessage();
   const protocol = useProtocolConfig();
@@ -151,7 +153,7 @@ export function useLaunchForm() {
     const timeout = window.setTimeout(() => {
       setIdentityChecking(true);
       const query = new URLSearchParams({ name: form.name.trim(), symbol: form.ticker });
-      fetch(`${apiUrl}/v1/identity/check?${query}`, { signal: controller.signal })
+      fetch(`${targetApiUrl}/identity/check?${query}`, { signal: controller.signal })
         .then(async (response) => {
           if (!response.ok) throw new Error("Identity check failed");
           setIdentityCheck(await response.json() as IdentityCheck);
@@ -165,26 +167,26 @@ export function useLaunchForm() {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [form.name, form.ticker]);
+  }, [form.name, form.ticker, targetApiUrl]);
 
   useEffect(() => {
-    fetch(`${apiUrl}/v1/auth/x/session`, { credentials: "include" })
+    fetch(`${targetApiUrl}/auth/x/session`, { credentials: "include" })
       .then((response) => response.ok ? response.json() as Promise<XVerification> : { verified: false })
       .then((session) => setXVerification(session))
       .catch(() => setXVerification({ verified: false }));
-  }, []);
+  }, [targetApiUrl]);
 
   const connectX = async () => {
     if (!wallet.address) throw new Error("Connect your wallet before verifying X.");
     setXVerificationLoading(true);
     try {
-      const nonceResponse = await fetch(`${apiUrl}/v1/auth/x/nonce?address=${wallet.address}`, {
+      const nonceResponse = await fetch(`${targetApiUrl}/auth/x/nonce?address=${wallet.address}`, {
         credentials: "include",
       });
       if (!nonceResponse.ok) throw new Error("Could not create X verification authorization.");
       const authorization = await nonceResponse.json() as { message: string };
       const signature = await signer.signMessageAsync({ message: authorization.message });
-      const startResponse = await fetch(`${apiUrl}/v1/auth/x/start`, {
+      const startResponse = await fetch(`${targetApiUrl}/auth/x/start`, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -203,13 +205,13 @@ export function useLaunchForm() {
   };
 
   const disconnectX = async () => {
-    await fetch(`${apiUrl}/v1/auth/x/session`, { method: "DELETE", credentials: "include" });
+    await fetch(`${targetApiUrl}/auth/x/session`, { method: "DELETE", credentials: "include" });
     setXVerification({ verified: false });
   };
 
   const requestXAttestation = async (metadataURI: string, imageHash: `0x${string}`) => {
     if (!wallet.address || !xVerification.verified) throw new Error("A verified X session is required.");
-    const response = await fetch(`${apiUrl}/v1/auth/x/attestation`, {
+    const response = await fetch(`${targetApiUrl}/auth/x/attestation`, {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
@@ -274,7 +276,7 @@ export function useLaunchForm() {
     setMetadataUploading(true);
     setMetadataError(null);
     try {
-      const nonceResponse = await fetch(`${apiUrl}/v1/metadata/nonce?address=${wallet.address}&requestId=${requestId}`);
+      const nonceResponse = await fetch(`${targetApiUrl}/metadata/nonce?address=${wallet.address}&requestId=${requestId}`);
       if (!nonceResponse.ok) throw new Error("Could not create an upload authorization.");
       const authorization = await nonceResponse.json() as { message: string };
       const signature = await signer.signMessageAsync({ message: authorization.message });
@@ -288,7 +290,7 @@ export function useLaunchForm() {
             ? `https://t.me/${form.telegram.slice(1)}`
             : `https://${form.telegram.replace(/^\/?/, "")}`)
         : "";
-      const response = await fetch(`${apiUrl}/v1/metadata`, {
+      const response = await fetch(`${targetApiUrl}/metadata`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...form, x, telegram, address: wallet.address, signature }),
