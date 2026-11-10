@@ -38,7 +38,21 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div className="hero-wordmark" aria-label="Squeez"><span className="rise">SQUEEZ</span></div>
+        <div className="hero-marquee" aria-hidden="true">
+          <div className="hero-marquee-track">
+            {[0, 1].map((copy) => (
+              <div className="hero-marquee-set" key={copy}>
+                <span className="solid">SQUEEZ</span><i>✦</i>
+                <span className="outline">LAUNCH</span><i>✦</i>
+                <span className="outline">CURVE</span><i>✦</i>
+                <span className="solid">GRADUATE</span><i>✦</i>
+                <span className="outline">LOCK</span><i>✦</i>
+                <span className="solid">PROTECT</span><i>✦</i>
+              </div>
+            ))}
+          </div>
+          <p>ONCHAIN LAUNCHES · PROGRAMMABLE LIQUIDITY · NO WITHDRAW PATH</p>
+        </div>
         <div className="flex items-center justify-between border-t border-line px-4 py-3 md:px-8">
           <span className="num text-[10px] uppercase tracking-[0.14em] text-muted">Bonding curve protocol — 2026</span>
           <a href="#route" className="num text-[10px] uppercase tracking-[0.14em] text-white">Scroll ↓</a>
