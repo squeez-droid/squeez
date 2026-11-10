@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { content, landing as L } from "@/lib/data";
-import { IconArrowUpRight, Logo } from "@/components/icons";
+import { BrandLogo } from "@/components/brand-logo";
+import { IconArrowUpRight } from "@/components/icons";
 import { NegativeToggle } from "../motion";
 
 export function LandingFooter() {
@@ -9,7 +10,7 @@ export function LandingFooter() {
       <div className="mx-auto grid max-w-[90rem] gap-8 px-4 py-10 text-xs text-muted md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end md:px-8">
         <div>
           <Link href="/" className="flex items-center gap-2 text-white">
-            <Logo size={16} />
+            <BrandLogo size={44} className="shrink-0" />
             <span className="font-display font-bold uppercase">{content.brand.name}</span>
           </Link>
           <p className="mt-3 max-w-md">{content.footer.disclaimer}</p>

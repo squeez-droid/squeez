@@ -11,7 +11,15 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 // Display: wide Archivo (wdth 125) for headings & big numbers, ticker-board feel.
 const display = Archivo({ subsets: ["latin"], variable: "--font-display", axes: ["wdth"] });
 
-export const metadata: Metadata = { title: `${content.brand.name} · Launchpad on Elysium`, description: content.brand.tagline };
+export const metadata: Metadata = {
+  title: `${content.brand.name} · Launchpad on Elysium`,
+  description: content.brand.tagline,
+  icons: {
+    icon: [{ url: "/squeez-logo.png", type: "image/png" }],
+    shortcut: "/squeez-logo.png",
+    apple: "/squeez-logo.png",
+  },
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

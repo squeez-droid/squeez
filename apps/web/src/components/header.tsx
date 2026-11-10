@@ -6,7 +6,8 @@ import { useState } from "react";
 import { content, tokens } from "@/lib/data";
 import { WalletButton } from "./wallet-ui";
 import { TokenAvatar } from "./token-bits";
-import { IconArrowUpRight, IconClose, IconMenu, IconSearch, Logo } from "./icons";
+import { BrandLogo } from "./brand-logo";
+import { IconArrowUpRight, IconClose, IconMenu, IconSearch } from "./icons";
 
 export function Header() {
   const path = usePathname();
@@ -18,8 +19,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-white"><Logo /></span>
+        <Link href="/" className="flex items-center gap-2" aria-label={content.brand.name}>
+          <BrandLogo size={36} priority className="shrink-0" />
           <span className="font-display text-[17px] font-bold uppercase tracking-tight text-white">{content.brand.name}</span>
           <span className="num hidden border-l border-line pl-2 text-[11px] uppercase text-muted sm:inline">{content.brand.chainLabel}</span>
         </Link>
@@ -66,8 +67,14 @@ export function Header() {
 export function Footer() {
   return (
     <footer className="mt-16 border-t border-line">
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
-        <span>{content.footer.disclaimer}</span>
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <BrandLogo size={40} className="shrink-0" />
+          <div>
+            <div className="font-display text-sm font-bold uppercase text-white">{content.brand.name}</div>
+            <p className="mt-1 max-w-xl">{content.footer.disclaimer}</p>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-4">
           {content.footer.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white">{l.label}<IconArrowUpRight width={12} height={12} /></a>)}
         </div>
