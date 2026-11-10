@@ -21,7 +21,9 @@ remappings = [
 ]
 
 [rpc_endpoints]
-# Points at testnet or mainnet depending on the loaded .env.<network> file
+# Generic endpoint selected by tools/with-env.mjs.
+squeez = "${SQUEEZ_RPC}"
+# Legacy alias retained for existing Elysium operational commands.
 elysium = "${ELYSIUM_RPC}"
 
 [fmt]

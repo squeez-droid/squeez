@@ -1,0 +1,8 @@
+{
+  "chainId": 46630,
+  "deployer": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+  "network": "testnet",
+  "poolManager": "0x0c4D28Ad6414CC1F8E90AFe0BF88Aad1F1DBB8a0",
+  "squeezHook": "0xf547Dc205eF33511b2D144b299FE1063B1B260CC",
+  "swapRouter": "0x0b1C190e7fE1750de78512C7aBb50241480D3b7D"
+}

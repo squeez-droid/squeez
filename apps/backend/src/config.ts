@@ -1,4 +1,4 @@
-import { parseNetwork } from "@squeez/shared";
+import { operationalSchema, parseDeploymentTarget } from "@squeez/shared";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -17,20 +17,34 @@ function optional(name: string): string | null {
   return process.env[name]?.trim() || null;
 }
 
+const target = parseDeploymentTarget(process.env.SQUEEZ_CHAIN, process.env.SQUEEZ_NETWORK);
+
 export const backendConfig = {
-  network: parseNetwork(process.env.SQUEEZ_NETWORK),
+  chain: target.chain,
+  network: target.stage,
+  target,
+  systemLogSchema: operationalSchema(target),
   port: Number(process.env.PORT ?? 8080),
   allowedOrigins: new Set(required("ALLOWED_ORIGINS").split(",").map((origin) => origin.trim())),
-  rpcUrl: required("ELYSIUM_RPC"),
-  chainId: Number(required("ELYSIUM_CHAIN_ID")),
-  explorer: required("ELYSIUM_EXPLORER"),
+  rpcUrl: required("SQUEEZ_RPC"),
+  chainId: Number(required("SQUEEZ_CHAIN_ID")),
+  explorer: required("SQUEEZ_EXPLORER"),
   databaseUrl: required("DATABASE_URL"),
   databaseSchema: required("DATABASE_SCHEMA"),
+  crossChainDatabaseSchema: optional("CROSS_CHAIN_DATABASE_SCHEMA"),
   pinata: {
     jwt: optional("PINATA_JWT"),
     apiUrl: optional("PINATA_API_URL") ?? "https://api.pinata.cloud",
     uploadUrl: optional("PINATA_UPLOAD_URL") ?? "https://uploads.pinata.cloud/v3/files",
     gatewayUrl: optional("PINATA_GATEWAY_URL") ?? "https://gateway.pinata.cloud/ipfs",
+  },
+  xAttestation: {
+    enabled: process.env.X_OAUTH_ENABLED === "true",
+    clientId: optional("X_CLIENT_ID"),
+    clientSecret: optional("X_CLIENT_SECRET"),
+    redirectUri: optional("X_REDIRECT_URI"),
+    attesterPrivateKey: optional("SQUEEZ_ATTESTER_PRIVATE_KEY"),
+    maxLaunchesPer24h: Number(process.env.X_MAX_ATTESTED_LAUNCHES_PER_24H ?? 3),
   },
   contracts: {
     factory: address("FACTORY_ADDRESS"),
@@ -63,5 +77,19 @@ export const backendConfig = {
 };
 
 if (!Number.isSafeInteger(backendConfig.port) || backendConfig.port <= 0) throw new Error("PORT is invalid");
-if (!Number.isSafeInteger(backendConfig.chainId) || backendConfig.chainId <= 0) throw new Error("ELYSIUM_CHAIN_ID is invalid");
+if (!Number.isSafeInteger(backendConfig.chainId) || backendConfig.chainId <= 0) throw new Error("SQUEEZ_CHAIN_ID is invalid");
+if (!Number.isSafeInteger(backendConfig.xAttestation.maxLaunchesPer24h)
+  || backendConfig.xAttestation.maxLaunchesPer24h <= 0) throw new Error("X_MAX_ATTESTED_LAUNCHES_PER_24H is invalid");
+if (backendConfig.xAttestation.enabled && (!backendConfig.xAttestation.clientId
+  || !backendConfig.xAttestation.clientSecret || !backendConfig.xAttestation.redirectUri)) {
+  throw new Error("X OAuth is enabled but its backend-only credentials are incomplete");
+}
+if (backendConfig.xAttestation.attesterPrivateKey
+  && !/^0x[a-fA-F0-9]{64}$/.test(backendConfig.xAttestation.attesterPrivateKey)) {
+  throw new Error("SQUEEZ_ATTESTER_PRIVATE_KEY must be a 32-byte hex private key");
+}
 if (!/^[a-z_][a-z0-9_]*$/.test(backendConfig.databaseSchema)) throw new Error("DATABASE_SCHEMA is invalid");
+if (backendConfig.crossChainDatabaseSchema
+  && !/^[a-z_][a-z0-9_]*$/.test(backendConfig.crossChainDatabaseSchema)) {
+  throw new Error("CROSS_CHAIN_DATABASE_SCHEMA is invalid");
+}

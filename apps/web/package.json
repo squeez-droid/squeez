@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev:raw": "next dev",
     "dev": "node ../../tools/with-env.mjs testnet next dev",
     "dev:mainnet": "node ../../tools/with-env.mjs mainnet next dev",
     "build": "next build",

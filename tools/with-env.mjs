@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs a command with the env file of one network loaded.
 //
-//   node ../../tools/with-env.mjs <testnet|mainnet> <command> [args...]
+//   node ../../tools/with-env.mjs [elysium|robinhood] <testnet|mainnet> <command> [args...]
 //
 // Reads `.env.<network>` from the current working directory (the workspace that calls it).
 // Variables already set in the shell win, so CI and secret managers can override the file.
@@ -10,9 +10,10 @@ import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadDeploymentEnv } from "./deployment-address-book.mjs";
+import { FIELD_TO_ENV, loadDeploymentEnv } from "./deployment-address-book.mjs";
 
 const NETWORKS = ["testnet", "mainnet"];
+const CHAINS = ["elysium", "robinhood"];
 
 function fail(message) {
   console.error(`with-env: ${message}`);
@@ -35,8 +36,13 @@ function parseEnvFile(text) {
   return vars;
 }
 
-const [network, ...command] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const explicitChain = CHAINS.includes(args[0]);
+const chain = explicitChain ? args.shift() : (process.env.SQUEEZ_CHAIN || "elysium");
+const network = args.shift();
+const command = args;
 
+if (!CHAINS.includes(chain)) fail(`chain must be one of: ${CHAINS.join(", ")}`);
 if (!NETWORKS.includes(network)) fail(`first argument must be one of: ${NETWORKS.join(", ")}`);
 if (command.length === 0) fail("missing command to run");
 
@@ -49,14 +55,52 @@ if (!existsSync(envFile) && process.env.SQUEEZ_NETWORK !== network) {
 
 let deploymentEnv = {};
 try {
-  deploymentEnv = loadDeploymentEnv(repositoryRoot, network).values;
+  deploymentEnv = loadDeploymentEnv(repositoryRoot, network, chain).values;
 } catch (error) {
   fail(error instanceof Error ? error.message : "invalid deployment address book");
 }
 // Deployment output is authoritative over copied .env addresses. A non-empty runtime variable remains an
 // intentional emergency override (for example in CI); empty Coolify variables do not hide the address book.
 const runtimeEnv = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value?.trim()));
-const env = { ...fileEnv, ...deploymentEnv, ...runtimeEnv };
+const legacyDeploymentKeys = new Set(Object.values(FIELD_TO_ENV));
+const walletKeys = ["DEPLOYER_PRIVATE_KEY", "UPGRADE_ADMIN_PRIVATE_KEY", "ADMIN_MULTISIG", "TREASURY", "KEEPER_PRIVATE_KEY"];
+if (chain !== "elysium") {
+  // The original root env used unprefixed contract fields for Elysium. Never let those values leak into another
+  // chain; Robinhood receives addresses only from its own address book or an explicit runtime override.
+  for (const key of legacyDeploymentKeys) delete fileEnv[key];
+  const reuseElysiumWallets = (runtimeEnv.ROBINHOOD_REUSE_ELYSIUM_WALLETS
+    ?? fileEnv.ROBINHOOD_REUSE_ELYSIUM_WALLETS) === "true";
+  if (!reuseElysiumWallets) for (const key of walletKeys) delete fileEnv[key];
+}
+const chainPrefix = chain.toUpperCase();
+const chainSource = { ...fileEnv, ...runtimeEnv };
+const prefixedOverrides = {};
+for (const key of [
+  ...legacyDeploymentKeys,
+  ...walletKeys,
+  "MAX_BUY_BPS_PER_TRANSACTION", "TICKER_LOCK_SECONDS",
+]) {
+  const value = chainSource[`${chainPrefix}_${key}`];
+  if (value?.trim()) prefixedOverrides[key] = value;
+}
+const selectedChainEnv = {
+  SQUEEZ_CHAIN_ID: chainSource[`${chainPrefix}_CHAIN_ID`],
+  SQUEEZ_RPC: chainSource[`${chainPrefix}_RPC`],
+  SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`],
+  DATABASE_SCHEMA: chainSource[`${chainPrefix}_DATABASE_SCHEMA`] ?? chainSource.DATABASE_SCHEMA,
+  CROSS_CHAIN_DATABASE_SCHEMA: chain === "robinhood"
+    ? (chainSource.ELYSIUM_DATABASE_SCHEMA ?? chainSource.DATABASE_SCHEMA)
+    : chainSource.ROBINHOOD_DATABASE_SCHEMA,
+};
+const env = {
+  ...fileEnv,
+  ...selectedChainEnv,
+  ...prefixedOverrides,
+  ...deploymentEnv,
+  ...runtimeEnv,
+  SQUEEZ_CHAIN: chain,
+  SQUEEZ_NETWORK: network,
+};
 // The browser receives only the public API URL and network selector. Public contract routing data is fetched from
 // `/v1/config`, keeping every network value behind the same backend boundary as RPC access.
 const child = spawn(command.join(" "), { env, shell: true, stdio: "inherit" });

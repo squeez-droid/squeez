@@ -23,13 +23,7 @@ contract SqueezSwapRouter is IUnlockCallback {
     error SlippageExceeded();
     error TransferFailed();
 
-    event PoolSwap(
-        address indexed token,
-        address indexed trader,
-        bool isBuy,
-        uint256 quoteAmount,
-        uint256 tokenAmount
-    );
+    event PoolSwap(address indexed token, address indexed trader, bool isBuy, uint256 quoteAmount, uint256 tokenAmount);
 
     IPoolManager public immutable poolManager;
     IHooks public immutable hook;

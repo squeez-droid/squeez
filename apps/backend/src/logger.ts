@@ -15,12 +15,13 @@ export interface SystemLog {
   context?: Record<string, string | number | boolean | null>;
 }
 
-export async function writeSystemLog(pool: Pool, network: "testnet" | "mainnet", entry: SystemLog) {
+export async function writeSystemLog(pool: Pool, schema: string, entry: SystemLog) {
+  if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error("Invalid operational log schema");
   const printable = { ...entry, context: entry.context ?? {} };
   console.log(JSON.stringify({ timestamp: new Date().toISOString(), ...printable }));
   try {
     await pool.query(
-      `insert into "${network}_system".system_log
+      `insert into "${schema}".system_log
         (source, level, event, message, wallet, token, tx_hash, chain_id, block_number, request_id, context)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [entry.source, entry.level ?? "info", entry.event, entry.message ?? null, entry.wallet ?? null,

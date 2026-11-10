@@ -22,6 +22,7 @@ import { Badge, Button, Empty, Progress, Row, Spinner } from "@/components/ui";
 import { formatEther } from "viem";
 import { OnchainTradePanel } from "@/components/token/onchain-trade-panel";
 import { DataSourceState } from "@/components/data-source-state";
+import { IdentityBadges } from "@/components/identity-badges";
 import { PriceChart, type Timeframe } from "@/components/price-chart";
 import { getProtocolConfig, type RuntimeProtocolConfig } from "@/lib/protocol-config";
 import type { Candle } from "@/lib/types";
@@ -119,6 +120,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
             <h1 className="font-display text-3xl font-bold uppercase text-white">{token.name ?? "Metadata pending"}</h1>
             {token.symbol && <span className="num text-muted">${token.symbol}</span>}
             <Badge tone={token.status === "graduated" ? "mint" : "primary"}>{token.status === "graduated" ? "Graduated" : token.status === "graduating" ? "Graduation pending" : "Bonding curve"}</Badge>
+            <IdentityBadges token={token} showOriginal />
           </div>
           <p className="num mt-2 text-xs text-muted">{token.address}</p>
           {metadata?.description && <p className="mt-3 max-w-2xl text-sm text-muted">{metadata.description}</p>}

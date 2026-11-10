@@ -2,6 +2,16 @@
 export const SqueezLaunchFactoryAbi = [
   {
     type: "event",
+    name: "ProtectionPolicyPinned",
+    inputs: [
+      { name: "token", type: "address", indexed: true },
+      { name: "curve", type: "address", indexed: true },
+      { name: "policyId", type: "uint256", indexed: true },
+      { name: "policyHash", type: "bytes32", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "TokenLaunched",
     inputs: [
       { name: "token", type: "address", indexed: true },

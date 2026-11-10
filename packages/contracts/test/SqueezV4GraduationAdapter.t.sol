@@ -2,11 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {
-    SqueezV4GraduationAdapter,
-    IGraduationVault,
-    IGraduationLocker
-} from "../src/SqueezV4GraduationAdapter.sol";
+import {SqueezV4GraduationAdapter, IGraduationVault, IGraduationLocker} from "../src/SqueezV4GraduationAdapter.sol";
 import {IPositionManager} from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import {IAllowanceTransfer} from "permit2/src/interfaces/IAllowanceTransfer.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";

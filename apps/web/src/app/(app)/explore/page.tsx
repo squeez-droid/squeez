@@ -8,6 +8,7 @@ import { getProtocolConfig, type RuntimeProtocolConfig } from "@/lib/protocol-co
 import { bpsToPct, fmtNum, shortAddr } from "@/lib/format";
 import { Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
 import { DataSourceState } from "@/components/data-source-state";
+import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
@@ -129,6 +130,7 @@ export default function ExplorePage() {
                 </div>
                 <Badge tone={token.status === "graduated" ? "mint" : "primary"}>{token.status === "graduated" ? "Graduated" : token.status === "graduating" ? "Graduating" : "Curve"}</Badge>
               </div>
+              <div className="mt-3"><IdentityBadges token={token} showOriginal /></div>
               <dl className="mt-5 grid grid-cols-2 gap-3 text-xs">
                 <div><dt className="text-muted">Creator fee</dt><dd className="num mt-1 text-white">{bpsToPct(token.creatorFeeBps)}</dd></div>
                 <div><dt className="text-muted">Config</dt><dd className="num mt-1 text-white">#{token.launchConfigId}</dd></div>

@@ -3,12 +3,24 @@ import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadDeploymentEnv } from "../tools/deployment-address-book.mjs";
 
-const network = process.argv[2] ?? process.env.SQUEEZ_NETWORK;
-if (!['testnet', 'mainnet'].includes(network)) throw new Error("Usage: build-deployment-manifest.mjs <testnet|mainnet>");
+const supportedChains = ['elysium', 'robinhood'];
+const firstArgument = process.argv[2];
+const explicitChain = supportedChains.includes(firstArgument);
+const chain = explicitChain ? firstArgument : (process.env.SQUEEZ_CHAIN ?? 'elysium');
+const network = explicitChain ? process.argv[3] : (firstArgument ?? process.env.SQUEEZ_NETWORK);
+if (!supportedChains.includes(chain) || !['testnet', 'mainnet'].includes(network)) {
+  throw new Error("Usage: build-deployment-manifest.mjs [elysium|robinhood] <testnet|mainnet>");
+}
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const chainId = String(process.env.ELYSIUM_CHAIN_ID ?? "");
-if (!/^\d+$/.test(chainId)) throw new Error("ELYSIUM_CHAIN_ID is required");
-const deploymentDirectory = join(root, "packages/contracts/deployments");
+const chainId = String(process.env.SQUEEZ_CHAIN_ID ?? "");
+if (!/^\d+$/.test(chainId)) throw new Error("SQUEEZ_CHAIN_ID is required");
+const deploymentRoot = join(root, "packages/contracts/deployments");
+const nestedDirectory = join(deploymentRoot, chain);
+const useLegacyElysiumDirectory = chain === 'elysium' && !existsSync(join(nestedDirectory, `${network}.json`));
+const deploymentDirectory = useLegacyElysiumDirectory ? deploymentRoot : nestedDirectory;
+const deploymentRelativeDirectory = useLegacyElysiumDirectory
+  ? "packages/contracts/deployments"
+  : `packages/contracts/deployments/${chain}`;
 const broadcastRoot = join(root, "packages/contracts/broadcast");
 
 const fragments = [
@@ -17,13 +29,15 @@ const fragments = [
   `${network}-hook-config.json`, `${network}-graduation.json`,
   `${network}-swap-router.json`,
   `${network}-launch-config.json`,
+  `${network}-protected-launch.json`,
+  `${network}-attester.json`,
 ].filter((name) => existsSync(join(deploymentDirectory, name)));
 const deployment = Object.assign({}, ...fragments.map((name) => JSON.parse(readFileSync(join(deploymentDirectory, name)))));
 const directDeploymentTransactions = fragments.flatMap((name) => {
   const fragment = JSON.parse(readFileSync(join(deploymentDirectory, name), "utf8"));
-  return (fragment.transactions ?? []).map((transaction) => ({ source: `packages/contracts/deployments/${name}`, ...transaction }));
+  return (fragment.transactions ?? []).map((transaction) => ({ source: `${deploymentRelativeDirectory}/${name}`, ...transaction }));
 });
-const { values: resolvedEnvironment } = loadDeploymentEnv(root, network);
+const { values: resolvedEnvironment } = loadDeploymentEnv(root, network, chain);
 
 const hexNumber = (value) => value === undefined || value === null ? null : BigInt(value).toString();
 const broadcasts = [];
@@ -83,10 +97,11 @@ if (existsSync(broadcastRoot)) {
 
 const manifest = {
   schemaVersion: 1,
+  chain,
   network,
   chainId: Number(chainId),
   generatedAt: new Date().toISOString(),
-  authoritativeFragments: fragments.map((name) => `packages/contracts/deployments/${name}`),
+  authoritativeFragments: fragments.map((name) => `${deploymentRelativeDirectory}/${name}`),
   deployment,
   resolvedAddresses: resolvedEnvironment,
   summary: {

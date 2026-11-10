@@ -25,8 +25,12 @@ contract ConfigureSqueezHook is Script {
         vm.serializeUint(object, "chainId", block.chainid);
         vm.serializeAddress(object, "feeVault", address(vault));
         string memory json = vm.serializeAddress(object, "squeezHook", hook);
-        vm.writeJson(
-            json, string.concat(vm.projectRoot(), "/deployments/", vm.envString("SQUEEZ_NETWORK"), "-hook-config.json")
-        );
+        vm.writeJson(json, _deploymentFile("-hook-config.json"));
+    }
+
+    function _deploymentFile(string memory suffix) private view returns (string memory) {
+        string memory chain = vm.envString("SQUEEZ_CHAIN");
+        string memory prefix = keccak256(bytes(chain)) == keccak256("elysium") ? "" : string.concat(chain, "/");
+        return string.concat(vm.projectRoot(), "/deployments/", prefix, vm.envString("SQUEEZ_NETWORK"), suffix);
     }
 }

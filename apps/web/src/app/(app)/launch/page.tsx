@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { parseEther, zeroAddress, type Address } from "viem";
+import { parseEther, zeroAddress, zeroHash, type Address } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
 import { content } from "@/lib/data";
 import { launchFactoryAbi } from "@/lib/abis";
@@ -63,25 +63,52 @@ export default function LaunchPage() {
       wallet: api.walletAddress ?? undefined,
     }, async (requestId) => {
       if (!factory || !publicClient) throw new Error("Launch contract is not configured.");
-      const metadataURI = await api.uploadMetadata(requestId);
+      const identityEvidence = await api.uploadMetadata(requestId);
       const launchFee = api.protocol.data?.launchConfig.launchFeeHype;
       if (!launchFee) throw new Error("Launch fee is not configured.");
-      const hash = await contractWrite.writeContractAsync({
+      const launchParams = {
+        name: api.form.name.trim(),
+        symbol: api.form.ticker,
+        metadataURI: identityEvidence.metadataURI,
+        quote: zeroAddress,
+        feeRecipient: api.form.feeWallet as Address,
+        creatorFeeBps: api.form.creatorFeeBps,
+        feeDestination: { kind: 0, buybackBps: 0 },
+        openingBuyHype: api.openingWei,
+        openingBuyMinTokens: api.openingWei > 0n ? api.openingTokensOut * 99n / 100n : 0n,
+      } as const;
+      const value = parseEther(launchFee) + api.openingWei;
+      const signed = api.xVerification.verified
+        ? await api.requestXAttestation(identityEvidence.metadataURI, identityEvidence.imageHash)
+        : null;
+      const hash = signed
+        ? await (async () => {
+          return contractWrite.writeContractAsync({
+            address: factory,
+            abi: launchFactoryAbi,
+            functionName: "launchWithAttestation",
+            args: [launchParams, {
+              imageHash: identityEvidence.imageHash,
+              socialHash: signed.attestation.socialHash,
+              templateVersion: 1,
+            }, {
+              ...signed.attestation,
+              nonce: BigInt(signed.attestation.nonce),
+              deadline: BigInt(signed.attestation.deadline),
+            }, signed.signature],
+            value,
+          });
+        })()
+        : await contractWrite.writeContractAsync({
         address: factory,
         abi: launchFactoryAbi,
-        functionName: "launch",
-        args: [{
-          name: api.form.name.trim(),
-          symbol: api.form.ticker,
-          metadataURI,
-          quote: zeroAddress,
-          feeRecipient: api.form.feeWallet as Address,
-          creatorFeeBps: api.form.creatorFeeBps,
-          feeDestination: { kind: 0, buybackBps: 0 },
-          openingBuyHype: api.openingWei,
-          openingBuyMinTokens: api.openingWei > 0n ? api.openingTokensOut * 99n / 100n : 0n,
+        functionName: "launchWithIdentity",
+        args: [launchParams, {
+          imageHash: identityEvidence.imageHash,
+          socialHash: zeroHash,
+          templateVersion: 1,
         }],
-        value: parseEther(launchFee) + api.openingWei,
+        value,
       });
       return {
         hash,

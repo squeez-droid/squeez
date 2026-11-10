@@ -6,6 +6,8 @@ import {SqueezQuoteRegistry} from "../src/SqueezQuoteRegistry.sol";
 import {SqueezLaunchFactory} from "../src/SqueezLaunchFactory.sol";
 import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
 import {SqueezCurve} from "../src/SqueezCurve.sol";
+import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
+import {SqueezIdentityRegistry} from "../src/SqueezIdentityRegistry.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {LaunchConfig} from "../src/libraries/SqueezTypes.sol";
@@ -23,6 +25,10 @@ contract Deploy is Script {
         address curveImplementation;
         address factory;
         address factoryImplementation;
+        address protectionPolicyRegistry;
+        address protectionPolicyRegistryImplementation;
+        address identityRegistry;
+        address identityRegistryImplementation;
     }
 
     function run() external {
@@ -37,6 +43,9 @@ contract Deploy is Script {
         uint256 deploymentBlock = block.number;
         Deployment memory deployment;
         (deployment.registry, deployment.registryImplementation) = _deployRegistry(admin);
+        (deployment.protectionPolicyRegistry, deployment.protectionPolicyRegistryImplementation) =
+            _deployProtectionPolicyRegistry(admin);
+        (deployment.identityRegistry, deployment.identityRegistryImplementation) = _deployIdentityRegistry(admin);
         (deployment.feeVault, deployment.feeVaultImplementation) = _deployVault(admin, treasury);
         (deployment.curveBeacon, deployment.curveImplementation) = _deployCurveBeacon(admin);
         (deployment.factory, deployment.factoryImplementation) = _deployFactory(
@@ -45,7 +54,10 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         string memory object = "deployment";
-        vm.serializeString(object, "network", vm.envString("SQUEEZ_NETWORK"));
+        string memory chain = vm.envString("SQUEEZ_CHAIN");
+        string memory stage = vm.envString("SQUEEZ_NETWORK");
+        vm.serializeString(object, "chain", chain);
+        vm.serializeString(object, "network", stage);
         vm.serializeUint(object, "chainId", block.chainid);
         vm.serializeUint(object, "startBlock", deploymentBlock);
         vm.serializeAddress(object, "quoteRegistry", deployment.registry);
@@ -55,13 +67,33 @@ contract Deploy is Script {
         vm.serializeAddress(object, "curveBeacon", deployment.curveBeacon);
         vm.serializeAddress(object, "curveImplementation", deployment.curveImplementation);
         vm.serializeAddress(object, "factoryImplementation", deployment.factoryImplementation);
+        vm.serializeAddress(object, "protectionPolicyRegistry", deployment.protectionPolicyRegistry);
+        vm.serializeAddress(
+            object, "protectionPolicyRegistryImplementation", deployment.protectionPolicyRegistryImplementation
+        );
+        vm.serializeAddress(object, "identityRegistry", deployment.identityRegistry);
+        vm.serializeAddress(object, "identityRegistryImplementation", deployment.identityRegistryImplementation);
         string memory json = vm.serializeAddress(object, "factory", deployment.factory);
-        vm.writeJson(json, string.concat(vm.projectRoot(), "/deployments/", vm.envString("SQUEEZ_NETWORK"), ".json"));
+        string memory directory = string.concat(vm.projectRoot(), "/deployments/", chain);
+        vm.createDir(directory, true);
+        vm.writeJson(json, string.concat(directory, "/", stage, ".json"));
     }
 
     function _deployRegistry(address admin) private returns (address proxy, address implementation) {
         implementation = address(new SqueezQuoteRegistry());
         proxy = address(new ERC1967Proxy(implementation, abi.encodeCall(SqueezQuoteRegistry.initialize, (admin))));
+    }
+
+    function _deployProtectionPolicyRegistry(address admin) private returns (address proxy, address implementation) {
+        implementation = address(new SqueezProtectionPolicyRegistry());
+        proxy = address(
+            new ERC1967Proxy(implementation, abi.encodeCall(SqueezProtectionPolicyRegistry.initialize, (admin)))
+        );
+    }
+
+    function _deployIdentityRegistry(address admin) private returns (address proxy, address implementation) {
+        implementation = address(new SqueezIdentityRegistry());
+        proxy = address(new ERC1967Proxy(implementation, abi.encodeCall(SqueezIdentityRegistry.initialize, (admin))));
     }
 
     function _deployVault(address admin, address treasury) private returns (address proxy, address implementation) {

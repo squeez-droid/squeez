@@ -45,12 +45,15 @@ contract SqueezFeeVault is
     address public hook;
     address public buybackOperator;
     mapping(address asset => uint256) public buybackWithdrawalCap;
+    // Dedicated launch-protection tax bucket; kept separate from base protocol and creator liabilities.
+    mapping(address asset => uint256) public protectionTaxBalance;
 
     event CurveRegistered(address indexed token, address indexed curve);
     event HookSet(address indexed hook);
     event BuybackOperatorSet(address indexed operator);
     event BuybackWithdrawalCapSet(address indexed asset, uint256 cap);
     event BuybackWithdrawn(address indexed asset, address indexed recipient, uint256 amount);
+    event ProtectionTaxWithdrawn(address indexed asset, address indexed recipient, uint256 amount);
     event ProtocolFeeAccrued(
         address indexed token, address indexed asset, uint256 buybackAmount, uint256 treasuryAmount
     );
@@ -95,11 +98,28 @@ contract SqueezFeeVault is
     }
 
     function depositFees(address token, address asset, uint256 protocolFee, uint256 creatorFee) external payable {
+        _depositFees(token, asset, protocolFee, creatorFee, 0);
+    }
+
+    function depositProtectedFees(
+        address token,
+        address asset,
+        uint256 protocolFee,
+        uint256 creatorFee,
+        uint256 protectionTax
+    ) external payable {
+        if (protectionTax == 0) revert InvalidDeposit();
+        _depositFees(token, asset, protocolFee, creatorFee, protectionTax);
+    }
+
+    function _depositFees(address token, address asset, uint256 protocolFee, uint256 creatorFee, uint256 protectionTax)
+        private
+    {
         address registeredCurve = curveForToken[token];
         if (registeredCurve == address(0) || (msg.sender != registeredCurve && msg.sender != hook)) {
             revert Unauthorized();
         }
-        uint256 total = protocolFee + creatorFee;
+        uint256 total = protocolFee + creatorFee + protectionTax;
         if (total == 0) revert InvalidDeposit();
         if (asset == address(0)) {
             if (msg.value != total) revert InvalidDeposit();
@@ -113,9 +133,11 @@ contract SqueezFeeVault is
         buybackBalance[asset] += buybackAmount;
         treasuryBalance[asset] += treasuryAmount;
         creatorFeesAccrued[token][asset] += creatorFee;
+        protectionTaxBalance[asset] += protectionTax;
 
         emit ProtocolFeeAccrued(token, asset, buybackAmount, treasuryAmount);
         if (creatorFee > 0) emit CreatorFeeAccrued(token, asset, creatorFee);
+        if (protectionTax > 0) emit ProtectionTaxAccrued(token, asset, protectionTax);
     }
 
     function claimCreatorFees(address token, address asset) external nonReentrant returns (uint256 amount) {
@@ -144,6 +166,15 @@ contract SqueezFeeVault is
         buybackBalance[asset] -= amount;
         _transfer(asset, recipient, amount);
         emit BuybackWithdrawn(asset, recipient, amount);
+    }
+
+    function withdrawProtectionTax(address asset) external nonReentrant returns (uint256 amount) {
+        if (msg.sender != treasury) revert Unauthorized();
+        amount = protectionTaxBalance[asset];
+        if (amount == 0) revert NothingToClaim();
+        protectionTaxBalance[asset] = 0;
+        _transfer(asset, treasury, amount);
+        emit ProtectionTaxWithdrawn(asset, treasury, amount);
     }
 
     function _transfer(address asset, address recipient, uint256 amount) private {

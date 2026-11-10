@@ -1,0 +1,18 @@
+{
+  "chain": "robinhood",
+  "chainId": 46630,
+  "curveBeacon": "0x36e3582Cd088967d72b7FE6290F26B7B6C8C705D",
+  "curveImplementation": "0xcD041B069391b3e49384391b08eB75FC25c70635",
+  "factory": "0xd08090964Ba7825baB3fe0680494536D0cB044Ff",
+  "factoryImplementation": "0x86a3075Fd2269aFb03e04f02C9d33e138Bdf30Fc",
+  "feeVault": "0x755344b7a6d990064b36a3dF8d2a9CB910F8a197",
+  "feeVaultImplementation": "0x8B5A44d9d3a7F60052Ac691AC0D952019Abe3846",
+  "identityRegistry": "0xB98A82B6024B01dfe9B2C732725c2330E0E1C861",
+  "identityRegistryImplementation": "0xF4bf1A123CDB1CB153dD265C6a4DcCd0385DC2ff",
+  "network": "testnet",
+  "protectionPolicyRegistry": "0x3Ca365Ed4d769bEf5e8A099CAbAac17aC75e0298",
+  "protectionPolicyRegistryImplementation": "0x54cdfC90f29433661C81A8296C3A7291AE6aBa68",
+  "quoteRegistry": "0x45aeCC23C184d9Ea597aA5352aF0C0C4DD290617",
+  "quoteRegistryImplementation": "0x6F1cCE1320557E84c5D908e911e41a42Ed24D748",
+  "startBlock": 12103388
+}

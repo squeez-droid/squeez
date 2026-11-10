@@ -7,6 +7,12 @@ import { apiUrl } from "./chain";
 export interface RuntimeProtocolConfig {
   configured: boolean;
   network: "testnet" | "mainnet";
+  creatorAttestation: {
+    enabled: boolean;
+    configured: boolean;
+    optional: true;
+    maxLaunchesPer24h: number;
+  };
   chain: { id: number; name: string; explorer: string };
   contracts: {
     factory: Address | null;

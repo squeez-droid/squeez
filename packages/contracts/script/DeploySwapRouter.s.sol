@@ -26,8 +26,12 @@ contract DeploySwapRouter is Script {
         vm.serializeAddress(object, "poolManager", manager);
         vm.serializeAddress(object, "squeezHook", hook);
         string memory json = vm.serializeAddress(object, "swapRouter", address(router));
-        vm.writeJson(
-            json, string.concat(vm.projectRoot(), "/deployments/", vm.envString("SQUEEZ_NETWORK"), "-swap-router.json")
-        );
+        vm.writeJson(json, _deploymentFile("-swap-router.json"));
+    }
+
+    function _deploymentFile(string memory suffix) private view returns (string memory) {
+        string memory chain = vm.envString("SQUEEZ_CHAIN");
+        string memory prefix = keccak256(bytes(chain)) == keccak256("elysium") ? "" : string.concat(chain, "/");
+        return string.concat(vm.projectRoot(), "/deployments/", prefix, vm.envString("SQUEEZ_NETWORK"), suffix);
     }
 }

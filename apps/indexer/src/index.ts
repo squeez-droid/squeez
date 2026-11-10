@@ -1,5 +1,14 @@
 import { ponder } from "ponder:registry";
-import { creatorFee, holderBalance, protocolFee, token, trade } from "ponder:schema";
+import {
+  creatorFee,
+  holderBalance,
+  identity as identityTable,
+  protectedPurchase,
+  protectionTax,
+  protocolFee,
+  token,
+  trade,
+} from "ponder:schema";
 import { logIndexed } from "./system-log";
 
 // Events to index (see @squeez/shared INDEXED_EVENTS):
@@ -34,6 +43,29 @@ ponder.on("SqueezLaunchFactory:TokenMetadata", async ({ event, context }) => {
       metadataUri: event.args.metadataURI,
     });
   await logIndexed("TokenMetadata", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezLaunchFactory:ProtectionPolicyPinned", async ({ event, context }) => {
+  await context.db.update(token, { address: event.args.token }).set({
+    protectionPolicyId: event.args.policyId,
+    protectionPolicyHash: event.args.policyHash,
+  });
+  await logIndexed("ProtectionPolicyPinned", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezCurve:ProtectedPurchaseRecorded", async ({ event, context }) => {
+  await context.db.insert(protectedPurchase).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    buyer: event.args.buyer,
+    tokenAmount: event.args.tokenAmount,
+    cumulativeAmount: event.args.cumulativeAmount,
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+  await logIndexed("ProtectedPurchaseRecorded", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezCurve:CurveTrade", async ({ event, context }) => {
@@ -142,6 +174,62 @@ ponder.on("SqueezFeeVault:ProtocolFeeAccrued", async ({ event, context }) => {
     logIndex: event.log.logIndex,
   });
   await logIndexed("ProtocolFeeAccrued", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezFeeVault:ProtectionTaxAccrued", async ({ event, context }) => {
+  await context.db.insert(protectionTax).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: event.args.token,
+    asset: event.args.asset,
+    amount: event.args.amount,
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  });
+  await logIndexed("ProtectionTaxAccrued", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezIdentityRegistry:IdentityRegistered", async ({ event, context }) => {
+  await context.db.insert(identityTable).values({
+    token: event.args.token,
+    creator: event.args.creator,
+    curve: event.args.curve,
+    canonicalHash: event.args.canonicalHash,
+    nameCommitment: event.args.nameCommitment,
+    symbolCommitment: event.args.symbolCommitment,
+    duplicateName: event.args.duplicateName,
+    duplicateSymbol: event.args.duplicateSymbol,
+    originalNameToken: event.args.duplicateName ? null : event.args.token,
+    originalSymbolToken: event.args.duplicateSymbol ? null : event.args.token,
+    permanentlyLocked: false,
+    registeredAt: event.block.timestamp,
+  });
+  await logIndexed("IdentityRegistered", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezIdentityRegistry:IdentityEvidence", async ({ event, context }) => {
+  await context.db.update(identityTable, { token: event.args.token }).set({
+    metadataHash: event.args.metadataHash,
+    imageHash: event.args.imageHash,
+    socialHash: event.args.socialHash,
+    tokenCodeHash: event.args.tokenCodeHash,
+    templateVersion: event.args.templateVersion,
+  });
+  await logIndexed("IdentityEvidence", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezIdentityRegistry:IdentityLocked", async ({ event, context }) => {
+  await context.db.update(identityTable, { token: event.args.token }).set({ lockedUntil: event.args.expiresAt });
+  await logIndexed("IdentityLocked", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("SqueezIdentityRegistry:SymbolPermanentlyLocked", async ({ event, context }) => {
+  await context.db.update(identityTable, { token: event.args.token }).set({
+    permanentlyLocked: true,
+    lockedUntil: null,
+  });
+  await logIndexed("SymbolPermanentlyLocked", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 ponder.on("SqueezSwapRouter:PoolSwap", async ({ event, context }) => {

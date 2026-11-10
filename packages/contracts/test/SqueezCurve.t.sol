@@ -104,7 +104,7 @@ contract SqueezCurveTest is Test, ProxyTestBase {
 
         assertGt(hypeOut, 0);
         assertEq(token.balanceOf(buyer), 0);
-        assertEq(address(curve).balance, curve.hypeRaised() + curve.sniperTaxAccrued());
+        assertEq(address(curve).balance, curve.hypeRaised());
         assertLe(curve.hypeRaised(), 2);
     }
 
@@ -182,7 +182,7 @@ contract SqueezCurveTest is Test, ProxyTestBase {
         assertEq(balanceBefore - buyer.balance, acceptedGross);
         assertEq(curve.hypeRaised(), threshold);
         assertTrue(curve.graduated());
-        assertEq(address(curve).balance, curve.hypeRaised() + curve.sniperTaxAccrued());
+        assertEq(address(curve).balance, curve.hypeRaised());
     }
 
     function test_ExactThresholdClosesWithoutRefund() public {

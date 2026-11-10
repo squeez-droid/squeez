@@ -8,6 +8,7 @@ import { WalletButton } from "./wallet-ui";
 import { TokenAvatar } from "./token-bits";
 import { BrandLogo } from "./brand-logo";
 import { IconArrowUpRight, IconClose, IconMenu, IconSearch } from "./icons";
+import { NetworkSelector } from "./network-selector";
 
 export function Header() {
   const path = usePathname();
@@ -50,7 +51,10 @@ export function Header() {
             </div>
           )}
         </div>
-        <div className="ml-auto sm:ml-0"><WalletButton /></div>
+        <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          <NetworkSelector />
+          <WalletButton />
+        </div>
         <button className="flex h-10 w-10 items-center justify-center text-white md:hidden" onClick={() => setMenu((v) => !v)} aria-label={menu ? "Close menu" : "Open menu"} aria-expanded={menu}>{menu ? <IconClose width={20} height={20} /> : <IconMenu width={20} height={20} />}</button>
       </div>
       {menu && (

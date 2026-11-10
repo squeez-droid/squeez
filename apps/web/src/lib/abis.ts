@@ -1,6 +1,66 @@
 export const launchFactoryAbi = [
   {
     type: "function",
+    name: "launchWithAttestation",
+    stateMutability: "payable",
+    inputs: [{
+      name: "p", type: "tuple", components: [
+        { name: "name", type: "string" }, { name: "symbol", type: "string" },
+        { name: "metadataURI", type: "string" }, { name: "quote", type: "address" },
+        { name: "feeRecipient", type: "address" }, { name: "creatorFeeBps", type: "uint16" },
+        { name: "feeDestination", type: "tuple", components: [
+          { name: "kind", type: "uint8" }, { name: "buybackBps", type: "uint16" },
+        ] },
+        { name: "openingBuyHype", type: "uint256" }, { name: "openingBuyMinTokens", type: "uint256" },
+      ],
+    }, {
+      name: "evidence", type: "tuple", components: [
+        { name: "imageHash", type: "bytes32" }, { name: "socialHash", type: "bytes32" },
+        { name: "templateVersion", type: "uint32" },
+      ],
+    }, {
+      name: "creatorAttestation", type: "tuple", components: [
+        { name: "creator", type: "address" }, { name: "socialHash", type: "bytes32" },
+        { name: "nameCommitment", type: "bytes32" }, { name: "symbolCommitment", type: "bytes32" },
+        { name: "metadataHash", type: "bytes32" }, { name: "imageHash", type: "bytes32" },
+        { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" },
+      ],
+    }, { name: "signature", type: "bytes" }],
+    outputs: [{ name: "token", type: "address" }, { name: "curve", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "launchWithIdentity",
+    stateMutability: "payable",
+    inputs: [{
+      name: "p",
+      type: "tuple",
+      components: [
+        { name: "name", type: "string" },
+        { name: "symbol", type: "string" },
+        { name: "metadataURI", type: "string" },
+        { name: "quote", type: "address" },
+        { name: "feeRecipient", type: "address" },
+        { name: "creatorFeeBps", type: "uint16" },
+        { name: "feeDestination", type: "tuple", components: [
+          { name: "kind", type: "uint8" }, { name: "buybackBps", type: "uint16" },
+        ] },
+        { name: "openingBuyHype", type: "uint256" },
+        { name: "openingBuyMinTokens", type: "uint256" },
+      ],
+    }, {
+      name: "evidence",
+      type: "tuple",
+      components: [
+        { name: "imageHash", type: "bytes32" },
+        { name: "socialHash", type: "bytes32" },
+        { name: "templateVersion", type: "uint32" },
+      ],
+    }],
+    outputs: [{ name: "token", type: "address" }, { name: "curve", type: "address" }],
+  },
+  {
+    type: "function",
     name: "launch",
     stateMutability: "payable",
     inputs: [{

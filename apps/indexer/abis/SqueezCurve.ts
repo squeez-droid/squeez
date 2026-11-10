@@ -1,6 +1,16 @@
 export const SqueezCurveAbi = [
   {
     type: "event",
+    name: "ProtectedPurchaseRecorded",
+    inputs: [
+      { name: "token", type: "address", indexed: true },
+      { name: "buyer", type: "address", indexed: true },
+      { name: "tokenAmount", type: "uint256", indexed: false },
+      { name: "cumulativeAmount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "GraduationThresholdReached",
     inputs: [
       { name: "token", type: "address", indexed: true },

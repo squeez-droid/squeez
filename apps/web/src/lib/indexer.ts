@@ -28,6 +28,12 @@ export interface IndexedToken {
   volume24hHype: string;
   lastHypeAmount: string;
   lastTokenAmount: string;
+  identityStatus: "original" | "copy" | "unverified" | "unavailable";
+  duplicateName: boolean;
+  duplicateSymbol: boolean;
+  originalToken: Address | null;
+  lockedUntil: string | null;
+  permanentlyLocked: boolean;
 }
 
 export interface IndexedTrade {

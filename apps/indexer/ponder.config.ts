@@ -5,6 +5,7 @@ import { SqueezCurveAbi } from "./abis/SqueezCurve";
 import { SqueezFeeVaultAbi } from "./abis/SqueezFeeVault";
 import { SqueezSwapRouterAbi } from "./abis/SqueezSwapRouter";
 import { SqueezTokenAbi } from "./abis/SqueezToken";
+import { SqueezIdentityRegistryAbi } from "./abis/SqueezIdentityRegistry";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -17,8 +18,8 @@ function required(name: string): string {
 export default createConfig({
   chains: {
     elysium: {
-      id: Number(required("ELYSIUM_CHAIN_ID")),
-      rpc: required("ELYSIUM_RPC"),
+      id: Number(required("SQUEEZ_CHAIN_ID")),
+      rpc: required("SQUEEZ_RPC"),
     },
   },
   contracts: {
@@ -65,6 +66,14 @@ export default createConfig({
       abi: SqueezSwapRouterAbi,
       address: required("SWAP_ROUTER_ADDRESS") as `0x${string}`,
       startBlock: Number(required("SWAP_ROUTER_START_BLOCK")),
+    },
+    SqueezIdentityRegistry: {
+      chain: "elysium",
+      abi: SqueezIdentityRegistryAbi,
+      // Zero address is an intentional no-op compatibility target until a registry is deployed on this chain.
+      address: (process.env.IDENTITY_REGISTRY_ADDRESS?.trim()
+        || "0x0000000000000000000000000000000000000000") as `0x${string}`,
+      startBlock: Number(required("FACTORY_START_BLOCK")),
     },
   },
 });

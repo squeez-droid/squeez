@@ -1,12 +1,16 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const FIELD_TO_ENV = {
+export const FIELD_TO_ENV = {
   startBlock: "FACTORY_START_BLOCK",
   factory: "FACTORY_ADDRESS",
   factoryImplementation: "FACTORY_IMPLEMENTATION_ADDRESS",
   quoteRegistry: "QUOTE_REGISTRY_ADDRESS",
   quoteRegistryImplementation: "QUOTE_REGISTRY_IMPLEMENTATION_ADDRESS",
+  protectionPolicyRegistry: "PROTECTION_POLICY_REGISTRY_ADDRESS",
+  protectionPolicyRegistryImplementation: "PROTECTION_POLICY_REGISTRY_IMPLEMENTATION_ADDRESS",
+  identityRegistry: "IDENTITY_REGISTRY_ADDRESS",
+  identityRegistryImplementation: "IDENTITY_REGISTRY_IMPLEMENTATION_ADDRESS",
   feeVault: "FEE_VAULT_ADDRESS",
   feeVaultImplementation: "FEE_VAULT_IMPLEMENTATION_ADDRESS",
   curveBeacon: "CURVE_BEACON_ADDRESS",
@@ -37,20 +41,17 @@ const FIELD_TO_ENV = {
   launchFeeHype: "LAUNCH_FEE_HYPE",
 };
 
-export function loadDeploymentEnv(repositoryRoot, network) {
+export function loadDeploymentEnv(repositoryRoot, network, chain = "elysium") {
   const directory = resolve(repositoryRoot, "packages/contracts/deployments");
-  const paths = [
-    resolve(directory, `${network}.json`),
-    resolve(directory, `${network}-core-upgrade.json`),
-    resolve(directory, `${network}-curve-upgrade.json`),
-    resolve(directory, `${network}-v4-stack.json`),
-    resolve(directory, `${network}-graduation.json`),
-    resolve(directory, `${network}-graduation-infra.json`),
-    resolve(directory, `${network}-hook.json`),
-    resolve(directory, `${network}-hook-config.json`),
-    resolve(directory, `${network}-swap-router.json`),
-    resolve(directory, `${network}-launch-config.json`),
-  ];
+  const targetDirectory = resolve(directory, chain);
+  const suffixes = ["", "-core-upgrade", "-curve-upgrade", "-v4-stack", "-graduation",
+    "-graduation-infra", "-hook", "-hook-config", "-swap-router", "-launch-config", "-protected-launch", "-attester"];
+  const nestedPaths = suffixes.map((suffix) => resolve(targetDirectory, `${network}${suffix}.json`));
+  // Preserve the deployed Elysium address book until its files are mechanically moved and verified.
+  const legacyPaths = chain === "elysium"
+    ? suffixes.map((suffix) => resolve(directory, `${network}${suffix}.json`))
+    : [];
+  const paths = nestedPaths.some(existsSync) ? nestedPaths : [...legacyPaths, ...nestedPaths];
   const existingPaths = paths.filter(existsSync);
   if (existingPaths.length === 0) return { paths, values: {} };
 
@@ -59,6 +60,9 @@ export function loadDeploymentEnv(repositoryRoot, network) {
     const fragment = JSON.parse(readFileSync(path, "utf8"));
     if (fragment.network && fragment.network !== network) {
       throw new Error(`deployment network mismatch in ${path}`);
+    }
+    if (fragment.chain && fragment.chain !== chain) {
+      throw new Error(`deployment chain mismatch in ${path}`);
     }
     Object.assign(deployment, fragment);
   }

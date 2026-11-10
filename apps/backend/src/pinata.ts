@@ -1,4 +1,5 @@
 import { backendConfig } from "./config.js";
+import { computeImageEvidence } from "./image-evidence.js";
 
 interface PinataUploadResponse {
   data?: { cid?: string };
@@ -34,8 +35,15 @@ export async function pinLaunchMetadata(input: {
   website?: string;
   x?: string;
   telegram?: string;
-}): Promise<{ imageUri: string; metadataUri: string }> {
+  evidence?: Awaited<ReturnType<typeof computeImageEvidence>>;
+}): Promise<{
+  imageUri: string;
+  metadataUri: string;
+  imageHash: `0x${string}`;
+  perceptualHash: `0x${string}`;
+}> {
   const safeSymbol = input.symbol.toLowerCase();
+  const { imageHash, perceptualHash } = input.evidence ?? await computeImageEvidence(input.image);
   const imageCid = await upload(
     new Blob([Uint8Array.from(input.image)], { type: input.imageMime }),
     `${safeSymbol}-image.${input.imageExtension}`,
@@ -47,6 +55,8 @@ export async function pinLaunchMetadata(input: {
     symbol: input.symbol,
     description: input.description,
     image: imageUri,
+    imageHash,
+    perceptualHash,
     links: {
       ...(input.website ? { website: input.website } : {}),
       ...(input.x ? { x: input.x } : {}),
@@ -57,5 +67,5 @@ export async function pinLaunchMetadata(input: {
     new Blob([JSON.stringify(metadata)], { type: "application/json" }),
     `${safeSymbol}-metadata.json`,
   );
-  return { imageUri, metadataUri: `ipfs://${metadataCid}` };
+  return { imageUri, metadataUri: `ipfs://${metadataCid}`, imageHash, perceptualHash };
 }

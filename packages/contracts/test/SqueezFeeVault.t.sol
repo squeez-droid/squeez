@@ -26,6 +26,16 @@ contract MockFeeCurve {
     {
         vault.depositFees{value: msg.value}(tokenAddress, address(0), protocolFee, creatorFee);
     }
+
+    function depositProtected(
+        SqueezFeeVault vault,
+        address tokenAddress,
+        uint256 protocolFee,
+        uint256 creatorFee,
+        uint256 protectionTax
+    ) external payable {
+        vault.depositProtectedFees{value: msg.value}(tokenAddress, address(0), protocolFee, creatorFee, protectionTax);
+    }
 }
 
 contract ReentrantFeeRecipient {
@@ -67,6 +77,19 @@ contract SqueezFeeVaultTest is Test, ProxyTestBase {
         assertEq(vault.treasuryBalance(address(0)), 0.2 ether);
         assertEq(vault.creatorFeesAccrued(token, address(0)), 2 ether);
         assertEq(address(vault).balance, 3 ether);
+    }
+
+    function test_ProtectionTaxUsesDedicatedTreasuryBucket() public {
+        curve.depositProtected{value: 4 ether}(vault, token, 1 ether, 2 ether, 1 ether);
+
+        assertEq(vault.buybackBalance(address(0)), 0.8 ether);
+        assertEq(vault.treasuryBalance(address(0)), 0.2 ether);
+        assertEq(vault.creatorFeesAccrued(token, address(0)), 2 ether);
+        assertEq(vault.protectionTaxBalance(address(0)), 1 ether);
+
+        vm.prank(treasury);
+        assertEq(vault.withdrawProtectionTax(address(0)), 1 ether);
+        assertEq(vault.protectionTaxBalance(address(0)), 0);
     }
 
     function test_OnlyRegisteredCurveCanDeposit() public {

@@ -28,4 +28,16 @@ assert.equal(values.FACTORY_ADDRESS, "0x0000000000000000000000000000000000000001
 assert.equal(values.FEE_VAULT_ADDRESS, "0x0000000000000000000000000000000000000002");
 assert.equal(values.FACTORY_IMPLEMENTATION_ADDRESS, "0x0000000000000000000000000000000000000004");
 assert.equal(values.GRADUATION_ADAPTER_ADDRESS, "0x0000000000000000000000000000000000000005");
+
+mkdirSync(join(root, "packages/contracts/deployments/robinhood"), { recursive: true });
+writeFileSync(join(root, "packages/contracts/deployments/robinhood/testnet.json"), JSON.stringify({
+  chain: "robinhood",
+  network: "testnet",
+  startBlock: 46630,
+  factory: "0x0000000000000000000000000000000000004663",
+}));
+const robinhood = loadDeploymentEnv(root, "testnet", "robinhood");
+assert.equal(robinhood.values.FACTORY_START_BLOCK, "46630");
+assert.equal(robinhood.values.FACTORY_ADDRESS, "0x0000000000000000000000000000000000004663");
+assert.equal(robinhood.values.FEE_VAULT_ADDRESS, undefined, "Robinhood must never inherit Elysium addresses");
 console.log("Deployment address-book mapping passed.");

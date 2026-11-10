@@ -25,8 +25,12 @@ contract ConfigureGraduation is Script {
         vm.serializeUint(object, "chainId", block.chainid);
         vm.serializeAddress(object, "factory", address(factory));
         string memory json = vm.serializeAddress(object, "graduationAdapter", adapter);
-        vm.writeJson(
-            json, string.concat(vm.projectRoot(), "/deployments/", vm.envString("SQUEEZ_NETWORK"), "-graduation.json")
-        );
+        vm.writeJson(json, _deploymentFile("-graduation.json"));
+    }
+
+    function _deploymentFile(string memory suffix) private view returns (string memory) {
+        string memory chain = vm.envString("SQUEEZ_CHAIN");
+        string memory prefix = keccak256(bytes(chain)) == keccak256("elysium") ? "" : string.concat(chain, "/");
+        return string.concat(vm.projectRoot(), "/deployments/", prefix, vm.envString("SQUEEZ_NETWORK"), suffix);
     }
 }

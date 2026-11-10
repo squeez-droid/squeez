@@ -115,7 +115,7 @@ contract SqueezSolvencyInvariant is StdInvariant, Test, ProxyTestBase {
     }
 
     function invariant_CurveNativeBalanceCoversAllCurveLiabilities() public view {
-        assertEq(address(curve).balance, curve.hypeRaised() + curve.sniperTaxAccrued());
+        assertEq(address(curve).balance, curve.hypeRaised());
         (uint256 threshold,,,,,,,) = curve.config();
         assertLe(curve.hypeRaised(), threshold);
     }

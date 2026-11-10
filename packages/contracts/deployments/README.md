@@ -1,8 +1,10 @@
 # Deployment records
 
-Each network uses an append-only address-book stack:
+Each `(chain, stage)` target uses an append-only address-book stack under
+`deployments/<chain>/<stage>*.json`. The existing root `testnet*.json` files remain a compatibility alias for the
+live Elysium testnet until they are moved and verified without changing their contents.
 
-1. `<network>.json` — initial proxy, Beacon, and implementation addresses.
+1. `<stage>.json` — initial proxy, Beacon, and implementation addresses.
 2. `<network>-core-upgrade.json` — latest Registry, FeeVault, and Factory implementations.
 3. `<network>-curve-upgrade.json` — latest Curve Beacon implementation.
 4. `<network>-v4-stack.json` — pinned self-hosted testnet v4 contracts with receipts, gas, and source commits.

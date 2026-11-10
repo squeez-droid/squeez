@@ -1,8 +1,9 @@
 {
   "schemaVersion": 1,
+  "chain": "elysium",
   "network": "testnet",
   "chainId": 99801,
-  "generatedAt": "2026-11-09T13:55:07.752Z",
+  "generatedAt": "2026-11-10T07:09:34.212Z",
   "authoritativeFragments": [
     "packages/contracts/deployments/testnet.json",
     "packages/contracts/deployments/testnet-core-upgrade.json",
@@ -145,6 +146,10 @@
     "graduationThresholdHype": 100000000000000000,
     "launchConfigId": 1,
     "launchFeeHype": 1000000000000000,
+    "sniperTaxStartBps": 9900,
+    "sniperTaxDecaySeconds": 5,
+    "maxWalletBps": 500,
+    "maxWalletWindowSeconds": 300,
     "virtualHypeReserve": 40000000000000000,
     "virtualTokenReserve": "1000000000000000000000000000"
   },
@@ -169,7 +174,17 @@
     "V4_STATE_VIEW_ADDRESS": "0x676a802d2b38c616e016511cfcca542d761f1d41",
     "V4_QUOTER_ADDRESS": "0xb608c6b25f0b8b43c8d3c3b5e4aa3eb058bbc6d2",
     "SWAP_ROUTER_ADDRESS": "0x8Fb1Ec2e25e3ae5245A90426B1299C236afb4033",
-    "SWAP_ROUTER_START_BLOCK": "26715677"
+    "SWAP_ROUTER_START_BLOCK": "26715677",
+    "V4_LP_FEE_BPS": "0",
+    "V4_TICK_SPACING": "60",
+    "GRADUATION_THRESHOLD_HYPE": "100000000000000000",
+    "VIRTUAL_HYPE_RESERVE": "40000000000000000",
+    "VIRTUAL_TOKEN_RESERVE": "1000000000000000000000000000",
+    "SNIPER_TAX_START_BPS": "9900",
+    "SNIPER_TAX_DECAY_SECONDS": "5",
+    "MAX_WALLET_BPS": "500",
+    "MAX_WALLET_WINDOW_SECONDS": "300",
+    "LAUNCH_FEE_HYPE": "1000000000000000"
   },
   "summary": {
     "broadcastRuns": 15,

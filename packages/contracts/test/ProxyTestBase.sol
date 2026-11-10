@@ -7,9 +7,21 @@ import {SqueezQuoteRegistry} from "../src/SqueezQuoteRegistry.sol";
 import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
 import {SqueezLaunchFactory} from "../src/SqueezLaunchFactory.sol";
 import {SqueezCurve} from "../src/SqueezCurve.sol";
+import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
 import {LaunchConfig} from "../src/libraries/SqueezTypes.sol";
 
 abstract contract ProxyTestBase {
+    function _deployProtectionPolicyRegistry(address admin) internal returns (SqueezProtectionPolicyRegistry proxy) {
+        SqueezProtectionPolicyRegistry implementation = new SqueezProtectionPolicyRegistry();
+        proxy = SqueezProtectionPolicyRegistry(
+            address(
+                new ERC1967Proxy(
+                    address(implementation), abi.encodeCall(SqueezProtectionPolicyRegistry.initialize, (admin))
+                )
+            )
+        );
+    }
+
     function _deployRegistry(address admin) internal returns (SqueezQuoteRegistry proxy) {
         SqueezQuoteRegistry implementation = new SqueezQuoteRegistry();
         proxy = SqueezQuoteRegistry(

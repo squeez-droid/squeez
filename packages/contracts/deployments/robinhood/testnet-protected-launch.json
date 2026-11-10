@@ -1,0 +1,11 @@
+{
+  "attester": "0x0000000000000000000000000000000000000000",
+  "chainId": 46630,
+  "factory": "0xd08090964Ba7825baB3fe0680494536D0cB044Ff",
+  "identityRegistry": "0xB98A82B6024B01dfe9B2C732725c2330E0E1C861",
+  "network": "testnet",
+  "protectionPolicyHash": "0xd9a5f9cafe613b462c744f5c955d97e57a9f9245992c4b16b662667589243b31",
+  "protectionPolicyId": 1,
+  "protectionPolicyRegistry": "0x3Ca365Ed4d769bEf5e8A099CAbAac17aC75e0298",
+  "tickerLockSeconds": 300
+}

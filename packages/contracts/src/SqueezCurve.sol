@@ -5,6 +5,7 @@ import {ISqueezEvents} from "./interfaces/ISqueezEvents.sol";
 import {ISqueezFeeVault} from "./interfaces/ISqueezFeeVault.sol";
 import {ISqueezGraduationAdapter} from "./interfaces/ISqueezGraduationAdapter.sol";
 import {ISqueezLaunchFactory} from "./interfaces/ISqueezLaunchFactory.sol";
+import {ISqueezIdentityRegistry} from "./interfaces/ISqueezIdentityRegistry.sol";
 import {LaunchConfig, FeeDestination} from "./libraries/SqueezTypes.sol";
 import {SqueezConstants} from "./libraries/SqueezConstants.sol";
 import {SqueezCurveMath} from "./libraries/SqueezCurveMath.sol";
@@ -19,12 +20,22 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    struct ProtectionPolicyConfig {
+        uint256 policyId;
+        bytes32 policyHash;
+        uint32 protectionWindowSeconds;
+        uint16 maxBuyBpsPerTransaction;
+        uint16 maxBuyBpsPerAddress;
+    }
+
     error CurveClosed();
     error Unauthorized();
     error ZeroAddress();
     error Expired();
     error SlippageExceeded();
     error MaxWalletExceeded();
+    error BuyLimitExceeded();
+    error InvalidProtectionPolicy();
     error ThresholdExceeded();
     error TransferFailed();
     error InvalidAmount();
@@ -51,6 +62,16 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
     // Appended for Beacon storage compatibility. 0=pending, 1=executing, 2=complete.
     uint8 public graduationState;
     address public graduationPool;
+    // Appended for Beacon storage compatibility. Zero policyId preserves the deployed Elysium behavior.
+    uint256 public protectionPolicyId;
+    bytes32 public protectionPolicyHash;
+    uint32 public protectionWindowSeconds;
+    uint16 public maxBuyBpsPerTransaction;
+    uint16 public maxBuyBpsPerAddress;
+    mapping(address buyer => uint256 amount) public purchasedDuringProtection;
+    ISqueezIdentityRegistry public identityRegistry;
+    uint32 public tickerLockSeconds;
+    bool public identityLockTriggered;
 
     constructor() {
         _disableInitializers();
@@ -66,6 +87,45 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         LaunchConfig memory config_,
         FeeDestination memory dest_
     ) external initializer {
+        _initializeCurve(factory_, creator_, quote_, feeRecipient_, feeVault_, creatorFeeBps_, config_, dest_);
+    }
+
+    function initializeCurveProtected(
+        address factory_,
+        address creator_,
+        address quote_,
+        address feeRecipient_,
+        ISqueezFeeVault feeVault_,
+        uint16 creatorFeeBps_,
+        LaunchConfig memory config_,
+        FeeDestination memory dest_,
+        ProtectionPolicyConfig memory policy_
+    ) external initializer {
+        if (
+            policy_.policyId == 0 || policy_.policyHash == bytes32(0) || policy_.protectionWindowSeconds == 0
+                || policy_.protectionWindowSeconds != config_.sniperTaxDecaySeconds
+                || policy_.maxBuyBpsPerTransaction == 0 || policy_.maxBuyBpsPerAddress == 0
+                || policy_.maxBuyBpsPerTransaction > policy_.maxBuyBpsPerAddress
+                || policy_.maxBuyBpsPerAddress > SqueezConstants.BPS
+        ) revert InvalidProtectionPolicy();
+        _initializeCurve(factory_, creator_, quote_, feeRecipient_, feeVault_, creatorFeeBps_, config_, dest_);
+        protectionPolicyId = policy_.policyId;
+        protectionPolicyHash = policy_.policyHash;
+        protectionWindowSeconds = policy_.protectionWindowSeconds;
+        maxBuyBpsPerTransaction = policy_.maxBuyBpsPerTransaction;
+        maxBuyBpsPerAddress = policy_.maxBuyBpsPerAddress;
+    }
+
+    function _initializeCurve(
+        address factory_,
+        address creator_,
+        address quote_,
+        address feeRecipient_,
+        ISqueezFeeVault feeVault_,
+        uint16 creatorFeeBps_,
+        LaunchConfig memory config_,
+        FeeDestination memory dest_
+    ) private {
         if (
             factory_ == address(0) || creator_ == address(0) || feeRecipient_ == address(0)
                 || address(feeVault_) == address(0)
@@ -97,6 +157,13 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         if (token_ == address(0)) revert ZeroAddress();
         require(msg.sender == factory && token == address(0), "init");
         token = token_;
+    }
+
+    function initializeIdentity(address registry_, uint32 lockSeconds_) external {
+        if (msg.sender != factory || address(identityRegistry) != address(0)) revert Unauthorized();
+        if (registry_ == address(0) || registry_.code.length == 0 || lockSeconds_ == 0) revert InvalidAmount();
+        identityRegistry = ISqueezIdentityRegistry(registry_);
+        tickerLockSeconds = lockSeconds_;
     }
 
     /// @notice Buy with HYPE. Excess above the threshold is refunded and triggers graduation.
@@ -161,6 +228,7 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         tokensOut = SqueezCurveMath.quoteBuy(config.virtualHypeReserve, config.virtualTokenReserve, hypeRaised, netHype);
         if (tokensOut < minTokensOut || tokensOut == 0) revert SlippageExceeded();
         uint256 refund = msg.value - acceptedGross;
+        _enforceProtection(recipient, tokensOut);
         if (
             block.timestamp < launchedAt + config.maxWalletWindowSeconds
                 && IERC20(token).balanceOf(recipient) + tokensOut
@@ -168,13 +236,24 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         ) revert MaxWalletExceeded();
 
         hypeRaised += netHype;
+        if (
+            !identityLockTriggered && address(identityRegistry) != address(0)
+                && hypeRaised * 4 >= config.graduationThresholdHype
+        ) {
+            identityLockTriggered = true;
+            identityRegistry.lockIdentity(tickerLockSeconds);
+        }
         sniperTaxAccrued += sniperTax;
         if (hypeRaised == config.graduationThresholdHype) {
             graduated = true;
             emit GraduationThresholdReached(token, hypeRaised);
         }
         IERC20(token).safeTransfer(recipient, tokensOut);
-        if (protocolFee + creatorFee > 0) {
+        if (sniperTax > 0) {
+            feeVault.depositProtectedFees{value: protocolFee + creatorFee + sniperTax}(
+                token, address(0), protocolFee, creatorFee, sniperTax
+            );
+        } else if (protocolFee + creatorFee > 0) {
             feeVault.depositFees{value: protocolFee + creatorFee}(token, address(0), protocolFee, creatorFee);
         }
         if (refund > 0) {
@@ -182,6 +261,17 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
             if (!refunded) revert TransferFailed();
         }
         emit CurveTrade(token, recipient, true, acceptedGross, tokensOut, hypeRaised);
+    }
+
+    function _enforceProtection(address recipient, uint256 tokensOut) private {
+        if (protectionPolicyId == 0 || block.timestamp >= launchedAt + protectionWindowSeconds) return;
+        uint256 cumulative = purchasedDuringProtection[recipient] + tokensOut;
+        if (
+            tokensOut > (SqueezConstants.TOTAL_SUPPLY * maxBuyBpsPerTransaction) / SqueezConstants.BPS
+                || cumulative > (SqueezConstants.TOTAL_SUPPLY * maxBuyBpsPerAddress) / SqueezConstants.BPS
+        ) revert BuyLimitExceeded();
+        purchasedDuringProtection[recipient] = cumulative;
+        emit ProtectedPurchaseRecorded(token, recipient, tokensOut, cumulative);
     }
 
     function sell(uint256 tokenAmount, uint256 minHypeOut, uint256 deadline)
@@ -233,6 +323,7 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         hypeRaised = 0;
         graduationPool = pool;
         graduationState = 2;
+        if (address(identityRegistry) != address(0)) identityRegistry.permanentlyLockSymbol();
         emit Graduated(token, pool, quoteUsed, tokenUsed);
     }
 

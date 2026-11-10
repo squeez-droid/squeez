@@ -5,6 +5,8 @@
   "description": "Ponder indexer for Squeez events (launches, trades, graduation, fees, burns).",
   "type": "module",
   "scripts": {
+    "dev:raw": "ponder dev",
+    "start:raw": "ponder start",
     "dev": "node ../../tools/with-env.mjs testnet ponder dev",
     "dev:mainnet": "node ../../tools/with-env.mjs mainnet ponder dev",
     "start:testnet": "node ../../tools/with-env.mjs testnet ponder start",

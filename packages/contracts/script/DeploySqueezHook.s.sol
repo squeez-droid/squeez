@@ -46,8 +46,12 @@ contract DeploySqueezHook is Script {
         vm.serializeAddress(object, "poolManager", poolManager);
         vm.serializeAddress(object, "feeVault", feeVault);
         string memory json = vm.serializeAddress(object, "squeezHook", expectedHook);
-        vm.writeJson(
-            json, string.concat(vm.projectRoot(), "/deployments/", vm.envString("SQUEEZ_NETWORK"), "-hook.json")
-        );
+        vm.writeJson(json, _deploymentFile("-hook.json"));
+    }
+
+    function _deploymentFile(string memory suffix) private view returns (string memory) {
+        string memory chain = vm.envString("SQUEEZ_CHAIN");
+        string memory prefix = keccak256(bytes(chain)) == keccak256("elysium") ? "" : string.concat(chain, "/");
+        return string.concat(vm.projectRoot(), "/deployments/", prefix, vm.envString("SQUEEZ_NETWORK"), suffix);
     }
 }

@@ -1,11 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, verifyMessage, type Address, type Hex } from "viem";
+import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, keccak256, toBytes, verifyMessage, type Address, type Hex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { LOG_EVENTS, WEB_LOG_EVENTS, type LogEvent } from "@squeez/shared";
 import { backendConfig as config } from "./config.js";
 import { writeSystemLog } from "./logger.js";
 import { pinLaunchMetadata } from "./pinata.js";
+import { computeImageEvidence } from "./image-evidence.js";
 
 const pool = new Pool({ connectionString: config.databaseUrl, max: 10 });
 const safeRpcMethods = new Set([
@@ -23,13 +25,18 @@ function cors(req: IncomingMessage, res: ServerResponse): boolean {
   if (origin) res.setHeader("access-control-allow-origin", origin);
   res.setHeader("vary", "Origin");
   res.setHeader("access-control-allow-headers", "content-type");
-  res.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
+  res.setHeader("access-control-allow-methods", "GET,POST,DELETE,OPTIONS");
+  res.setHeader("access-control-allow-credentials", "true");
   return true;
 }
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(body));
+}
+
+function chainQualified<T extends Record<string, unknown>>(row: T): T & { chainId: number } {
+  return { chainId: config.chainId, ...row };
 }
 
 async function body(req: IncomingMessage, maxBytes = 128_000): Promise<unknown> {
@@ -44,6 +51,7 @@ async function body(req: IncomingMessage, maxBytes = 128_000): Promise<unknown> 
 }
 
 const uploadNonces = new Map<string, { nonce: string; expiresAt: number; requestId: string }>();
+const xAuthNonces = new Map<string, { nonce: string; expiresAt: number }>();
 const imageTypes = new Map([
   ["image/png", "png"], ["image/jpeg", "jpg"], ["image/webp", "webp"], ["image/gif", "gif"],
 ]);
@@ -57,6 +65,38 @@ const quoteRegistryAbi = [{
 
 function uploadMessage(address: string, nonce: string, expiresAt: number): string {
   return `Squeez metadata upload\nWallet: ${address}\nNonce: ${nonce}\nExpires: ${expiresAt}`;
+}
+
+function xAuthMessage(address: string, nonce: string, expiresAt: number): string {
+  return `Squeez X verification\nWallet: ${address}\nNonce: ${nonce}\nExpires: ${expiresAt}`;
+}
+
+function sha256(value: string): string {
+  return `0x${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function base64Url(bytes: Buffer): string {
+  return bytes.toString("base64url");
+}
+
+function cookieValue(req: IncomingMessage, name: string): string | null {
+  const cookies = req.headers.cookie?.split(";") ?? [];
+  for (const cookie of cookies) {
+    const [key, ...value] = cookie.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return null;
+}
+
+function safeReturnTo(value: unknown): string {
+  const fallback = "https://squeez.tech/launch";
+  if (typeof value !== "string") return fallback;
+  try {
+    const url = new URL(value);
+    return config.allowedOrigins.has(url.origin) ? url.toString() : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function cleanString(value: unknown, max: number, required = false): string {
@@ -84,7 +124,42 @@ function safeMetadataUrl(value: unknown): string | null {
   return value;
 }
 
-const tokenColumns = `address, curve, creator, quote,
+function normalizeOnchainIdentity(value: string, maxLength: number): string {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized || normalized.length > maxLength || [...normalized].some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 0x20 || code > 0x7e;
+  })) throw new Error("Invalid identity");
+  return normalized;
+}
+
+function hammingDistance64(left: string, right: string): number {
+  let difference = BigInt(left) ^ BigInt(right);
+  let distance = 0;
+  while (difference) {
+    distance += Number(difference & 1n);
+    difference >>= 1n;
+  }
+  return distance;
+}
+
+async function activeImageConflict(imageHash: string, perceptualHash: string): Promise<string | null> {
+  const tables = await pool.query("select to_regclass($1) is not null as evidence, to_regclass($2) is not null as identity", [
+    `${config.systemLogSchema}.identity_image_evidence`, `${config.databaseSchema}.identity`,
+  ]);
+  if (!tables.rows[0]?.evidence || !tables.rows[0]?.identity) return null;
+  const candidates = await pool.query(
+    `select i.token, e.image_hash as "imageHash", e.perceptual_hash as "perceptualHash"
+      from "${config.systemLogSchema}"."identity_image_evidence" e
+      join "${config.databaseSchema}"."identity" i on lower(i.metadata_hash) = lower(e.metadata_uri_hash)
+      where i.permanently_locked = true or i.locked_until > extract(epoch from now())::bigint`,
+  );
+  const conflict = candidates.rows.find((candidate) => candidate.imageHash === imageHash
+    || hammingDistance64(candidate.perceptualHash, perceptualHash) <= 5);
+  return conflict?.token ?? null;
+}
+
+const baseTokenColumns = `address, curve, creator, quote,
   creator_fee_bps as "creatorFeeBps", fee_recipient as "feeRecipient",
   fee_destination_kind as "feeDestinationKind", buyback_bps as "buybackBps",
   launch_config_id as "launchConfigId", name, symbol, metadata_uri as "metadataUri", status,
@@ -107,6 +182,47 @@ const tokenColumns = `address, curve, creator, quote,
     where lower(lp.token) = lower(address) and lp.token_amount > 0
     order by lp.block_number desc, lp.log_index desc limit 1), 0)::text as "lastTokenAmount"`;
 
+let identityTableCache = { available: false, checkedAt: 0 };
+async function tokenColumns(): Promise<string> {
+  if (Date.now() - identityTableCache.checkedAt > 30_000) {
+    const result = await pool.query("select to_regclass($1) is not null as available", [
+      `${config.databaseSchema}.identity`,
+    ]);
+    identityTableCache = { available: Boolean(result.rows[0]?.available), checkedAt: Date.now() };
+  }
+  if (!identityTableCache.available) {
+    return `${baseTokenColumns}, 'unavailable'::text as "identityStatus", false as "duplicateName",
+      false as "duplicateSymbol", null::text as "originalToken", null::text as "lockedUntil",
+      false as "permanentlyLocked"`;
+  }
+  return `${baseTokenColumns},
+    case
+      when not exists (select 1 from "${config.databaseSchema}"."identity" i where lower(i.token) = lower(address))
+        then 'unverified'
+      when exists (select 1 from "${config.databaseSchema}"."identity" i
+        where lower(i.token) = lower(address) and (i.duplicate_name or i.duplicate_symbol)) then 'copy'
+      else 'original'
+    end as "identityStatus",
+    coalesce((select i.duplicate_name from "${config.databaseSchema}"."identity" i
+      where lower(i.token) = lower(address) limit 1), false) as "duplicateName",
+    coalesce((select i.duplicate_symbol from "${config.databaseSchema}"."identity" i
+      where lower(i.token) = lower(address) limit 1), false) as "duplicateSymbol",
+    coalesce(
+      (select original.token from "${config.databaseSchema}"."identity" original
+        where original.duplicate_symbol = false and original.symbol_commitment =
+          (select current.symbol_commitment from "${config.databaseSchema}"."identity" current
+            where lower(current.token) = lower(address) limit 1) limit 1),
+      (select original.token from "${config.databaseSchema}"."identity" original
+        where original.duplicate_name = false and original.name_commitment =
+          (select current.name_commitment from "${config.databaseSchema}"."identity" current
+            where lower(current.token) = lower(address) limit 1) limit 1)
+    ) as "originalToken",
+    (select i.locked_until::text from "${config.databaseSchema}"."identity" i
+      where lower(i.token) = lower(address) limit 1) as "lockedUntil",
+    coalesce((select i.permanently_locked from "${config.databaseSchema}"."identity" i
+      where lower(i.token) = lower(address) limit 1), false) as "permanentlyLocked"`;
+}
+
 async function rpc(method: string, params: unknown[] = []) {
   const response = await fetch(config.rpcUrl, {
     method: "POST", headers: { "content-type": "application/json" },
@@ -123,16 +239,24 @@ const server = createServer(async (req, res) => {
     if (!cors(req, res)) return;
     if (req.method === "OPTIONS") return void res.writeHead(204).end();
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    const qualified = url.pathname.match(/^\/v1\/chains\/(\d+)(\/.*)?$/);
+    if (qualified) {
+      const requestedChainId = Number(qualified[1]);
+      if (requestedChainId !== config.chainId) {
+        return json(res, 404, { error: "Chain is not served by this API", chainId: requestedChainId });
+      }
+      url.pathname = `/v1${qualified[2] ?? ""}`;
+    }
 
     if (req.method === "GET" && url.pathname === "/health") {
-      return json(res, 200, { ok: true, network: config.network });
+      return json(res, 200, { ok: true, chain: config.chain, chainId: config.chainId, network: config.network });
     }
     if (req.method === "GET" && url.pathname === "/ready") {
       try {
         await pool.query("select 1");
-        return json(res, 200, { ready: true, network: config.network });
+        return json(res, 200, { ready: true, chain: config.chain, chainId: config.chainId, network: config.network });
       } catch {
-        return json(res, 503, { ready: false, network: config.network });
+        return json(res, 503, { ready: false, chain: config.chain, chainId: config.chainId, network: config.network });
       }
     }
     if (req.method === "GET" && url.pathname === "/v1/status") {
@@ -151,8 +275,308 @@ const server = createServer(async (req, res) => {
       const lagBlocks = rpcBlock !== null && indexerBlock !== null ? Math.max(0, rpcBlock - indexerBlock) : null;
       const stale = lagBlocks === null || lagBlocks > 2_000 || (indexerUpdatedAt !== null && checkedAt - indexerUpdatedAt > 300);
       return json(res, rpcBlock !== null ? 200 : 503, {
-        network: config.network, checkedAt, rpc: { ok: rpcBlock !== null, blockNumber: rpcBlock },
+        chain: config.chain, chainId: config.chainId, network: config.network, checkedAt,
+        rpc: { ok: rpcBlock !== null, blockNumber: rpcBlock },
         indexer: { ok: indexerBlock !== null, blockNumber: indexerBlock, updatedAt: indexerUpdatedAt, lagBlocks, stale },
+      });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/identity/check") {
+      let name: string;
+      let symbol: string;
+      try {
+        name = normalizeOnchainIdentity(url.searchParams.get("name") ?? "", 64);
+        symbol = normalizeOnchainIdentity(url.searchParams.get("symbol") ?? "", 16);
+      } catch {
+        return json(res, 400, { error: "Name or symbol is invalid" });
+      }
+      const table = await pool.query("select to_regclass($1) is not null as available", [
+        `${config.databaseSchema}.identity`,
+      ]);
+      if (!table.rows[0]?.available) {
+        return json(res, 200, { chainId: config.chainId, configured: false, available: true, warnings: [] });
+      }
+      const nameCommitment = keccak256(toBytes(name));
+      const symbolCommitment = keccak256(toBytes(symbol));
+      const heuristicSymbol = symbol.replace(/^\$+/, "");
+      const heuristicCommitment = heuristicSymbol && heuristicSymbol !== symbol
+        ? keccak256(toBytes(heuristicSymbol)) : null;
+      const matches = await pool.query(
+        `select token, duplicate_name as "duplicateName", duplicate_symbol as "duplicateSymbol",
+          locked_until::text as "lockedUntil", permanently_locked as "permanentlyLocked",
+          name_commitment as "nameCommitment", symbol_commitment as "symbolCommitment"
+        from "${config.databaseSchema}"."identity"
+        where name_commitment = $1 or symbol_commitment = $2
+          or ($3::text is not null and symbol_commitment = $3)
+        order by registered_at asc`,
+        [nameCommitment, symbolCommitment, heuristicCommitment],
+      );
+      const exact = matches.rows.find((row) => row.nameCommitment === nameCommitment
+        || row.symbolCommitment === symbolCommitment);
+      const now = Math.floor(Date.now() / 1000);
+      const locked = Boolean(exact?.permanentlyLocked)
+        || Number(exact?.lockedUntil ?? 0) > now;
+      const heuristic = matches.rows.find((row) => row !== exact);
+      let crossChain: { token: string } | undefined;
+      if (config.crossChainDatabaseSchema) {
+        const crossTable = await pool.query("select to_regclass($1) is not null as available", [
+          `${config.crossChainDatabaseSchema}.identity`,
+        ]);
+        if (crossTable.rows[0]?.available) {
+          const result = await pool.query(
+            `select token from "${config.crossChainDatabaseSchema}"."identity"
+              where name_commitment = $1 or symbol_commitment = $2 order by registered_at asc limit 1`,
+            [nameCommitment, symbolCommitment],
+          );
+          crossChain = result.rows[0] as { token: string } | undefined;
+        }
+      }
+      const warnings = [
+        ...(heuristic ? [{ type: "look-alike", originalToken: heuristic.token }] : []),
+        ...(crossChain ? [{
+          type: "cross-chain",
+          originalToken: crossChain.token,
+          chain: config.chain === "robinhood" ? "elysium" : "robinhood",
+        }] : []),
+      ];
+      return json(res, 200, {
+        chainId: config.chainId,
+        configured: true,
+        available: !locked,
+        duplicate: Boolean(exact),
+        lockedUntil: exact?.lockedUntil ?? null,
+        permanentlyLocked: Boolean(exact?.permanentlyLocked),
+        originalToken: exact?.token ?? null,
+        warnings,
+      });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/auth/x/nonce") {
+      const rawAddress = url.searchParams.get("address");
+      if (!rawAddress) return json(res, 400, { error: "Wallet address is required" });
+      let address: Address;
+      try { address = getAddress(rawAddress); } catch { return json(res, 400, { error: "Invalid wallet address" }); }
+      const nonce = base64Url(randomBytes(32));
+      const expiresAt = Date.now() + 5 * 60_000;
+      xAuthNonces.set(address.toLowerCase(), { nonce, expiresAt });
+      return json(res, 200, { nonce, expiresAt, message: xAuthMessage(address, nonce, expiresAt) });
+    }
+    if (req.method === "POST" && url.pathname === "/v1/auth/x/start") {
+      if (!config.xAttestation.enabled) return json(res, 503, { error: "X verification is not enabled" });
+      const payload = await body(req) as Record<string, unknown>;
+      let address: Address;
+      try { address = getAddress(cleanString(payload.address, 42, true)); }
+      catch { return json(res, 400, { error: "Invalid wallet address" }); }
+      const challenge = xAuthNonces.get(address.toLowerCase());
+      xAuthNonces.delete(address.toLowerCase());
+      if (!challenge || challenge.expiresAt < Date.now()) {
+        return json(res, 401, { error: "X verification nonce is missing or expired" });
+      }
+      const signature = cleanString(payload.signature, 132, true) as Hex;
+      const valid = await verifyMessage({
+        address,
+        message: xAuthMessage(address, challenge.nonce, challenge.expiresAt),
+        signature,
+      });
+      if (!valid) return json(res, 401, { error: "Invalid wallet signature" });
+
+      const state = base64Url(randomBytes(32));
+      const verifier = base64Url(randomBytes(48));
+      const codeChallenge = base64Url(createHash("sha256").update(verifier).digest());
+      const returnTo = safeReturnTo(payload.returnTo);
+      await pool.query(
+        `insert into "${config.systemLogSchema}"."x_oauth_request"
+          (state_hash, code_verifier, wallet, return_to, expires_at)
+          values ($1, $2, $3, $4, now() + interval '10 minutes')`,
+        [sha256(state), verifier, address.toLowerCase(), returnTo],
+      );
+      const authorize = new URL("https://x.com/i/oauth2/authorize");
+      authorize.search = new URLSearchParams({
+        response_type: "code",
+        client_id: config.xAttestation.clientId!,
+        redirect_uri: config.xAttestation.redirectUri!,
+        scope: "users.read tweet.read",
+        state,
+        code_challenge: codeChallenge,
+        code_challenge_method: "S256",
+      }).toString();
+      return json(res, 200, { authorizeUrl: authorize.toString() });
+    }
+    if (req.method === "GET" && url.pathname === "/v1/auth/x/callback") {
+      if (!config.xAttestation.enabled) return json(res, 503, { error: "X verification is not enabled" });
+      const state = url.searchParams.get("state");
+      const code = url.searchParams.get("code");
+      if (!state || !code) return json(res, 400, { error: "X callback is missing code or state" });
+      const request = await pool.query(
+        `delete from "${config.systemLogSchema}"."x_oauth_request"
+          where state_hash = $1 and expires_at > now()
+          returning code_verifier as "codeVerifier", wallet, return_to as "returnTo"`,
+        [sha256(state)],
+      );
+      const pending = request.rows[0] as { codeVerifier: string; wallet: string; returnTo: string } | undefined;
+      if (!pending) return json(res, 401, { error: "X OAuth state is invalid or expired" });
+
+      const tokenResponse = await fetch("https://api.x.com/2/oauth2/token", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          authorization: `Basic ${Buffer.from(`${config.xAttestation.clientId}:${config.xAttestation.clientSecret}`).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: config.xAttestation.redirectUri!,
+          code_verifier: pending.codeVerifier,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      const tokenPayload = await tokenResponse.json() as { access_token?: string; error_description?: string };
+      if (!tokenResponse.ok || !tokenPayload.access_token) {
+        return json(res, 502, { error: tokenPayload.error_description ?? "X token exchange failed" });
+      }
+      const userResponse = await fetch("https://api.x.com/2/users/me?user.fields=username", {
+        headers: { authorization: `Bearer ${tokenPayload.access_token}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+      const userPayload = await userResponse.json() as { data?: { id?: string; username?: string } };
+      if (!userResponse.ok || !userPayload.data?.id || !userPayload.data.username) {
+        return json(res, 502, { error: "X user lookup failed" });
+      }
+      const xUserIdHash = `0x${createHmac("sha256", config.xAttestation.clientSecret!)
+        .update(userPayload.data.id).digest("hex")}`;
+      const session = base64Url(randomBytes(48));
+      await pool.query(
+        `insert into "${config.systemLogSchema}"."x_creator_session"
+          (session_hash, wallet, x_user_id_hash, username, expires_at)
+          values ($1, $2, $3, $4, now() + interval '2 hours')`,
+        [sha256(session), pending.wallet, xUserIdHash, userPayload.data.username],
+      );
+      res.setHeader("set-cookie", `squeez_x_session=${encodeURIComponent(session)}; HttpOnly; Secure; SameSite=Lax; Path=/v1/auth/x; Max-Age=7200`);
+      res.writeHead(302, { location: pending.returnTo }).end();
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/v1/auth/x/session") {
+      const session = cookieValue(req, "squeez_x_session");
+      if (!session) return json(res, 200, { verified: false });
+      const result = await pool.query(
+        `select wallet, username, expires_at as "expiresAt"
+          from "${config.systemLogSchema}"."x_creator_session"
+          where session_hash = $1 and revoked_at is null and expires_at > now() limit 1`,
+        [sha256(session)],
+      );
+      const verified = result.rows[0];
+      return json(res, 200, verified ? { verified: true, ...verified } : { verified: false });
+    }
+    if (req.method === "DELETE" && url.pathname === "/v1/auth/x/session") {
+      const session = cookieValue(req, "squeez_x_session");
+      if (session) {
+        await pool.query(
+          `update "${config.systemLogSchema}"."x_creator_session" set revoked_at = now()
+            where session_hash = $1 and revoked_at is null`,
+          [sha256(session)],
+        );
+      }
+      res.setHeader("set-cookie", "squeez_x_session=; HttpOnly; Secure; SameSite=Lax; Path=/v1/auth/x; Max-Age=0");
+      return json(res, 200, { verified: false });
+    }
+    if (req.method === "POST" && url.pathname === "/v1/auth/x/attestation") {
+      if (!config.xAttestation.enabled || !config.xAttestation.attesterPrivateKey || !config.contracts.factory) {
+        return json(res, 503, { error: "Creator attestation is not configured" });
+      }
+      const session = cookieValue(req, "squeez_x_session");
+      if (!session) return json(res, 401, { error: "Connect and verify X before requesting an attestation" });
+      const payload = await body(req) as Record<string, unknown>;
+      let wallet: Address;
+      try { wallet = getAddress(cleanString(payload.wallet, 42, true)); }
+      catch { return json(res, 400, { error: "Invalid wallet address" }); }
+      const metadataURI = cleanString(payload.metadataURI, 200, true);
+      if (!/^ipfs:\/\/[a-zA-Z0-9]+$/.test(metadataURI)) {
+        return json(res, 400, { error: "Metadata URI must be an IPFS URI" });
+      }
+      const imageHash = cleanString(payload.imageHash, 66, true) as Hex;
+      if (!/^0x[a-fA-F0-9]{64}$/.test(imageHash)) return json(res, 400, { error: "Invalid image hash" });
+      const nameCommitment = keccak256(toBytes(normalizeOnchainIdentity(cleanString(payload.name, 64, true), 64)));
+      const symbolCommitment = keccak256(toBytes(normalizeOnchainIdentity(cleanString(payload.symbol, 16, true), 16)));
+
+      const verified = await pool.query(
+        `select wallet, x_user_id_hash as "socialHash" from "${config.systemLogSchema}"."x_creator_session"
+          where session_hash = $1 and revoked_at is null and expires_at > now() limit 1`,
+        [sha256(session)],
+      );
+      const identity = verified.rows[0] as { wallet: string; socialHash: Hex } | undefined;
+      if (!identity || identity.wallet.toLowerCase() !== wallet.toLowerCase()) {
+        return json(res, 401, { error: "The verified X session does not belong to this wallet" });
+      }
+
+      const nonceBytes = randomBytes(8);
+      nonceBytes[0] &= 0x7f;
+      const nonce = nonceBytes.readBigUInt64BE();
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 10 * 60);
+      const factory = getAddress(config.contracts.factory);
+      const account = privateKeyToAccount(config.xAttestation.attesterPrivateKey as Hex);
+      const attestation = {
+        creator: wallet,
+        socialHash: identity.socialHash,
+        nameCommitment,
+        symbolCommitment,
+        metadataHash: keccak256(toBytes(metadataURI)),
+        imageHash,
+        nonce,
+        deadline,
+      } as const;
+      const signature = await account.signTypedData({
+        domain: {
+          name: "Squeez Launch Factory",
+          version: "1",
+          chainId: config.chainId,
+          verifyingContract: factory,
+        },
+        types: {
+          CreatorAttestation: [
+            { name: "creator", type: "address" },
+            { name: "socialHash", type: "bytes32" },
+            { name: "nameCommitment", type: "bytes32" },
+            { name: "symbolCommitment", type: "bytes32" },
+            { name: "metadataHash", type: "bytes32" },
+            { name: "imageHash", type: "bytes32" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        },
+        primaryType: "CreatorAttestation",
+        message: attestation,
+      });
+
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+        await client.query("select pg_advisory_xact_lock(hashtext($1))", [identity.socialHash]);
+        const usage = await client.query(
+          `select count(*)::int as count from "${config.systemLogSchema}"."x_attestation_usage"
+            where x_user_id_hash = $1 and created_at >= now() - interval '24 hours'`,
+          [identity.socialHash],
+        );
+        if (Number(usage.rows[0]?.count ?? 0) >= config.xAttestation.maxLaunchesPer24h) {
+          await client.query("rollback");
+          return json(res, 429, { error: "This X account has reached its verified launch limit for 24 hours" });
+        }
+        await client.query(
+          `insert into "${config.systemLogSchema}"."x_attestation_usage"
+            (wallet, x_user_id_hash, chain_id, factory, nonce) values ($1, $2, $3, $4, $5)`,
+          [wallet.toLowerCase(), identity.socialHash, config.chainId, factory.toLowerCase(), nonce.toString()],
+        );
+        await client.query("commit");
+      } catch (cause) {
+        await client.query("rollback");
+        throw cause;
+      } finally {
+        client.release();
+      }
+      return json(res, 201, {
+        attestation: {
+          ...attestation,
+          nonce: nonce.toString(),
+          deadline: deadline.toString(),
+        },
+        signature,
       });
     }
     if (req.method === "GET" && url.pathname === "/v1/metadata/nonce") {
@@ -165,7 +589,7 @@ const server = createServer(async (req, res) => {
       const requestedId = url.searchParams.get("requestId");
       const requestId = requestedId && /^[0-9a-f-]{36}$/i.test(requestedId) ? requestedId : randomUUID();
       uploadNonces.set(address.toLowerCase(), { nonce, expiresAt, requestId });
-      void writeSystemLog(pool, config.network, { source: "web", event: LOG_EVENTS.metadataNonceIssued,
+      void writeSystemLog(pool, config.systemLogSchema, { source: "web", event: LOG_EVENTS.metadataNonceIssued,
         wallet: address, chainId: config.chainId, requestId });
       return json(res, 200, { nonce, expiresAt, requestId, message: uploadMessage(address, nonce, expiresAt) });
     }
@@ -185,7 +609,7 @@ const server = createServer(async (req, res) => {
         signature,
       });
       if (!valid) return json(res, 401, { error: "Invalid wallet signature" });
-      void writeSystemLog(pool, config.network, { source: "web", event: LOG_EVENTS.metadataUploadRequested,
+      void writeSystemLog(pool, config.systemLogSchema, { source: "web", event: LOG_EVENTS.metadataUploadRequested,
         wallet: address, chainId: config.chainId, requestId: auth.requestId });
 
       const imageData = cleanString(payload.image, 7_100_000, true);
@@ -196,18 +620,42 @@ const server = createServer(async (req, res) => {
       const symbol = cleanString(payload.symbol, 16, true).toUpperCase();
       if (!/^[A-Z0-9]{2,16}$/.test(symbol)) return json(res, 400, { error: "Invalid token symbol" });
       try {
+        const evidence = await computeImageEvidence(image);
+        const conflictingToken = await activeImageConflict(evidence.imageHash, evidence.perceptualHash);
+        if (conflictingToken) {
+          return json(res, 409, {
+            error: "This image is too similar to an identity that is currently locked.",
+            originalToken: conflictingToken,
+          });
+        }
+        const normalizedName = normalizeOnchainIdentity(cleanString(payload.name, 64, true), 64);
+        const normalizedSymbol = normalizeOnchainIdentity(symbol, 16);
         const result = await pinLaunchMetadata({
-          image, imageMime: match[1], imageExtension: imageTypes.get(match[1])!,
+          image, imageMime: match[1], imageExtension: imageTypes.get(match[1])!, evidence,
           name: cleanString(payload.name, 64, true), symbol,
           description: cleanString(payload.description, 280), website: cleanUrl(payload.website),
           x: cleanUrl(payload.x), telegram: cleanUrl(payload.telegram),
         });
-        void writeSystemLog(pool, config.network, { source: "web", event: LOG_EVENTS.metadataUploadSucceeded,
+        const evidenceTable = await pool.query("select to_regclass($1) is not null as available", [
+          `${config.systemLogSchema}.identity_image_evidence`,
+        ]);
+        if (evidenceTable.rows[0]?.available) {
+          await pool.query(
+            `insert into "${config.systemLogSchema}"."identity_image_evidence"
+              (metadata_uri_hash, image_hash, perceptual_hash, name_commitment, symbol_commitment, wallet)
+              values ($1, $2, $3, $4, $5, $6) on conflict (metadata_uri_hash) do nothing`,
+            [
+              keccak256(toBytes(result.metadataUri)), result.imageHash, result.perceptualHash,
+              keccak256(toBytes(normalizedName)), keccak256(toBytes(normalizedSymbol)), address.toLowerCase(),
+            ],
+          );
+        }
+        void writeSystemLog(pool, config.systemLogSchema, { source: "web", event: LOG_EVENTS.metadataUploadSucceeded,
           wallet: address, chainId: config.chainId, requestId: auth.requestId,
           context: { imageUri: result.imageUri, metadataUri: result.metadataUri } });
         return json(res, 201, { ...result, requestId: auth.requestId });
       } catch (error) {
-        void writeSystemLog(pool, config.network, { source: "web", level: "error",
+        void writeSystemLog(pool, config.systemLogSchema, { source: "web", level: "error",
           event: LOG_EVENTS.metadataUploadFailed, wallet: address, chainId: config.chainId,
           requestId: auth.requestId, message: error instanceof Error ? error.message : "Upload failed" });
         throw error;
@@ -221,7 +669,7 @@ const server = createServer(async (req, res) => {
       if (!/^[0-9a-f-]{36}$/i.test(requestId)) return json(res, 400, { error: "Invalid request ID" });
       const wallet = cleanString(payload.wallet, 42);
       const txHash = cleanString(payload.txHash, 66);
-      void writeSystemLog(pool, config.network, {
+      void writeSystemLog(pool, config.systemLogSchema, {
         source: "web", level: event === LOG_EVENTS.txFailed || event === LOG_EVENTS.txRejected ? "error" : "info",
         event, requestId, chainId: config.chainId,
         wallet: /^0x[a-fA-F0-9]{40}$/.test(wallet) ? wallet : undefined,
@@ -244,7 +692,21 @@ const server = createServer(async (req, res) => {
       return json(res, 200, {
         configured,
         network: config.network,
-        chain: { id: config.chainId, name: config.network === "mainnet" ? "Elysium" : "Elysium Testnet", explorer: config.explorer },
+        creatorAttestation: {
+          enabled: config.xAttestation.enabled,
+          configured: Boolean(config.xAttestation.clientId && config.xAttestation.clientSecret
+            && config.xAttestation.redirectUri && config.xAttestation.attesterPrivateKey),
+          optional: true,
+          maxLaunchesPer24h: config.xAttestation.maxLaunchesPer24h,
+        },
+        chain: {
+          id: config.chainId,
+          slug: config.chain,
+          name: config.chain === "robinhood"
+            ? (config.network === "mainnet" ? "Robinhood Chain" : "Robinhood Chain Testnet")
+            : (config.network === "mainnet" ? "Elysium" : "Elysium Testnet"),
+          explorer: config.explorer,
+        },
         contracts: config.contracts,
         v4Pool: config.v4Pool,
         launchConfig,
@@ -265,6 +727,7 @@ const server = createServer(async (req, res) => {
           from "${config.databaseSchema}"."token"`),
       ]);
       return json(res, 200, {
+        chainId: config.chainId,
         volume24hHype: trades.rows[0].value,
         trades24h: trades.rows[0].count,
         creatorFees24hHype: creatorFees.rows[0].value,
@@ -288,11 +751,12 @@ const server = createServer(async (req, res) => {
           : config.quoteAssets.unit?.toLowerCase() === asset ? "UNIT" : config.quoteAssets.ondo?.toLowerCase() === asset ? "ONDO" : null;
         return { asset: quote.asset, decimals: quote.decimals, category, symbol, routeConfigured: quote.routerPath !== "0x" };
       });
-      return json(res, 200, classified);
+      return json(res, 200, classified.map(chainQualified));
     }
     if (req.method === "GET" && url.pathname === "/v1/tokens") {
-      const result = await pool.query(`select ${tokenColumns} from "${config.databaseSchema}"."token" order by "createdAt" desc limit 100`);
-      return json(res, 200, result.rows);
+      const columns = await tokenColumns();
+      const result = await pool.query(`select ${columns} from "${config.databaseSchema}"."token" order by "createdAt" desc limit 100`);
+      return json(res, 200, result.rows.map(chainQualified));
     }
     const holdersMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/holders$/);
     if (req.method === "GET" && holdersMatch) {
@@ -304,7 +768,7 @@ const server = createServer(async (req, res) => {
            order by balance desc limit 100`,
           [holdersMatch[1]],
         );
-        return json(res, 200, result.rows);
+        return json(res, 200, result.rows.map(chainQualified));
       } catch (cause) {
         if ((cause as { code?: string }).code === "42P01") return json(res, 503, { error: "Holder indexing is not ready" });
         throw cause;
@@ -325,6 +789,7 @@ const server = createServer(async (req, res) => {
       const imageCid = typeof payload.image === "string" ? payload.image.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1] : undefined;
       const rawLinks = typeof payload.links === "object" && payload.links ? payload.links as Record<string, unknown> : {};
       return json(res, 200, {
+        chainId: config.chainId,
         schema: payload.schema === "squeez.token.v1" ? payload.schema : null,
         description: safeMetadataText(payload.description, 280),
         links: {
@@ -357,7 +822,7 @@ const server = createServer(async (req, res) => {
          order by block_number desc, log_index desc limit 100`,
         [tradesMatch[1]],
       );
-      return json(res, 200, result.rows);
+      return json(res, 200, result.rows.map(chainQualified));
     }
     const feesMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/fees$/);
     if (req.method === "GET" && feesMatch) {
@@ -368,12 +833,13 @@ const server = createServer(async (req, res) => {
          order by block_number desc, log_index desc limit 100`,
         [feesMatch[1]],
       );
-      return json(res, 200, result.rows);
+      return json(res, 200, result.rows.map(chainQualified));
     }
     const tokenMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})$/);
     if (req.method === "GET" && tokenMatch) {
-      const result = await pool.query(`select ${tokenColumns} from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`, [tokenMatch[1]]);
-      return result.rows[0] ? json(res, 200, result.rows[0]) : json(res, 404, { error: "Token not found" });
+      const columns = await tokenColumns();
+      const result = await pool.query(`select ${columns} from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`, [tokenMatch[1]]);
+      return result.rows[0] ? json(res, 200, chainQualified(result.rows[0])) : json(res, 404, { error: "Token not found" });
     }
     if (req.method === "POST" && url.pathname === "/rpc") {
       const payload = await body(req) as { method?: string };
@@ -390,7 +856,9 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(config.port, "0.0.0.0", () => console.log(`Squeez API listening on :${config.port} (${config.network})`));
+server.listen(config.port, "0.0.0.0", () => console.log(
+  `Squeez API listening on :${config.port} (${config.chain}:${config.network}, chain ${config.chainId})`,
+));
 
 let shuttingDown = false;
 async function shutdown() {

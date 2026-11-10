@@ -10,6 +10,8 @@ export const token = onchainTable("token", (t) => ({
   feeDestinationKind: t.integer().notNull(),
   buybackBps: t.integer().notNull(),
   launchConfigId: t.bigint().notNull(),
+  protectionPolicyId: t.bigint(),
+  protectionPolicyHash: t.hex(),
   name: t.text(),
   symbol: t.text(),
   metadataUri: t.text(),
@@ -68,6 +70,50 @@ export const protocolFee = onchainTable("protocol_fee", (t) => ({
   txHash: t.hex().notNull(),
   blockNumber: t.bigint().notNull(),
   logIndex: t.integer().notNull(),
+}));
+
+export const protectedPurchase = onchainTable("protected_purchase", (t) => ({
+  id: t.text().primaryKey(),
+  token: t.hex().notNull(),
+  buyer: t.hex().notNull(),
+  tokenAmount: t.bigint().notNull(),
+  cumulativeAmount: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+  txHash: t.hex().notNull(),
+  blockNumber: t.bigint().notNull(),
+  logIndex: t.integer().notNull(),
+}));
+
+export const protectionTax = onchainTable("protection_tax", (t) => ({
+  id: t.text().primaryKey(),
+  token: t.hex().notNull(),
+  asset: t.hex().notNull(),
+  amount: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+  txHash: t.hex().notNull(),
+  blockNumber: t.bigint().notNull(),
+  logIndex: t.integer().notNull(),
+}));
+
+export const identity = onchainTable("identity", (t) => ({
+  token: t.hex().primaryKey(),
+  creator: t.hex().notNull(),
+  curve: t.hex().notNull(),
+  canonicalHash: t.hex().notNull(),
+  nameCommitment: t.hex().notNull(),
+  symbolCommitment: t.hex().notNull(),
+  metadataHash: t.hex(),
+  imageHash: t.hex(),
+  socialHash: t.hex(),
+  tokenCodeHash: t.hex(),
+  templateVersion: t.integer(),
+  duplicateName: t.boolean().notNull(),
+  duplicateSymbol: t.boolean().notNull(),
+  originalNameToken: t.hex(),
+  originalSymbolToken: t.hex(),
+  lockedUntil: t.bigint(),
+  permanentlyLocked: t.boolean().notNull(),
+  registeredAt: t.bigint().notNull(),
 }));
 
 export const burn = onchainTable("burn", (t) => ({

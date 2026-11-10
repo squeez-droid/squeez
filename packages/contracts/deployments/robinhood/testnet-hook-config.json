@@ -1,0 +1,6 @@
+{
+  "chainId": 46630,
+  "feeVault": "0x755344b7a6d990064b36a3dF8d2a9CB910F8a197",
+  "network": "testnet",
+  "squeezHook": "0xf547Dc205eF33511b2D144b299FE1063B1B260CC"
+}

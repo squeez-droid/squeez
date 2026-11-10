@@ -16,8 +16,8 @@ const addresses = {
   curveImplementation: required("CURVE_IMPLEMENTATION_ADDRESS"),
 };
 for (const [name, value] of Object.entries(addresses)) if (!isAddress(value)) throw new Error(`${name} address is invalid`);
-const client = createPublicClient({ transport: http(required("ELYSIUM_RPC")) });
-const chainId = Number(required("ELYSIUM_CHAIN_ID"));
+const client = createPublicClient({ transport: http(required("SQUEEZ_RPC")) });
+const chainId = Number(required("SQUEEZ_CHAIN_ID"));
 if (await client.getChainId() !== chainId) throw new Error("RPC chain ID mismatch");
 
 const ownerAbi = [{ type: "function", name: "owner", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] }];

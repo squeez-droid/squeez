@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:raw": "tsx watch src/index.ts",
+    "start:raw": "tsx src/index.ts",
     "dev": "node ../../tools/with-env.mjs testnet tsx watch src/index.ts",
     "dev:mainnet": "node ../../tools/with-env.mjs mainnet tsx watch src/index.ts",
     "start:testnet": "node ../../tools/with-env.mjs testnet tsx src/index.ts",
@@ -13,6 +15,7 @@
   "dependencies": {
     "@squeez/shared": "*",
     "pg": "^8.13.1",
+    "sharp": "0.35.5",
     "viem": "2.21.19"
   },
   "devDependencies": {
