@@ -12,7 +12,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 const display = Archivo({ subsets: ["latin"], variable: "--font-display", axes: ["wdth"] });
 
 export const metadata: Metadata = {
-  title: `${content.brand.name} · Launchpad on Elysium`,
+  title: `${content.brand.name} · Multichain onchain launchpad`,
   description: content.brand.tagline,
   icons: {
     icon: [{ url: "/squeez-logo.png", type: "image/png" }],
