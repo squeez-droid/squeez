@@ -96,6 +96,14 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/health") {
       return json(res, 200, { ok: true, network: config.network });
     }
+    if (req.method === "GET" && url.pathname === "/ready") {
+      try {
+        await pool.query("select 1");
+        return json(res, 200, { ready: true, network: config.network });
+      } catch {
+        return json(res, 503, { ready: false, network: config.network });
+      }
+    }
     if (req.method === "GET" && url.pathname === "/v1/status") {
       const checkedAt = Math.floor(Date.now() / 1000);
       const [rpcResult, indexerResult] = await Promise.allSettled([
@@ -260,10 +268,23 @@ const server = createServer(async (req, res) => {
 
 server.listen(config.port, "0.0.0.0", () => console.log(`Squeez API listening on :${config.port} (${config.network})`));
 
+let shuttingDown = false;
 async function shutdown() {
-  server.close();
-  await pool.end();
-  process.exit(0);
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log("Squeez API shutting down gracefully");
+  const forcedExit = setTimeout(() => process.exit(1), 25_000);
+  forcedExit.unref();
+  server.close(async (error) => {
+    try {
+      await pool.end();
+      process.exit(error ? 1 : 0);
+    } catch (cause) {
+      console.error("Squeez API shutdown failed", cause);
+      process.exit(1);
+    }
+  });
+  server.closeIdleConnections();
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

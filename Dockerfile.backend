@@ -21,7 +21,7 @@ RUN apt-get update \
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY tools ./tools
-COPY scripts/start-backend-stack.mjs ./scripts/start-backend-stack.mjs
+COPY scripts/start-backend-service.mjs ./scripts/start-backend-service.mjs
 COPY apps/backend ./apps/backend
 # Ponder generates ponder-env.d.ts and runtime state inside its workspace.
 # Keep this directory writable after the container switches to the node user.
@@ -31,6 +31,11 @@ COPY packages/shared ./packages/shared
 COPY packages/contracts/deployments ./packages/contracts/deployments
 USER node
 
-# Coolify runs the public API and private Ponder worker in one supervised
-# container. If either process exits, the container exits for automatic restart.
-CMD ["node", "scripts/start-backend-stack.mjs"]
+# One process per container keeps API, indexer, and keeper failures isolated.
+# The public Coolify application uses the API default; private worker
+# applications override SQUEEZ_SERVICE with indexer or keeper.
+ENV SQUEEZ_SERVICE=api
+EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=6 \
+  CMD if [ "$SQUEEZ_SERVICE" != "api" ]; then exit 0; fi; curl --fail --silent --show-error "http://127.0.0.1:${PORT:-3000}/ready" || exit 1
+CMD ["node", "scripts/start-backend-service.mjs"]

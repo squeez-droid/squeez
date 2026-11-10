@@ -18,10 +18,12 @@ services:
     build:
       context: ../..
       dockerfile: Dockerfile.backend
-    command: npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/backend
+    init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       <<: *common
+      SQUEEZ_SERVICE: api
       PORT: 8080
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       ELYSIUM_EXPLORER: ${ELYSIUM_EXPLORER}
@@ -32,35 +34,38 @@ services:
     expose:
       - "8080"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
+      start_period: 20s
       retries: 3
 
   indexer:
     build:
       context: ../..
       dockerfile: Dockerfile.backend
-    command: npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/indexer
+    init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       <<: *common
-    depends_on:
-      api:
-        condition: service_healthy
+      SQUEEZ_SERVICE: indexer
+    healthcheck:
+      disable: true
 
   keeper:
     build:
       context: ../..
       dockerfile: Dockerfile.backend
-    command: npm run start:${SQUEEZ_NETWORK:-testnet} -w @squeez/keeper
+    init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     environment:
       <<: *common
+      SQUEEZ_SERVICE: keeper
       KEEPER_PRIVATE_KEY: ${KEEPER_PRIVATE_KEY}
       SQUEEZ_TOKEN_ADDRESS: ${SQUEEZ_TOKEN_ADDRESS}
       TWAP_INTERVAL_SECONDS: ${TWAP_INTERVAL_SECONDS}
       TWAP_CHUNK_HYPE: ${TWAP_CHUNK_HYPE}
-    depends_on:
-      api:
-        condition: service_healthy
+    healthcheck:
+      disable: true
