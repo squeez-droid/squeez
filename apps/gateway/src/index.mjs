@@ -78,11 +78,16 @@ const server = createServer(async (req, res) => {
       const served = targets.filter((target) => target.upstream && target.capability !== "coming-soon");
       const checks = await Promise.all(served.map(async (target) => {
         try {
-          const response = await fetch(`${target.upstream}/v1/${target.chain}/${target.stage}/ready`, {
-            signal: AbortSignal.timeout(4_000),
-          });
-          return { target: target.id, ready: response.ok };
-        } catch { return { target: target.id, ready: false }; }
+          const [healthResponse, readinessResponse] = await Promise.all([
+            fetch(`${target.upstream}/v1/${target.chain}/${target.stage}/health`, {
+              signal: AbortSignal.timeout(4_000),
+            }),
+            fetch(`${target.upstream}/v1/${target.chain}/${target.stage}/ready`, {
+              signal: AbortSignal.timeout(4_000),
+            }),
+          ]);
+          return { target: target.id, ready: healthResponse.ok, dataReady: readinessResponse.ok };
+        } catch { return { target: target.id, ready: false, dataReady: false }; }
       }));
       const ready = checks.every((check) => check.ready);
       return json(res, ready ? 200 : 503, { ready, targets: checks });

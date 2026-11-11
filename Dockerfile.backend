@@ -41,5 +41,5 @@ USER node
 ENV SQUEEZ_SERVICE=api
 EXPOSE 3000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=6 \
-  CMD if [ "$SQUEEZ_SERVICE" != "api" ]; then exit 0; fi; curl --fail --silent --show-error "http://127.0.0.1:${PORT:-3000}/ready" || exit 1
+  CMD if [ "$SQUEEZ_SERVICE" = "api" ]; then endpoint="/ready"; elif [ "$SQUEEZ_SERVICE" = "gateway" ]; then endpoint="/health/ready"; else exit 0; fi; curl --fail --silent --show-error "http://127.0.0.1:${PORT:-3000}${endpoint}" || exit 1
 CMD ["node", "scripts/start-backend-service.mjs"]
