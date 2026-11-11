@@ -10,7 +10,11 @@ import { pinLaunchMetadata } from "./pinata.js";
 import { computeImageEvidence } from "./image-evidence.js";
 import { resolveTargetRoute } from "./target-routing.js";
 
-const pool = new Pool({ connectionString: config.databaseUrl, max: 10 });
+const databasePoolMax = Number(process.env.DATABASE_POOL_MAX?.trim() || "2");
+if (!Number.isSafeInteger(databasePoolMax) || databasePoolMax < 1) {
+  throw new Error("DATABASE_POOL_MAX must be a positive integer");
+}
+const pool = new Pool({ connectionString: config.databaseUrl, max: databasePoolMax });
 const safeRpcMethods = new Set([
   "eth_blockNumber", "eth_call", "eth_chainId", "eth_estimateGas", "eth_feeHistory", "eth_gasPrice",
   "eth_getBalance", "eth_getBlockByHash", "eth_getBlockByNumber", "eth_getCode", "eth_getLogs",

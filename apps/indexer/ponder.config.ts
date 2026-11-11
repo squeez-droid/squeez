@@ -28,13 +28,21 @@ if (!Number.isSafeInteger(factoryStartBlock) || factoryStartBlock < 0) {
 }
 const swapRouterAddress = process.env.SWAP_ROUTER_ADDRESS?.trim();
 const swapRouterStartBlock = process.env.SWAP_ROUTER_START_BLOCK?.trim();
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const databasePoolMax = Number(process.env.INDEXER_DATABASE_POOL_MAX?.trim() || "5");
 if ((swapRouterAddress && !swapRouterStartBlock) || (!swapRouterAddress && swapRouterStartBlock)) {
   throw new Error("SWAP_ROUTER_ADDRESS and SWAP_ROUTER_START_BLOCK must be configured together");
+}
+if (!Number.isSafeInteger(databasePoolMax) || databasePoolMax < 5) {
+  throw new Error("INDEXER_DATABASE_POOL_MAX must be an integer greater than or equal to 5");
 }
 
 // Loaded from the selected root .env.testnet / .env.mainnet file.
 // DATABASE_URL + DATABASE_SCHEMA are read by Ponder itself (one Supabase schema per network).
 export default createConfig({
+  database: databaseUrl
+    ? { kind: "postgres", connectionString: databaseUrl, poolConfig: { max: databasePoolMax } }
+    : { kind: "pglite", directory: ".ponder/pglite" },
   chains: {
     target: {
       id: chainId,

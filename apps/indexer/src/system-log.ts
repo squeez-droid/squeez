@@ -5,7 +5,7 @@ import { LOG_EVENTS, operationalSchema, parseDeploymentTarget } from "@squeez/sh
 const target = parseDeploymentTarget(process.env.SQUEEZ_CHAIN, process.env.SQUEEZ_NETWORK);
 const logSchema = operationalSchema(target);
 const chainId = Number(process.env.SQUEEZ_CHAIN_ID);
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 2 });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 
 export async function logIndexed(eventName: string, txHash: string, blockNumber: bigint, logIndex: number) {
   const context = { eventName, logIndex };
