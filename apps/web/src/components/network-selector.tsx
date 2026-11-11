@@ -16,8 +16,10 @@ export function NetworkSelector() {
   const activeId = selected.id;
   const registry = useDeploymentRegistry();
   const capabilities = new Map(registry.data?.map((target) => [`${target.chain}:${target.stage}`, target.capability]));
-  const label = (capability: DeploymentCapability, active: boolean) => active && capability === "enabled"
-    ? "Active" : capability === "read-only" ? "Read only" : capability === "maintenance" ? "Maintenance" : "Coming soon";
+  const label = (capability: DeploymentCapability, active: boolean) => capability === "enabled"
+    ? (active ? "Active" : "Available")
+    : capability === "read-only" ? "Read only"
+      : capability === "maintenance" ? "Maintenance" : "Coming soon";
 
   return (
     <details className="group relative">

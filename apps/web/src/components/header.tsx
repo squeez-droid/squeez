@@ -9,12 +9,14 @@ import { TokenAvatar } from "./token-bits";
 import { BrandLogo } from "./brand-logo";
 import { IconArrowUpRight, IconClose, IconMenu, IconSearch } from "./icons";
 import { NetworkSelector } from "./network-selector";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 export function Header() {
   const path = usePathname();
   const router = useRouter();
   const [q, setQ] = useState("");
   const [menu, setMenu] = useState(false);
+  const selected = useSelectedTarget();
   const results = q.length > 0 ? tokens.filter((t) => (t.name + t.ticker + t.address).toLowerCase().includes(q.toLowerCase())).slice(0, 6) : [];
 
   return (
@@ -23,7 +25,7 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2" aria-label={content.brand.name}>
           <BrandLogo size={36} priority className="shrink-0" />
           <span className="font-display text-[17px] font-bold uppercase tracking-tight text-white">{content.brand.name}</span>
-          <span className="num hidden border-l border-line pl-2 text-[11px] uppercase text-muted sm:inline">{content.brand.chainLabel}</span>
+          <span className="num hidden border-l border-line pl-2 text-[11px] uppercase text-muted sm:inline">{selected.info.shortName}</span>
         </Link>
         <nav className="ml-4 hidden items-center gap-1 md:flex">
           {content.nav.map((n) => {
@@ -69,6 +71,14 @@ export function Header() {
 }
 
 export function Footer() {
+  const selected = useSelectedTarget();
+  const links = selected.target.chain === "elysium"
+    ? content.footer.links
+    : [
+        ...(selected.info.faucet ? [{ label: "Faucet", href: selected.info.faucet }] : []),
+        ...(selected.info.bridge ? [{ label: "Bridge", href: selected.info.bridge }] : []),
+        ...(selected.info.explorer ? [{ label: "Explorer", href: selected.info.explorer }] : []),
+      ];
   return (
     <footer className="mt-16 border-t border-line">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
@@ -80,7 +90,7 @@ export function Footer() {
           </div>
         </div>
         <div className="flex flex-wrap gap-4">
-          {content.footer.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white">{l.label}<IconArrowUpRight width={12} height={12} /></a>)}
+          {links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white">{l.label}<IconArrowUpRight width={12} height={12} /></a>)}
         </div>
       </div>
     </footer>

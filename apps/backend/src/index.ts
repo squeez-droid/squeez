@@ -380,7 +380,10 @@ const server = createServer(async (req, res) => {
       const indexerBlock = indexed ? Number(indexed.blockNumber) : null;
       const indexerUpdatedAt = indexed ? Number(indexed.updatedAt) : null;
       const lagBlocks = rpcBlock !== null && indexerBlock !== null ? Math.max(0, rpcBlock - indexerBlock) : null;
-      const stale = lagBlocks === null || lagBlocks > 2_000 || (indexerUpdatedAt !== null && checkedAt - indexerUpdatedAt > 300);
+      // A checkpoint can be old simply because the chain has not produced a new block.
+      // Treat age as stale only while the indexer is actually behind the RPC tip.
+      const stale = lagBlocks === null || lagBlocks > 2_000
+        || (lagBlocks > 0 && indexerUpdatedAt !== null && checkedAt - indexerUpdatedAt > 300);
       return json(res, rpcBlock !== null ? 200 : 503, {
         chain: config.chain, chainId: config.chainId, network: config.network, checkedAt,
         rpc: { ok: rpcBlock !== null, blockNumber: rpcBlock },
