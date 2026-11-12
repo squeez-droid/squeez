@@ -287,7 +287,8 @@ async function readiness() {
       const result = await pool.query(`select substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber"
         from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]);
       indexerBlock = result.rows[0] ? Number(result.rows[0].blockNumber) : null;
-      checks.indexer = rpcBlock !== null && indexerBlock !== null && Math.max(0, rpcBlock - indexerBlock) <= 2_000;
+      checks.indexer = rpcBlock !== null && indexerBlock !== null
+        && Math.max(0, rpcBlock - indexerBlock) <= config.indexerMaxLagBlocks;
     } catch { checks.indexer = false; }
   }
   if (!checks.indexer) errors.push("indexer checkpoint unavailable or stale");
@@ -304,6 +305,32 @@ async function readiness() {
     blocks: { rpc: rpcBlock, indexer: indexerBlock },
     errors,
   };
+}
+
+async function writeSafety() {
+  const checkedAt = Math.floor(Date.now() / 1000);
+  const [rpcResult, indexerResult] = await Promise.allSettled([
+    rpc("eth_blockNumber"),
+    pool.query(`select
+      substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
+      (select (value->>'heartbeat_at')::bigint / 1000 from "${config.databaseSchema}"._ponder_meta
+        where key = 'app' limit 1) as "updatedAt"
+      from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]),
+  ]);
+  const rpcBlock = rpcResult.status === "fulfilled" ? Number(BigInt(rpcResult.value)) : null;
+  const indexed = indexerResult.status === "fulfilled" ? indexerResult.value.rows[0] : null;
+  const indexerBlock = indexed ? Number(indexed.blockNumber) : null;
+  const indexerUpdatedAt = indexed?.updatedAt === null || indexed?.updatedAt === undefined
+    ? null : Number(indexed.updatedAt);
+  const lagBlocks = rpcBlock !== null && indexerBlock !== null ? Math.max(0, rpcBlock - indexerBlock) : null;
+  const heartbeatStale = indexerUpdatedAt === null || checkedAt - indexerUpdatedAt > config.indexerStaleSeconds;
+  const blockers = [
+    ...(rpcBlock === null ? ["rpc-unavailable"] : []),
+    ...(indexerBlock === null ? ["indexer-checkpoint-unavailable"] : []),
+    ...(lagBlocks === null || lagBlocks > config.indexerMaxLagBlocks ? ["indexer-lag"] : []),
+    ...(heartbeatStale ? ["indexer-heartbeat-stale"] : []),
+  ];
+  return { safe: blockers.length === 0, blockers, rpcBlock, indexerBlock, lagBlocks, indexerUpdatedAt };
 }
 
 const server = createServer(async (req, res) => {
@@ -331,8 +358,20 @@ const server = createServer(async (req, res) => {
     const readOnlyAllowed = ["GET", "HEAD", "OPTIONS"].includes(req.method ?? "GET")
       || (req.method === "POST" && (url.pathname === "/rpc" || url.pathname === "/v1/rpc"));
     const readOnlyCredentialPath = url.pathname === "/v1/auth/x/nonce" || url.pathname === "/v1/metadata/nonce";
-    if (config.capability === "read-only" && (!readOnlyAllowed || readOnlyCredentialPath)) {
+    const writeIntent = !readOnlyAllowed || readOnlyCredentialPath;
+    if (config.capability === "read-only" && writeIntent) {
       return json(res, 403, { error: "Deployment target is read-only", target: `${config.chain}:${config.network}` });
+    }
+    if (config.capability === "enabled" && writeIntent) {
+      const safety = await writeSafety();
+      if (!safety.safe) {
+        return json(res, 503, {
+          error: "Writes are temporarily disabled by the target health policy",
+          target: `${config.chain}:${config.network}`,
+          blockers: safety.blockers,
+          lagBlocks: safety.lagBlocks,
+        });
+      }
     }
     const qualified = url.pathname.match(/^\/v1\/chains\/(\d+)(\/.*)?$/);
     if (qualified) {
@@ -354,7 +393,7 @@ const server = createServer(async (req, res) => {
           shortName: target.shortName,
           nativeCurrency: target.nativeCurrency,
           explorer: target.explorer,
-          capability: active ? "enabled" : "coming-soon",
+          capability: active ? config.capability : "coming-soon",
           apiBasePath: `/v1/${target.chain}/${target.stage}`,
         };
       }));
@@ -372,7 +411,8 @@ const server = createServer(async (req, res) => {
         rpc("eth_blockNumber"),
         pool.query(`select
           substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
-          substring(latest_checkpoint from 1 for 10)::bigint as "updatedAt"
+          (select (value->>'heartbeat_at')::bigint / 1000 from "${config.databaseSchema}"._ponder_meta
+            where key = 'app' limit 1) as "updatedAt"
           from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]),
       ]);
       const rpcBlock = rpcResult.status === "fulfilled" ? Number(BigInt(rpcResult.value)) : null;
@@ -382,10 +422,19 @@ const server = createServer(async (req, res) => {
       const lagBlocks = rpcBlock !== null && indexerBlock !== null ? Math.max(0, rpcBlock - indexerBlock) : null;
       // A checkpoint can be old simply because the chain has not produced a new block.
       // Treat age as stale only while the indexer is actually behind the RPC tip.
-      const stale = lagBlocks === null || lagBlocks > 2_000
-        || (lagBlocks > 0 && indexerUpdatedAt !== null && checkedAt - indexerUpdatedAt > 300);
+      const stale = lagBlocks === null || lagBlocks > config.indexerMaxLagBlocks
+        || (lagBlocks > 0 && indexerUpdatedAt !== null
+          && checkedAt - indexerUpdatedAt > config.indexerStaleSeconds);
+      const writeSafe = config.capability === "enabled" && rpcBlock !== null && !stale;
+      const writeBlockers = [
+        ...(config.capability !== "enabled" ? ["target-read-only"] : []),
+        ...(rpcBlock === null ? ["rpc-unavailable"] : []),
+        ...(indexerBlock === null ? ["indexer-checkpoint-unavailable"] : []),
+        ...(stale ? ["indexer-stale"] : []),
+      ];
       return json(res, rpcBlock !== null ? 200 : 503, {
         chain: config.chain, chainId: config.chainId, network: config.network, checkedAt,
+        capability: config.capability, writeSafe, writeBlockers,
         rpc: { ok: rpcBlock !== null, blockNumber: rpcBlock },
         indexer: { ok: indexerBlock !== null, blockNumber: indexerBlock, updatedAt: indexerUpdatedAt, lagBlocks, stale },
       });
@@ -802,6 +851,10 @@ const server = createServer(async (req, res) => {
       return json(res, 200, {
         configured,
         capability: config.capability,
+        release: {
+          ...config.release,
+          maxOpeningBuyNative: formatEther(BigInt(config.release.maxOpeningBuyWei)),
+        },
         network: config.network,
         creatorAttestation: {
           enabled: config.xAttestation.enabled,

@@ -147,6 +147,7 @@ export function useLaunchForm() {
   const openingPct = openingQuote.outAmount / TOTAL_SUPPLY * 100;
   const launchFeeHype = Number(protocol.data?.launchConfig.launchFeeHype ?? 0);
   const maxWalletPct = Number(protocol.data?.launchConfig.maxWalletBps ?? 0) / 100;
+  const communityMaxOpeningBuy = Number(protocol.data?.release.maxOpeningBuyNative ?? 0);
 
   useEffect(() => {
     if (form.name.trim().length < 2 || form.name.length > 32 || !/^[A-Z0-9]{2,10}$/.test(form.ticker)) {
@@ -248,10 +249,13 @@ export function useLaunchForm() {
     if (form.destBuyback || form.destHolders) e.dest = `Only direct fee-wallet payouts are enabled for the ${nativeSymbol} v1 release.`;
     if (opening < 0) e.opening = E.openingNegative;
     if (maxWalletPct > 0 && openingPct > maxWalletPct) e.opening = fill(E.openingMaxWallet, { pct: maxWalletPct });
-    if (wallet.status === "connected" && opening + launchFeeHype > (wallet.balances.HYPE ?? 0)) e.opening = E.openingBalance;
+    if (protocol.data?.network === "mainnet" && communityMaxOpeningBuy > 0 && opening > communityMaxOpeningBuy) {
+      e.opening = `Community canary opening buys are capped at ${communityMaxOpeningBuy} ${nativeSymbol}.`;
+    }
+    if (wallet.status === "connected" && opening + launchFeeHype > (wallet.balances[nativeSymbol] ?? 0)) e.opening = E.openingBalance;
     if (openingWei > 0n && openingRead.isError) e.opening = "Unable to quote the opening buy on-chain.";
     return e;
-  }, [form, opening, openingPct, maxWalletPct, launchFeeHype, openingWei, openingRead.isError, wallet.status, wallet.balances.HYPE, nativeSymbol]);
+  }, [form, opening, openingPct, maxWalletPct, communityMaxOpeningBuy, launchFeeHype, openingWei, openingRead.isError, wallet.status, wallet.balances, nativeSymbol, protocol.data?.network]);
 
   const selectGroup = (group: PairGroup) => {
     const first = pairsForGroup(group, nativeSymbol)[0];
@@ -320,7 +324,7 @@ export function useLaunchForm() {
     identityOk: Object.keys(identityErrors).length === 0 && !identityChecking,
     economicsOk: Object.keys(economicsErrors).length === 0,
     opening, openingWei, openingTokensOut: tokensOut, openingQuote, openingPct, openingQuoteLoading: openingRead.isLoading,
-    launchFeeHype, maxWalletPct, protocol, destinationLabel, walletAddress: wallet.address, nativeSymbol,
+    launchFeeHype, maxWalletPct, communityMaxOpeningBuy, protocol, destinationLabel, walletAddress: wallet.address, nativeSymbol,
     uploadMetadata, metadataUploading, metadataError, identityCheck, identityChecking,
     xVerification, xVerificationLoading, connectX, disconnectX, requestXAttestation,
   };

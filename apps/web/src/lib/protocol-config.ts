@@ -8,6 +8,13 @@ import { useSelectedTarget } from "./use-selected-target";
 export interface RuntimeProtocolConfig {
   configured: boolean;
   capability: "enabled" | "read-only";
+  release: {
+    mode: "internal" | "community-canary" | "public-beta";
+    communityTestingEnabled: boolean;
+    maxOpeningBuyWei: string;
+    maxOpeningBuyNative: string;
+    acknowledgementVersion: string;
+  };
   network: "testnet" | "mainnet";
   creatorAttestation: {
     enabled: boolean;

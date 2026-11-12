@@ -9,6 +9,8 @@ import { useTx } from "@/providers/tx";
 import { PageHeader } from "@/components/ui";
 import { Empty } from "@/components/ui";
 import { EconomicsStep, HoldersConfirm, IdentityStep, LaunchSidebar, ReviewModal, Stepper, useLaunchForm } from "@/components/launch";
+import { useCommunityCanary } from "@/lib/community-canary";
+import { useDataSourceStatus } from "@/lib/indexer";
 
 const T = content.launch.review;
 
@@ -17,6 +19,8 @@ export default function LaunchPage() {
   const publicClient = usePublicClient();
   const contractWrite = useWriteContract();
   const api = useLaunchForm();
+  const canary = useCommunityCanary();
+  const dataSource = useDataSourceStatus();
   const [step, setStep] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
   const [holdersOpen, setHoldersOpen] = useState(false);
@@ -48,6 +52,10 @@ export default function LaunchPage() {
   };
 
   const submit = () => {
+    if (api.protocol.data?.capability !== "enabled" || dataSource.data?.writeSafe !== true || !canary.actionAllowed) {
+      setReviewOpen(false);
+      return;
+    }
     const { ticker } = api.form;
     const factory = api.protocol.data?.contracts.factory;
     setReviewOpen(false);

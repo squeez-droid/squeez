@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useWallet } from "@/providers/wallet";
 import { useSelectedTarget } from "@/lib/use-selected-target";
 import { useProtocolConfig } from "@/lib/protocol-config";
+import { useDataSourceStatus } from "@/lib/indexer";
+import { useCommunityCanary } from "@/lib/community-canary";
 import { fmtNum, shortAddr } from "@/lib/format";
 import { Button, Modal, Spinner } from "./ui";
 import { IconBrowser } from "./icons";
@@ -117,7 +119,14 @@ export function WalletGateButton({ children, onClick, disabled, className, varia
   const w = useWallet();
   const selected = useSelectedTarget();
   const protocol = useProtocolConfig();
+  const dataSource = useDataSourceStatus();
+  const canary = useCommunityCanary();
   if (protocol.data?.capability === "read-only") return <Button size={size} className={className} variant="secondary" disabled>Read only</Button>;
+  if (canary.isMainnet && !canary.open) return <Button size={size} className={className} variant="secondary" disabled>Canary not open</Button>;
+  if (canary.isMainnet && !canary.acknowledged) return <Button size={size} className={className} variant="secondary" disabled>Acknowledge risk above</Button>;
+  if (dataSource.data?.writeSafe === false) {
+    return <Button size={size} className={className} variant="secondary" disabled>Writes paused</Button>;
+  }
   if (w.status === "disconnected") return <Button size={size} className={className} onClick={w.openModal}>Connect wallet</Button>;
   if (w.status === "connecting") return <Button size={size} className={className} variant="secondary" loading>Connecting</Button>;
   if (w.status === "wrong-network") return <Button size={size} className={className} variant="danger" onClick={w.switchNetwork}>Switch to {selected.chain.name}</Button>;

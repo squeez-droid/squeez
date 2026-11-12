@@ -6,7 +6,15 @@ const checkpoint = process.argv.includes("--checkpoint");
 const tables = process.argv.includes("--tables");
 const meta = process.argv.includes("--meta");
 const schemas = process.argv.includes("--schemas");
-const { rows } = schemas
+const counts = process.argv.includes("--counts");
+const productTables = ["token", "trade", "holder_balance", "creator_fee", "protocol_fee",
+  "protected_purchase", "protection_tax", "identity", "burn"];
+const { rows } = counts
+  ? await pool.query(`select table_name,
+      (xpath('/row/count/text()', query_to_xml(format('select count(*) as count from %I.%I', $1::text, table_name), false, true, '')))[1]::text::bigint as row_count
+      from information_schema.tables where table_schema=$1::text and table_name = any($2::text[]) order by table_name`,
+    [schema, productTables])
+  : schemas
   ? await pool.query(
       `select s.schema_name,
               count(distinct t.table_name)::int as table_count,

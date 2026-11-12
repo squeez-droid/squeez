@@ -1,0 +1,50 @@
+{
+  "chain": "robinhood",
+  "network": "mainnet",
+  "chainId": 4663,
+  "operationId": "0x4823b19810c031016cfe2c19d0f7288c4b43b5d4f9200683a9b350ab9f2f9409",
+  "salt": "0x4dbc886a2aeab26a60aa2fcd17a2f969b18f693be34a6f9a53f11a26e79822e9",
+  "governanceSafe": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+  "governanceTimelock": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+  "delaySeconds": 300,
+  "activation": {
+    "protectionPolicyRegistry": "0x0183B7978F5216F7F6225255DE3746917736EA3A",
+    "protectionPolicyId": "1",
+    "identityRegistry": "0x0cD83bc632601b0Ef7445aED820A604D7BB0B9a2",
+    "tickerLockSeconds": 300,
+    "protectionWindowSeconds": 5,
+    "initialFeeBps": 9900,
+    "maxBuyBpsPerTransaction": 100,
+    "maxBuyBpsPerAddress": 500
+  },
+  "transactions": [
+    {
+      "hash": "0x56d5fc215da3acc32eb15f539e4f92041756fef961d12ae09882ec318e957019",
+      "blockNumber": "112310138",
+      "blockHash": "0x690011a990a2c520f292f4a97791429efecdc52db31586bb1ea109377d8d7506",
+      "transactionIndex": 5,
+      "from": "0x4aedef2aa208737a2c672ec65402419c284e00ff",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "status": "success",
+      "gasUsed": "135518",
+      "effectiveGasPriceWei": "20054000",
+      "transactionFeeWei": "2717677972000",
+      "logCount": 7
+    },
+    {
+      "hash": "0x081362fde78b3939fcdbabd318c53b25b54b8e4dfdc3561364cab4a589186c0b",
+      "blockNumber": "112314484",
+      "blockHash": "0x7e10e0c20e256d7db830208dfbfbcf2c35e7ece21071e6534a4418513901742c",
+      "transactionIndex": 3,
+      "from": "0x9bafe9c46948a6603386aaf5de07beccd4c751ed",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "status": "success",
+      "gasUsed": "364636",
+      "effectiveGasPriceWei": "20026000",
+      "transactionFeeWei": "7302200536000",
+      "logCount": 10
+    }
+  ],
+  "totalGasUsed": "500154",
+  "totalTransactionFeeWei": "10019878508000"
+}

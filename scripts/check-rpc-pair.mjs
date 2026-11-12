@@ -6,17 +6,29 @@ if (!Number.isSafeInteger(expectedChainId) || expectedChainId <= 0) throw new Er
 if (new URL(primary).hostname === new URL(fallback).hostname) throw new Error("RPC providers must use independent hosts");
 
 async function call(url, method, params = []) {
-  const startedAt = Date.now();
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok) throw new Error(`${new URL(url).hostname}: HTTP ${response.status}`);
-  const body = await response.json();
-  if (body.error) throw new Error(`${new URL(url).hostname}: ${body.error.message ?? "RPC error"}`);
-  return { result: body.result, latencyMs: Date.now() - startedAt };
+  let lastError;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const startedAt = Date.now();
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw Object.assign(new Error(`${new URL(url).hostname}: HTTP ${response.status}`), {
+        retryable: response.status === 429 || response.status >= 500,
+      });
+      const body = await response.json();
+      if (body.error) throw new Error(`${new URL(url).hostname}: ${body.error.message ?? "RPC error"}`);
+      return { result: body.result, latencyMs: Date.now() - startedAt, attempts: attempt };
+    } catch (error) {
+      lastError = error;
+      if (attempt === 5 || error?.retryable === false) break;
+      await wait(attempt * 1_000);
+    }
+  }
+  throw lastError;
 }
 
 async function inspect(label, url) {
@@ -30,10 +42,14 @@ async function inspect(label, url) {
     chainId,
     blockNumber: Number(BigInt(block.result)),
     latencyMs: Math.max(chain.latencyMs, block.latencyMs),
+    attempts: Math.max(chain.attempts, block.attempts),
   };
 }
 
-const [primaryResult, fallbackResult] = await Promise.all([inspect("primary", primary), inspect("fallback", fallback)]);
+const primaryResult = await inspect("primary", primary);
+const fallbackResult = await inspect("fallback", fallback);
 const blockDelta = Math.abs(primaryResult.blockNumber - fallbackResult.blockNumber);
 if (blockDelta > 50) throw new Error(`RPC providers disagree by ${blockDelta} blocks`);
 console.log(JSON.stringify({ ready: true, blockDelta, providers: [primaryResult, fallbackResult] }, null, 2));
+import { setTimeout as wait } from "node:timers/promises";
+

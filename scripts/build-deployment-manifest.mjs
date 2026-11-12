@@ -28,6 +28,8 @@ const fragments = [
   `${network}-v4-stack.json`, `${network}-graduation-infra.json`, `${network}-hook.json`,
   `${network}-hook-config.json`, `${network}-graduation.json`,
   `${network}-swap-router.json`,
+  `${network}-v4-activation.json`,
+  `${network}-protected-launch-activation.json`,
   `${network}-launch-config.json`,
   `${network}-protected-launch.json`,
   `${network}-attester.json`,

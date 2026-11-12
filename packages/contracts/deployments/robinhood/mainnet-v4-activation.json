@@ -1,0 +1,76 @@
+{
+  "chain": "robinhood",
+  "network": "mainnet",
+  "chainId": 4663,
+  "governanceSafe": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+  "governanceTimelock": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+  "timelockDelaySeconds": 300,
+  "operationId": "0xc46c8859f88dc5b660e86dcdad645e1c86f232c0a4ca2666821ffa61d4135643",
+  "salt": "0x2283b77cddacc694503c7525437c76c7432838cd5c0d2e0ab5cb24231c90942c",
+  "activation": {
+    "feeVault": "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551",
+    "hook": "0x27468dCA279b568a56C4EAF594Af94B887Aca0CC",
+    "factory": "0x7fd8F81f27d010f6550bA92203c1D5322Dd7B30E",
+    "graduationAdapter": "0x319B89BDddE279d1672Ebd3e115EB0E4C03789eA",
+    "liquidityLocker": "0x5E81206e42E82e24B1e07167c2007b89D8D3E55f",
+    "swapRouter": "0xBd3536eF5bFe791E4419c1A2A14C4D8F325c15b4"
+  },
+  "verification": {
+    "operationDone": true,
+    "feeVaultHookMatches": true,
+    "factoryGraduationAdapterMatches": true,
+    "v4WiringReady": true,
+    "runtimeBytecodeMatchesCompilerArtifacts": true,
+    "compiler": {
+      "version": "0.8.26+commit.8a97fa7a",
+      "optimizerEnabled": true,
+      "optimizerRuns": 200,
+      "evmVersion": "cancun",
+      "viaIR": false,
+      "contracts": [
+        "SqueezHook",
+        "SqueezLiquidityLocker",
+        "SqueezV4GraduationAdapter",
+        "SqueezSwapRouter"
+      ]
+    }
+  },
+  "totalGasUsed": "279929",
+  "totalTransactionFeeWei": "5607080686000",
+  "transactions": [
+    {
+      "purpose": "Scheduled Squeez v4 Hook and GraduationAdapter activation through the governance timelock",
+      "source": "packages/contracts/deployments/robinhood/mainnet-safe-schedule-v4-activation.json",
+      "hash": "0x9993a410d8cf48330f412f675fd6673d0ef4bf05fe42398c94164d2ee0465c51",
+      "from": "0x48e7bcfe8f469fbc72e6bcef0d0ce70d51ffbbed",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "nonce": "339",
+      "valueWei": "0",
+      "status": "1",
+      "blockNumber": "112235895",
+      "blockHash": "0x5e37a8646e6e69bfa81c0b45adbd07b28749da645140ded19e7d9b4ab3f9d57e",
+      "transactionIndex": "3",
+      "gasUsed": "114542",
+      "effectiveGasPriceWei": "20054000",
+      "transactionFeeWei": "2297025268000",
+      "logCount": 5
+    },
+    {
+      "purpose": "Executed Squeez v4 Hook and GraduationAdapter activation after the timelock delay",
+      "source": "packages/contracts/deployments/robinhood/mainnet-safe-execute-v4-activation.json",
+      "hash": "0x8d3f03ba7b9b67e4793fb01ea67c670adffb3c9c71c3c9f5e784ce98633d99b6",
+      "from": "0x9bafe9c46948a6603386aaf5de07beccd4c751ed",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "nonce": "149",
+      "valueWei": "0",
+      "status": "1",
+      "blockNumber": "112242454",
+      "blockHash": "0xb85714eb239a1bbad4e34fa92fa75defe266db79d07a21dd14c586558a18cbfe",
+      "transactionIndex": "1",
+      "gasUsed": "165387",
+      "effectiveGasPriceWei": "20014000",
+      "transactionFeeWei": "3310055418000",
+      "logCount": 6
+    }
+  ]
+}

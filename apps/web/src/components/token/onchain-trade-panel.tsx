@@ -13,6 +13,8 @@ import { useWallet } from "@/providers/wallet";
 import { WalletGateButton } from "@/components/wallet-ui";
 import { Row, Segmented, inputCls } from "@/components/ui";
 import { useSelectedTarget } from "@/lib/use-selected-target";
+import { useCommunityCanary } from "@/lib/community-canary";
+import { useDataSourceStatus } from "@/lib/indexer";
 
 const SLIPPAGE_OPTIONS = [50, 100, 200] as const;
 const DEADLINE_SECONDS = 10 * 60;
@@ -28,6 +30,8 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const publicClient = usePublicClient();
   const writer = useWriteContract();
   const protocol = useProtocolConfig();
+  const canary = useCommunityCanary();
+  const dataSource = useDataSourceStatus();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [slippageBps, setSlippageBps] = useState<number>(100);
@@ -82,11 +86,12 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const creatorFee = isV4 ? quoteFeeBase * BigInt(token.creatorFeeBps) / 10_000n : (curveQuote?.[2] ?? 0n);
   const sniperTax = !isV4 && side === "buy" && curveQuote ? (curveQuote[3] ?? 0n) : 0n;
   const minOutput = output * BigInt(10_000 - slippageBps) / 10_000n;
-  const balance = side === "buy" ? wallet.balances.HYPE : Number(formatEther(tokenBalance.data ?? 0n));
+  const balance = side === "buy" ? (wallet.balances[nativeSymbol] ?? 0) : Number(formatEther(tokenBalance.data ?? 0n));
   const insufficient = amountWei > 0n && Number(amount) > balance;
   const quoteError = (isV4 ? v4Quote.error : (side === "buy" ? buyQuote.error : sellQuote.error))?.message.split("\n")[0];
 
   const execute = () => {
+    if (protocol.data?.capability !== "enabled" || dataSource.data?.writeSafe !== true || !canary.actionAllowed) return;
     if (!quote || output === 0n || !publicClient || !wallet.address || (isV4 && !v4Configured)) return;
     const symbol = token.symbol ?? "TOKEN";
     void tx.run({
@@ -180,7 +185,8 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
       {isV4 && !v4Configured && <p className="mt-3 text-xs text-down">The API has not published the v4 route configuration.</p>}
       {insufficient && <p className="mt-3 text-xs text-down">Insufficient wallet balance.</p>}
       <WalletGateButton className="mt-4 w-full" variant={side === "buy" ? "primary" : "sell"}
-        disabled={!quote || output === 0n || insufficient || Boolean(quoteError) || (isV4 && !v4Configured)} onClick={execute}>
+        disabled={!quote || output === 0n || insufficient || Boolean(quoteError) || (isV4 && !v4Configured)
+          || protocol.data?.capability !== "enabled" || dataSource.data?.writeSafe !== true || !canary.actionAllowed} onClick={execute}>
         {!amountWei ? "Enter an amount" : `${side === "buy" ? "Buy" : "Sell"} ${token.symbol ?? "token"}`}
       </WalletGateButton>
       <p className="mt-2 text-center text-[11px] text-muted">

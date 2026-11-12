@@ -20,7 +20,7 @@ export function OpeningBuy({ api }: { api: LaunchFormApi }) {
   return (
     <Field
       label={T.openingLabel}
-      right={w.status === "connected" ? `Balance ${fmtNum(w.balances.HYPE ?? 0, 3)} ${api.nativeSymbol}` : undefined}
+      right={w.status === "connected" ? `Balance ${fmtNum(w.balances[api.nativeSymbol] ?? 0, 3)} ${api.nativeSymbol}` : undefined}
       hint={hint}
       error={api.economicsErrors.opening}
     >

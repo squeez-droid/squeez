@@ -1,5 +1,9 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
 import type { Address } from "@squeez/shared";
 import { targetApiUrl } from "./chain";
+import { useSelectedTarget } from "./use-selected-target";
 
 export interface IndexedToken {
   address: Address;
@@ -97,6 +101,9 @@ export interface ActiveQuote {
 }
 
 export interface DataSourceStatus {
+  capability?: "enabled" | "read-only";
+  writeSafe?: boolean;
+  writeBlockers?: string[];
   network: string;
   checkedAt: number;
   rpc: { ok: boolean; blockNumber: number | null };
@@ -151,4 +158,14 @@ export function listActiveQuotes(signal?: AbortSignal, baseUrl = targetApiUrl): 
 
 export function getDataSourceStatus(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<DataSourceStatus> {
   return request<DataSourceStatus>("/v1/status", signal, baseUrl);
+}
+
+export function useDataSourceStatus() {
+  const selected = useSelectedTarget();
+  return useQuery({
+    queryKey: ["data-source-status", selected.targetApiUrl],
+    queryFn: ({ signal }) => getDataSourceStatus(signal, selected.targetApiUrl),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
 }

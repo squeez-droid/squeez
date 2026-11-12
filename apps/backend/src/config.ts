@@ -21,12 +21,26 @@ const target = parseDeploymentTarget(process.env.SQUEEZ_CHAIN, process.env.SQUEE
 const networkInfo = SQUEEZ_NETWORKS[deploymentTargetId(target)];
 const capability = process.env.SQUEEZ_API_CAPABILITY?.trim() || "enabled";
 if (!['enabled', 'read-only'].includes(capability)) throw new Error("SQUEEZ_API_CAPABILITY must be enabled or read-only");
+const releaseMode = process.env.SQUEEZ_RELEASE_MODE?.trim()
+  || (target.stage === "mainnet" ? "internal" : "public-beta");
+if (!["internal", "community-canary", "public-beta"].includes(releaseMode)) {
+  throw new Error("SQUEEZ_RELEASE_MODE must be internal, community-canary, or public-beta");
+}
+const communityTestingEnabled = process.env.SQUEEZ_COMMUNITY_TESTING_ENABLED === "true";
 
 export const backendConfig = {
   chain: target.chain,
   network: target.stage,
   target,
   capability: capability as "enabled" | "read-only",
+  release: {
+    mode: releaseMode as "internal" | "community-canary" | "public-beta",
+    communityTestingEnabled,
+    maxOpeningBuyWei: optional("SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI") ?? "10000000000000000",
+    acknowledgementVersion: optional("SQUEEZ_RISK_ACK_VERSION") ?? "robinhood-mainnet-canary-v1",
+  },
+  indexerMaxLagBlocks: Number(process.env.INDEXER_MAX_LAG_BLOCKS ?? 2_000),
+  indexerStaleSeconds: Number(process.env.INDEXER_STALE_SECONDS ?? 300),
   systemLogSchema: operationalSchema(target),
   port: Number(process.env.PORT ?? 8080),
   allowedOrigins: new Set(required("ALLOWED_ORIGINS").split(",").map((origin) => origin.trim())),
@@ -84,6 +98,20 @@ export const backendConfig = {
 
 if (!Number.isSafeInteger(backendConfig.port) || backendConfig.port <= 0) throw new Error("PORT is invalid");
 if (!Number.isSafeInteger(backendConfig.chainId) || backendConfig.chainId <= 0) throw new Error("SQUEEZ_CHAIN_ID is invalid");
+if (!Number.isSafeInteger(backendConfig.indexerMaxLagBlocks) || backendConfig.indexerMaxLagBlocks < 0) {
+  throw new Error("INDEXER_MAX_LAG_BLOCKS must be a non-negative integer");
+}
+if (!Number.isSafeInteger(backendConfig.indexerStaleSeconds) || backendConfig.indexerStaleSeconds <= 0) {
+  throw new Error("INDEXER_STALE_SECONDS must be a positive integer");
+}
+if (!/^\d+$/.test(backendConfig.release.maxOpeningBuyWei)
+  || BigInt(backendConfig.release.maxOpeningBuyWei) < 0n) {
+  throw new Error("SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI must be a non-negative integer in wei");
+}
+if (backendConfig.network === "mainnet" && backendConfig.capability === "enabled"
+  && (!backendConfig.release.communityTestingEnabled || backendConfig.release.mode === "internal")) {
+  throw new Error("Mainnet writes require SQUEEZ_COMMUNITY_TESTING_ENABLED=true and a non-internal SQUEEZ_RELEASE_MODE");
+}
 if (!Number.isSafeInteger(backendConfig.xAttestation.maxLaunchesPer24h)
   || backendConfig.xAttestation.maxLaunchesPer24h <= 0) throw new Error("X_MAX_ATTESTED_LAUNCHES_PER_24H is invalid");
 if (backendConfig.xAttestation.enabled && (!backendConfig.xAttestation.clientId

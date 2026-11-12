@@ -3,9 +3,14 @@
   "chain": "robinhood",
   "network": "mainnet",
   "chainId": 4663,
-  "generatedAt": "2026-11-10T16:06:11.963Z",
+  "generatedAt": "2026-11-12T06:17:59.025Z",
   "authoritativeFragments": [
     "packages/contracts/deployments/robinhood/mainnet.json",
+    "packages/contracts/deployments/robinhood/mainnet-graduation-infra.json",
+    "packages/contracts/deployments/robinhood/mainnet-hook.json",
+    "packages/contracts/deployments/robinhood/mainnet-swap-router.json",
+    "packages/contracts/deployments/robinhood/mainnet-v4-activation.json",
+    "packages/contracts/deployments/robinhood/mainnet-protected-launch-activation.json",
     "packages/contracts/deployments/robinhood/mainnet-admin-migration.json",
     "packages/contracts/deployments/robinhood/mainnet-governance.json"
   ],
@@ -26,17 +31,55 @@
     "quoteRegistry": "0xB2D9616f17217462699E2851c15A53922011F852",
     "quoteRegistryImplementation": "0xdaf609bb21529b553705705F278b2bD45B058239",
     "startBlock": 110951498,
-    "adminMultisig": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
-    "adminGovernance": {
-      "type": "Safe",
-      "version": "1.5.0",
-      "threshold": 2,
-      "owners": [
-        "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
-        "0x4AEDEF2aA208737A2C672EC65402419c284e00fF",
-        "0x48E7bCFE8F469fbC72e6bcEf0D0CE70D51FfBbEd"
-      ]
+    "deployer": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+    "graduationAdapter": "0x319B89BDddE279d1672Ebd3e115EB0E4C03789eA",
+    "liquidityLocker": "0x5E81206e42E82e24B1e07167c2007b89D8D3E55f",
+    "lpFeeBps": 0,
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "positionManager": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+    "squeezHook": "0x27468dCA279b568a56C4EAF594Af94B887Aca0CC",
+    "tickSpacing": 60,
+    "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "salt": "0x4dbc886a2aeab26a60aa2fcd17a2f969b18f693be34a6f9a53f11a26e79822e9",
+    "swapRouter": "0xBd3536eF5bFe791E4419c1A2A14C4D8F325c15b4",
+    "swapRouterStartBlock": 112224042,
+    "governanceSafe": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+    "governanceTimelock": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+    "timelockDelaySeconds": 300,
+    "operationId": "0x4823b19810c031016cfe2c19d0f7288c4b43b5d4f9200683a9b350ab9f2f9409",
+    "activation": {
+      "protectionPolicyRegistry": "0x0183B7978F5216F7F6225255DE3746917736EA3A",
+      "protectionPolicyId": "1",
+      "identityRegistry": "0x0cD83bc632601b0Ef7445aED820A604D7BB0B9a2",
+      "tickerLockSeconds": 300,
+      "protectionWindowSeconds": 5,
+      "initialFeeBps": 9900,
+      "maxBuyBpsPerTransaction": 100,
+      "maxBuyBpsPerAddress": 500
     },
+    "verification": {
+      "operationDone": true,
+      "feeVaultHookMatches": true,
+      "factoryGraduationAdapterMatches": true,
+      "v4WiringReady": true,
+      "runtimeBytecodeMatchesCompilerArtifacts": true,
+      "compiler": {
+        "version": "0.8.26+commit.8a97fa7a",
+        "optimizerEnabled": true,
+        "optimizerRuns": 200,
+        "evmVersion": "cancun",
+        "viaIR": false,
+        "contracts": [
+          "SqueezHook",
+          "SqueezLiquidityLocker",
+          "SqueezV4GraduationAdapter",
+          "SqueezSwapRouter"
+        ]
+      }
+    },
+    "totalGasUsed": "500154",
+    "totalTransactionFeeWei": "10019878508000",
     "transactions": [
       {
         "purpose": "Deploy OpenZeppelin TimelockController with a 300-second minimum delay",
@@ -88,8 +131,18 @@
         "timelockOperationId": "0x321e7973ce2e3ea1e9f9b61091e6ddbcf44815f534dab884748c05058508e2f4"
       }
     ],
-    "governanceTimelock": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
-    "governanceSafe": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
+    "delaySeconds": 300,
+    "adminMultisig": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57",
+    "adminGovernance": {
+      "type": "Safe",
+      "version": "1.5.0",
+      "threshold": 2,
+      "owners": [
+        "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
+        "0x4AEDEF2aA208737A2C672EC65402419c284e00fF",
+        "0x48E7bCFE8F469fbC72e6bcEf0D0CE70D51FfBbEd"
+      ]
+    },
     "governanceTimelockDelaySeconds": 300,
     "governanceController": "0x32b623834Ce82e418a46D8c0daff1466871DED10",
     "governanceRoles": {
@@ -112,15 +165,87 @@
     "FEE_VAULT_ADDRESS": "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551",
     "FEE_VAULT_IMPLEMENTATION_ADDRESS": "0x8B5EfE88eed48c53DDA18CfA9E2B90dc8f087844",
     "CURVE_BEACON_ADDRESS": "0x0E5D8da8a23Dc5C9a755C194a25A5074Fb65e66F",
-    "CURVE_IMPLEMENTATION_ADDRESS": "0x4681a99B64940B242a9BF30F2d9c81E256680461"
+    "CURVE_IMPLEMENTATION_ADDRESS": "0x4681a99B64940B242a9BF30F2d9c81E256680461",
+    "LIQUIDITY_LOCKER_ADDRESS": "0x5E81206e42E82e24B1e07167c2007b89D8D3E55f",
+    "GRADUATION_ADAPTER_ADDRESS": "0x319B89BDddE279d1672Ebd3e115EB0E4C03789eA",
+    "SQUEEZ_HOOK_ADDRESS": "0x27468dCA279b568a56C4EAF594Af94B887Aca0CC",
+    "POOL_MANAGER": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "POSITION_MANAGER": "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+    "PERMIT2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "SWAP_ROUTER_ADDRESS": "0xBd3536eF5bFe791E4419c1A2A14C4D8F325c15b4",
+    "SWAP_ROUTER_START_BLOCK": "112224042",
+    "V4_LP_FEE_BPS": "0",
+    "V4_TICK_SPACING": "60"
   },
   "summary": {
-    "broadcastRuns": 4,
-    "transactionCount": 25,
-    "totalGasUsed": "18967820",
-    "totalTransactionFeeWei": "417183464656000"
+    "broadcastRuns": 7,
+    "transactionCount": 33,
+    "totalGasUsed": "24323302",
+    "totalTransactionFeeWei": "524507537134000"
   },
   "directDeploymentTransactions": [
+    {
+      "source": "packages/contracts/deployments/robinhood/mainnet-safe-schedule-v4-activation.json",
+      "purpose": "Scheduled Squeez v4 Hook and GraduationAdapter activation through the governance timelock",
+      "hash": "0x9993a410d8cf48330f412f675fd6673d0ef4bf05fe42398c94164d2ee0465c51",
+      "from": "0x48e7bcfe8f469fbc72e6bcef0d0ce70d51ffbbed",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "nonce": "339",
+      "valueWei": "0",
+      "status": "1",
+      "blockNumber": "112235895",
+      "blockHash": "0x5e37a8646e6e69bfa81c0b45adbd07b28749da645140ded19e7d9b4ab3f9d57e",
+      "transactionIndex": "3",
+      "gasUsed": "114542",
+      "effectiveGasPriceWei": "20054000",
+      "transactionFeeWei": "2297025268000",
+      "logCount": 5
+    },
+    {
+      "source": "packages/contracts/deployments/robinhood/mainnet-safe-execute-v4-activation.json",
+      "purpose": "Executed Squeez v4 Hook and GraduationAdapter activation after the timelock delay",
+      "hash": "0x8d3f03ba7b9b67e4793fb01ea67c670adffb3c9c71c3c9f5e784ce98633d99b6",
+      "from": "0x9bafe9c46948a6603386aaf5de07beccd4c751ed",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "nonce": "149",
+      "valueWei": "0",
+      "status": "1",
+      "blockNumber": "112242454",
+      "blockHash": "0xb85714eb239a1bbad4e34fa92fa75defe266db79d07a21dd14c586558a18cbfe",
+      "transactionIndex": "1",
+      "gasUsed": "165387",
+      "effectiveGasPriceWei": "20014000",
+      "transactionFeeWei": "3310055418000",
+      "logCount": 6
+    },
+    {
+      "source": "packages/contracts/deployments/robinhood/mainnet-protected-launch-activation.json",
+      "hash": "0x56d5fc215da3acc32eb15f539e4f92041756fef961d12ae09882ec318e957019",
+      "blockNumber": "112310138",
+      "blockHash": "0x690011a990a2c520f292f4a97791429efecdc52db31586bb1ea109377d8d7506",
+      "transactionIndex": 5,
+      "from": "0x4aedef2aa208737a2c672ec65402419c284e00ff",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "status": "success",
+      "gasUsed": "135518",
+      "effectiveGasPriceWei": "20054000",
+      "transactionFeeWei": "2717677972000",
+      "logCount": 7
+    },
+    {
+      "source": "packages/contracts/deployments/robinhood/mainnet-protected-launch-activation.json",
+      "hash": "0x081362fde78b3939fcdbabd318c53b25b54b8e4dfdc3561364cab4a589186c0b",
+      "blockNumber": "112314484",
+      "blockHash": "0x7e10e0c20e256d7db830208dfbfbcf2c35e7ece21071e6534a4418513901742c",
+      "transactionIndex": 3,
+      "from": "0x9bafe9c46948a6603386aaf5de07beccd4c751ed",
+      "to": "0x32b623834ce82e418a46d8c0daff1466871ded10",
+      "status": "success",
+      "gasUsed": "364636",
+      "effectiveGasPriceWei": "20026000",
+      "transactionFeeWei": "7302200536000",
+      "logCount": 10
+    },
     {
       "source": "packages/contracts/deployments/robinhood/mainnet-admin-migration.json",
       "purpose": "Safe batch accepted ownership of the five UUPS proxies",
@@ -523,6 +648,147 @@
           "blockHash": "0x6d391c09d063dc0eac9bf4792ae2f2a2f6299b461f694519c381a99be799c2a9",
           "transactionIndex": "2",
           "logCount": 6,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "DeployGraduationInfra.s.sol",
+      "file": "packages/contracts/broadcast/DeployGraduationInfra.s.sol/4663/run-1794454316216.json",
+      "timestamp": 1794454317897,
+      "commit": "daad598",
+      "pending": 0,
+      "transactionCount": 2,
+      "totalGasUsed": "2151883",
+      "totalTransactionFeeWei": "43147536788000",
+      "transactions": [
+        {
+          "hash": "0x3e0233fe1d2f23e10e68a2c6af247350491444dfdeea0f8581a2930a87df49a1",
+          "transactionType": "CREATE",
+          "contractName": "SqueezLiquidityLocker",
+          "contractAddress": "0x5e81206e42e82e24b1e07167c2007b89d8d3e55f",
+          "function": null,
+          "arguments": [
+            "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551",
+            "0x58daec3116aae6D93017bAAea7749052E8a04fA7"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": null,
+          "nonce": "784",
+          "valueWei": "0",
+          "gasLimit": "698183",
+          "gasUsed": "531433",
+          "effectiveGasPriceWei": "20036000",
+          "transactionFeeWei": "10647791588000",
+          "status": "1",
+          "blockNumber": "112223837",
+          "blockHash": "0x8efc7ad26d827064a9245516b4cfea5c7b11f3f9bfda59c8e7a592870e47b817",
+          "transactionIndex": "1",
+          "logCount": 0,
+          "additionalContracts": []
+        },
+        {
+          "hash": "0xa662c78a231012da51b51cd8e932d030d9b93a262a51a7ca9fa773897845e01f",
+          "transactionType": "CREATE",
+          "contractName": "SqueezV4GraduationAdapter",
+          "contractAddress": "0x319b89bddde279d1672ebd3e115eb0e4c03789ea",
+          "function": null,
+          "arguments": [
+            "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551",
+            "0x58daec3116aae6D93017bAAea7749052E8a04fA7",
+            "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+            "0x5E81206e42E82e24B1e07167c2007b89D8D3E55f",
+            "0x27468dCA279b568a56C4EAF594Af94B887Aca0CC",
+            "0",
+            "60"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": null,
+          "nonce": "785",
+          "valueWei": "0",
+          "gasLimit": "2125579",
+          "gasUsed": "1620450",
+          "effectiveGasPriceWei": "20056000",
+          "transactionFeeWei": "32499745200000",
+          "status": "1",
+          "blockNumber": "112223843",
+          "blockHash": "0xf98744e9896b5b4fbf6adbd3ea711e698d76004f82cfddc7db7572f1902ad7d8",
+          "transactionIndex": "1",
+          "logCount": 0,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "DeploySqueezHook.s.sol",
+      "file": "packages/contracts/broadcast/DeploySqueezHook.s.sol/4663/run-1794454290329.json",
+      "timestamp": 1794454291384,
+      "commit": "daad598",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "1424756",
+      "totalTransactionFeeWei": "28546411216000",
+      "transactions": [
+        {
+          "hash": "0x1c94106389ca6821274d0b3ef73f28e9cb648a9f2b18ea0846e9a4bb32500c3c",
+          "transactionType": "CREATE2",
+          "contractName": "SqueezHook",
+          "contractAddress": "0x27468dca279b568a56c4eaf594af94b887aca0cc",
+          "function": null,
+          "arguments": [
+            "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+            "0xDd3d50eb4d35ba86Ca94fd5c0A2333e2632d7551"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+          "nonce": "783",
+          "valueWei": "0",
+          "gasLimit": "1885240",
+          "gasUsed": "1424756",
+          "effectiveGasPriceWei": "20036000",
+          "transactionFeeWei": "28546411216000",
+          "status": "1",
+          "blockNumber": "112223592",
+          "blockHash": "0x8069d0b8a3e26479a6da7e2eebfceab5e6081d2de2d6ccaf6af8cb0c0688689d",
+          "transactionIndex": "1",
+          "logCount": 0,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "DeploySwapRouter.s.sol",
+      "file": "packages/contracts/broadcast/DeploySwapRouter.s.sol/4663/run-1794454336945.json",
+      "timestamp": 1794454337806,
+      "commit": "daad598",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "998760",
+      "totalTransactionFeeWei": "20003165280000",
+      "transactions": [
+        {
+          "hash": "0x9caeb7470d75a4f10ac36c719ba7f76d86f1ff3597f6e3043b73f727116a30c0",
+          "transactionType": "CREATE",
+          "contractName": "SqueezSwapRouter",
+          "contractAddress": "0xbd3536ef5bfe791e4419c1a2a14c4d8f325c15b4",
+          "function": null,
+          "arguments": [
+            "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+            "0x27468dCA279b568a56C4EAF594Af94B887Aca0CC"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": null,
+          "nonce": "786",
+          "valueWei": "0",
+          "gasLimit": "1310695",
+          "gasUsed": "998760",
+          "effectiveGasPriceWei": "20028000",
+          "transactionFeeWei": "20003165280000",
+          "status": "1",
+          "blockNumber": "112224042",
+          "blockHash": "0xd10553aed3c167d1226f0242d7c0691776544be920f6e56b323b2a20fa759c6f",
+          "transactionIndex": "2",
+          "logCount": 0,
           "additionalContracts": []
         }
       ]
