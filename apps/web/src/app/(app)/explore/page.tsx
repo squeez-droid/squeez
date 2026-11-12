@@ -6,12 +6,12 @@ import { content } from "@/lib/data";
 import { getDataSourceStatus, getIndexedStats, isIndexerConfigured, listActiveQuotes, listIndexedTokens, type ActiveQuote, type DataSourceStatus, type IndexedStats, type IndexedToken } from "@/lib/indexer";
 import { getProtocolConfig, type RuntimeProtocolConfig } from "@/lib/protocol-config";
 import { bpsToPct, fmtNum, shortAddr } from "@/lib/format";
-import { Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
+import { AnimatedProgressValue, Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
 import { DataSourceState } from "@/components/data-source-state";
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
 import { useSelectedTarget } from "@/lib/use-selected-target";
-import { IndexedTokenAvatar } from "@/components/token-bits";
+import { IndexedTokenArtwork, IndexedTokenAvatar } from "@/components/token-bits";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
@@ -126,10 +126,17 @@ export default function ExplorePage() {
             const threshold = Number(protocol?.launchConfig.graduationThresholdHype ?? 0);
             const progress = token.status === "graduated" ? 100 : threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
             return (
-            <Link key={token.address} href={`/token/${token.address}`} className="bg-bg p-5 hover:bg-surface">
+            <Link key={token.address} href={`/token/${token.address}`} className="group relative isolate overflow-hidden bg-bg p-5 transition-colors hover:bg-surface">
+              <IndexedTokenArtwork
+                token={token}
+                targetApiUrl={selected.targetApiUrl}
+                className="pointer-events-none -z-20 opacity-25 grayscale transition duration-700 group-hover:scale-[1.03] group-hover:opacity-40 group-hover:grayscale-0"
+              />
+              <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-bg/95 via-bg/80 to-bg/55 transition-colors group-hover:from-surface/95 group-hover:via-surface/80" />
+              <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-28 bg-gradient-to-t from-bg to-transparent group-hover:from-surface" />
               <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <IndexedTokenAvatar token={token} targetApiUrl={selected.targetApiUrl} size={44} />
+                <div className="flex min-w-0 items-start gap-3 pr-6">
+                  <IndexedTokenAvatar token={token} targetApiUrl={selected.targetApiUrl} size={44} className="border border-white/15 shadow-lg" />
                   <div className="min-w-0">
                   <h2 className="font-display text-xl font-semibold uppercase text-white">{token.name ?? "Metadata pending"}</h2>
                   <p className="num text-xs text-muted">{token.symbol ? `$${token.symbol}` : shortAddr(token.address, 6)}</p>
@@ -149,7 +156,7 @@ export default function ExplorePage() {
               <div className="mt-5 border-t border-line pt-4">
                 <div className="num mb-2 flex items-center justify-between text-[11px]">
                   <span className="text-muted">{token.status === "graduated" ? "Liquidity migrated" : "Bonding progress"}</span>
-                  <span className="text-white">{progress.toFixed(1)}%</span>
+                  <AnimatedProgressValue value={progress} className="text-white" />
                 </div>
                 <Progress value={progress} glow={progress >= 80} />
                 <div className="num mt-2 flex justify-between text-[10px] text-muted">

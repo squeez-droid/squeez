@@ -20,6 +20,12 @@ export const IconWallet = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><pat
 export const IconBrowser = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M3 4h18v16H3zM3 9h18" /></svg>;
 export const IconSearch = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15zM16 16l5 5" /></svg>;
 export const IconUpload = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></svg>;
+export const IconWebsite = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9" /></svg>;
+export const IconTelegram = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...p} width={p.width ?? 16} height={p.height ?? 16} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M21.7 3.3a1.5 1.5 0 0 0-1.55-.24L3.4 9.55a1.5 1.5 0 0 0 .08 2.83l4.12 1.37 1.55 4.83a1.5 1.5 0 0 0 2.55.55l2.25-2.3 4.26 3.13a1.5 1.5 0 0 0 2.35-.91l1.62-14.3a1.5 1.5 0 0 0-.48-1.45ZM9.08 12.45l8.64-5.2-6.94 6.55-.42 2.62-1.28-3.97Zm9.5 5.3-5.24-3.85 6.63-6.25-1.39 10.1Z" />
+  </svg>
+);
 export const IconX = (p: SVGProps<SVGSVGElement>) => (
   <svg {...p} width={p.width ?? 16} height={p.height ?? 16} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25h6.826l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />

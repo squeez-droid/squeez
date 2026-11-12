@@ -302,7 +302,16 @@ export function useLaunchForm() {
       const response = await fetch(`${targetApiUrl}/metadata`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...form, x, telegram, address: wallet.address, signature }),
+        body: JSON.stringify({
+          ...form,
+          // The launch form calls this field `ticker`, while the metadata API
+          // uses the ERC-20 terminology `symbol`.
+          symbol: form.ticker,
+          x,
+          telegram,
+          address: wallet.address,
+          signature,
+        }),
       });
       const result = await response.json() as { metadataUri?: string; imageHash?: `0x${string}`; error?: string };
       if (!response.ok || !result.metadataUri || !result.imageHash) throw new Error(result.error ?? "Metadata upload failed.");

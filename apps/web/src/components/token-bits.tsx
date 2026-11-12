@@ -7,6 +7,20 @@ import { getQuote } from "@/lib/data";
 import { getIndexedMetadata, type IndexedToken } from "@/lib/indexer";
 import type { Token } from "@/lib/types";
 
+const indexedImageCache = new Map<string, Promise<string | null>>();
+
+function indexedImage(address: string, targetApiUrl: string) {
+  const key = `${targetApiUrl}:${address.toLowerCase()}`;
+  let request = indexedImageCache.get(key);
+  if (!request) {
+    request = getIndexedMetadata(address, undefined, targetApiUrl)
+      .then((metadata) => metadata?.imagePath ? `${apiUrl}${metadata.imagePath}` : null)
+      .catch(() => null);
+    indexedImageCache.set(key, request);
+  }
+  return request;
+}
+
 /** Token image from IPFS when present; otherwise a ticker monogram (monochrome, deterministic). */
 export function TokenAvatar({ token, size = 40, className }: { token: Pick<Token, "image" | "ticker">; size?: number; className?: string }) {
   if (token.image)
@@ -35,15 +49,33 @@ export function IndexedTokenAvatar({ token, targetApiUrl, size = 40, className }
   const [image, setImage] = useState<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
     setImage(null);
-    getIndexedMetadata(token.address, controller.signal, targetApiUrl)
-      .then((metadata) => setImage(metadata?.imagePath ? `${apiUrl}${metadata.imagePath}` : null))
-      .catch(() => setImage(null));
-    return () => controller.abort();
+    indexedImage(token.address, targetApiUrl).then((nextImage) => { if (active) setImage(nextImage); });
+    return () => { active = false; };
   }, [targetApiUrl, token.address]);
 
   return <TokenAvatar token={{ image, ticker: token.symbol ?? "?" }} size={size} className={className} />;
+}
+
+/** Full-bleed token artwork for cards. Uses the same cached metadata request as IndexedTokenAvatar. */
+export function IndexedTokenArtwork({ token, targetApiUrl, className }: {
+  token: Pick<IndexedToken, "address" | "symbol">;
+  targetApiUrl: string;
+  className?: string;
+}) {
+  const [image, setImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setImage(null);
+    indexedImage(token.address, targetApiUrl).then((nextImage) => { if (active) setImage(nextImage); });
+    return () => { active = false; };
+  }, [targetApiUrl, token.address]);
+
+  if (!image) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={image} alt="" aria-hidden className={clsx("absolute inset-0 h-full w-full object-cover", className)} />;
 }
 
 export function PairBadge({ quote, className }: { quote: string; className?: string }) {

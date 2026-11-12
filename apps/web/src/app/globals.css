@@ -32,6 +32,18 @@ input[type="range"], input[type="checkbox"] { accent-color: rgb(var(--fg)); }
 @keyframes draw { from { stroke-dashoffset: var(--len) } to { stroke-dashoffset: 0 } }
 .draw { stroke-dasharray: var(--len); animation: draw 1.6s cubic-bezier(.2,.7,.2,1) both; }
 @media (prefers-reduced-motion: reduce) { .draw, .spin { animation: none; } }
+
+@keyframes bonding-shimmer { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+@keyframes bonding-ambient { from { transform: translateX(-35%); } to { transform: translateX(135%); } }
+@keyframes bonding-origin-pulse { 0%, 100% { opacity: .28; box-shadow: 0 0 2px rgb(var(--fg) / .2); } 50% { opacity: 1; box-shadow: 0 0 10px rgb(var(--fg) / .75); } }
+.bonding-progress-ambient { width: 38%; background: linear-gradient(90deg, transparent, rgb(var(--fg) / .12), transparent); animation: bonding-ambient 2.8s ease-in-out infinite; }
+.bonding-progress-origin { z-index: 1; background: rgb(var(--fg) / .8); animation: bonding-origin-pulse 1.6s ease-in-out infinite; }
+.bonding-progress-fill { transition: width 850ms cubic-bezier(.22, 1, .36, 1), box-shadow 350ms ease; }
+.bonding-progress-shimmer { background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.05) 35%, rgba(255,255,255,.7) 50%, rgba(255,255,255,.05) 65%, transparent 100%); animation: bonding-shimmer 2.4s ease-in-out infinite; }
+.bonding-progress-milestone { box-shadow: 0 0 8px color-mix(in srgb, currentColor 35%, transparent); }
+.bonding-progress-glow { box-shadow: 0 0 12px rgba(255,255,255,.48); }
+.bonding-progress-ticks { background: linear-gradient(90deg, transparent 24.8%, rgba(0,0,0,.35) 25%, transparent 25.2%, transparent 49.8%, rgba(0,0,0,.35) 50%, transparent 50.2%, transparent 74.8%, rgba(0,0,0,.35) 75%, transparent 75.2%); }
+@media (prefers-reduced-motion: reduce) { .bonding-progress-fill { transition: none; } .bonding-progress-shimmer, .bonding-progress-ambient, .bonding-progress-origin { animation: none; } .bonding-progress-shimmer, .bonding-progress-ambient { display: none; } }
 .font-display { font-stretch: 125%; }
 /* Landing: editorial index style */
 .ulink { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size 320ms cubic-bezier(.2,.7,.2,1); }

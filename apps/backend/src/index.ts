@@ -779,7 +779,14 @@ const server = createServer(async (req, res) => {
       if (!match) return json(res, 400, { error: "Image must be PNG, JPEG, WebP, or GIF" });
       const image = Buffer.from(match[2], "base64");
       if (!image.length || image.length > 5 * 1024 * 1024) return json(res, 400, { error: "Image exceeds 5 MiB" });
-      const symbol = cleanString(payload.symbol, 16, true).toUpperCase();
+      let symbol: string;
+      try {
+        // Accept `ticker` as a compatibility alias for web clients deployed
+        // before the metadata API standardized on `symbol`.
+        symbol = cleanString(payload.symbol ?? payload.ticker, 16, true).toUpperCase();
+      } catch {
+        return json(res, 400, { error: "Token symbol is required" });
+      }
       if (!/^[A-Z0-9]{2,16}$/.test(symbol)) return json(res, 400, { error: "Invalid token symbol" });
       try {
         const evidence = await computeImageEvidence(image);

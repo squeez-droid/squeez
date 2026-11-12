@@ -18,7 +18,7 @@ import {
   type IndexedTrade,
 } from "@/lib/indexer";
 import { bpsToPct, shortAddr } from "@/lib/format";
-import { Badge, Button, Empty, Progress, Row, Spinner } from "@/components/ui";
+import { AnimatedProgressValue, Badge, Button, Empty, Progress, Row, Spinner } from "@/components/ui";
 import { formatEther } from "viem";
 import { OnchainTradePanel } from "@/components/token/onchain-trade-panel";
 import { DataSourceState } from "@/components/data-source-state";
@@ -29,6 +29,7 @@ import type { Candle } from "@/lib/types";
 import { apiUrl } from "@/lib/chain";
 import { useSelectedTarget } from "@/lib/use-selected-target";
 import { useRewards } from "@/components/rewards/use-rewards";
+import { IconTelegram, IconWebsite, IconX } from "@/components/icons";
 
 function TokenImage({ src }: { src: string }) {
   // Images are immutable, API-proxied IPFS assets; preserving their source size avoids a second image service.
@@ -127,10 +128,10 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
           </div>
           <p className="num mt-2 text-xs text-muted">{token.address}</p>
           {metadata?.description && <p className="mt-3 max-w-2xl text-sm text-muted">{metadata.description}</p>}
-          {metadata?.links && <div className="mt-2 flex flex-wrap gap-3 text-xs text-primary">
-            {metadata.links.website && <a href={metadata.links.website} target="_blank" rel="noreferrer">Website ↗</a>}
-            {metadata.links.x && <a href={metadata.links.x} target="_blank" rel="noreferrer">X ↗</a>}
-            {metadata.links.telegram && <a href={metadata.links.telegram} target="_blank" rel="noreferrer">Telegram ↗</a>}
+          {metadata?.links && <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            {metadata.links.website && <a href={metadata.links.website} target="_blank" rel="noreferrer" aria-label="Open token website" className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconWebsite width={14} height={14} /><span>Website</span></a>}
+            {metadata.links.x && <a href={metadata.links.x} target="_blank" rel="noreferrer" aria-label="Open token X account" className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconX width={13} height={13} /><span>X</span></a>}
+            {metadata.links.telegram && <a href={metadata.links.telegram} target="_blank" rel="noreferrer" aria-label="Open token Telegram" className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconTelegram width={14} height={14} /><span>Telegram</span></a>}
           </div>}
           </div>
         </div>
@@ -190,7 +191,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
           <section className="rounded-xl border border-line bg-surface p-5">
             <div className="flex items-end justify-between gap-4">
               <div><h2 className="font-medium text-white">Bonding progress</h2><p className="mt-1 text-xs text-muted">{nativeSymbol} held by the curve toward automatic graduation.</p></div>
-              <strong className="num text-2xl text-white">{bondingProgress.toFixed(1)}%</strong>
+              <strong className="num text-2xl text-white"><AnimatedProgressValue value={bondingProgress} /></strong>
             </div>
             <Progress value={bondingProgress} glow={bondingProgress >= 80} className="mt-4 h-2" />
             <div className="num mt-2 flex justify-between text-xs text-muted"><span>{raised.toFixed(6)} {nativeSymbol} raised</span><span>{threshold > 0 ? `${threshold} ${nativeSymbol} target` : "Threshold unavailable"}</span></div>
