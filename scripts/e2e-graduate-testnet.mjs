@@ -22,6 +22,9 @@ const curveAbi = [
     { type: "uint32" }, { type: "uint16" }, { type: "uint32" }, { type: "uint256" },
   ] },
   { type: "function", name: "hypeRaised", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "quoteBuy", stateMutability: "view", inputs: [{ type: "uint256" }], outputs: [
+    { type: "uint256" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" },
+  ] },
   { type: "function", name: "graduated", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] },
   { type: "function", name: "graduationState", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "graduationPool", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
@@ -46,12 +49,26 @@ if (block.timestamp < tradeReadyAt) {
   process.exit(2);
 }
 
+const hypeRaisedBefore = await publicClient.readContract({ address: curve, abi: curveAbi, functionName: "hypeRaised" });
+const remainingHype = config[0] - hypeRaisedBefore;
+const quoteLimit = parseEther(process.env.E2E_GRADUATION_BUY_AMOUNT_NATIVE?.trim() || "0.12");
+const closingQuote = await publicClient.readContract({
+  address: curve, abi: curveAbi, functionName: "quoteBuy", args: [quoteLimit],
+});
+// quoteBuy caps its fee calculation at the exact gross amount accepted by the curve.
+const closingGross = remainingHype + closingQuote[1] + closingQuote[2] + closingQuote[3];
+if (closingGross > quoteLimit) throw new Error("Graduation quote limit is too low");
+if (process.env.E2E_DRY_RUN === "true") {
+  console.log(JSON.stringify({ ready: true, token, curve, hypeRaisedBefore: hypeRaisedBefore.toString(),
+    remainingHype: remainingHype.toString(), closingGross: closingGross.toString() }, null, 2));
+  process.exit(0);
+}
 const buyHash = await walletClient.writeContract({
   address: curve,
   abi: curveAbi,
   functionName: "buy",
   args: [0n, block.timestamp + 300n],
-  value: parseEther(process.env.E2E_GRADUATION_BUY_AMOUNT_NATIVE?.trim() || "0.12"),
+  value: closingGross,
 });
 const buyReceipt = await publicClient.waitForTransactionReceipt({ hash: buyHash });
 if (buyReceipt.status !== "success") throw new Error(`Closing buy reverted: ${buyHash}`);
@@ -77,6 +94,7 @@ const lockDifference = lockedTokens > expectedLockedTokens
 if (lockDifference > 100_000n) throw new Error("Locked residual does not match the required 4/49 supply");
 const evidence = {
   token, curve, locker, pool, positionId: positionId.toString(),
+  closingGross: closingGross.toString(),
   buyHash, buyBlock: buyReceipt.blockNumber.toString(),
   graduationHash, graduationBlock: graduationReceipt.blockNumber.toString(),
   lockedTokens: lockedTokens.toString(), expectedLockedTokens: expectedLockedTokens.toString(),
