@@ -20,8 +20,8 @@ if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > 10_000) throw new Error(
 if (!Number.isInteger(tickSpacing) || tickSpacing <= 0 || tickSpacing > 32767) {
   throw new Error("V4_TICK_SPACING must be 1..32767");
 }
-const client = createPublicClient({ transport: http(required("ELYSIUM_RPC")) });
-const expectedChainId = Number(required("ELYSIUM_CHAIN_ID"));
+const client = createPublicClient({ transport: http(required("SQUEEZ_RPC")) });
+const expectedChainId = Number(required("SQUEEZ_CHAIN_ID"));
 const [chainId, ...bytecodes] = await Promise.all([
   client.getChainId(),
   ...Object.values(addresses).map((address) => client.getBytecode({ address })),

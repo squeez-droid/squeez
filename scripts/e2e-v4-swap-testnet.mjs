@@ -12,8 +12,9 @@ const router = required("SWAP_ROUTER_ADDRESS");
 const quoter = required("V4_QUOTER_ADDRESS");
 const hook = required("SQUEEZ_HOOK_ADDRESS");
 const vault = required("FEE_VAULT_ADDRESS");
+const chain = required("SQUEEZ_CHAIN");
 const account = privateKeyToAccount(required("DEPLOYER_PRIVATE_KEY"));
-const transport = http(required("ELYSIUM_RPC"));
+const transport = http(required("SQUEEZ_RPC"));
 const publicClient = createPublicClient({ transport });
 const walletClient = createWalletClient({ account, transport });
 const poolKey = {
@@ -71,7 +72,7 @@ const feeBalances = async () => {
 const beforeFees = await feeBalances();
 const tokenBefore = await publicClient.readContract({ address: token, abi: erc20Abi, functionName: "balanceOf", args: [account.address] });
 const block = await publicClient.getBlock();
-const buyAmount = parseEther("0.001");
+const buyAmount = parseEther(process.env.E2E_V4_BUY_AMOUNT_NATIVE?.trim() || "0.001");
 const buyQuote = await publicClient.simulateContract({
   account, address: quoter, abi: quoterAbi, functionName: "quoteExactInputSingle",
   args: [{ poolKey, zeroForOne: true, exactAmount: buyAmount, hookData: "0x" }],
@@ -130,5 +131,5 @@ const evidence = {
   feeDelta: Object.fromEntries(Object.entries(feeDelta).map(([key, value]) => [key, value.toString()])),
 };
 mkdirSync("docs/evidence/phase-5", { recursive: true });
-writeFileSync("docs/evidence/phase-5/testnet-v4-swaps.json", `${JSON.stringify(evidence, null, 2)}\n`);
+writeFileSync(`docs/evidence/phase-5/${chain}-testnet-v4-swaps.json`, `${JSON.stringify(evidence, null, 2)}\n`);
 console.log(JSON.stringify(evidence, null, 2));

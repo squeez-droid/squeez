@@ -25,12 +25,15 @@ contract ConfigureProtectedLaunch is Script {
         vm.startBroadcast(adminKey);
         uint256 policyId;
         bytes32 policyHash;
+        // Policies are immutable snapshots. Reconfiguration creates the next version and
+        // activates it, so an existing testnet deployment can be repaired without resets.
+        uint32 policyVersion = uint32(policies.policyCount() + 1);
         (policyId, policyHash) = policies.createPolicy(
             SqueezProtectionPolicyRegistry.PolicyInput({
                 familyId: keccak256("squeez.protected-launch"),
-                version: 1,
-                protectionWindowSeconds: uint32(vm.envUint("MAX_WALLET_WINDOW_SECONDS")),
-                initialFeeBps: 0,
+                version: policyVersion,
+                protectionWindowSeconds: uint32(vm.envUint("SNIPER_TAX_DECAY_SECONDS")),
+                initialFeeBps: uint16(vm.envUint("SNIPER_TAX_START_BPS")),
                 maxBuyBpsPerTransaction: uint16(vm.envUint("ROBINHOOD_MAX_BUY_BPS_PER_TRANSACTION")),
                 maxBuyBpsPerAddress: uint16(vm.envUint("MAX_WALLET_BPS"))
             })
@@ -47,6 +50,7 @@ contract ConfigureProtectedLaunch is Script {
         vm.serializeAddress(object, "factory", address(factory));
         vm.serializeAddress(object, "protectionPolicyRegistry", address(policies));
         vm.serializeUint(object, "protectionPolicyId", policyId);
+        vm.serializeUint(object, "protectionPolicyVersion", policyVersion);
         vm.serializeBytes32(object, "protectionPolicyHash", policyHash);
         vm.serializeAddress(object, "identityRegistry", address(identities));
         vm.serializeUint(object, "tickerLockSeconds", lockSeconds);

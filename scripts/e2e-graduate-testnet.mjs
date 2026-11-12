@@ -10,8 +10,9 @@ const required = (name) => {
 const token = process.env.E2E_TOKEN_ADDRESS ?? "0xbf11681b28508e4e792ff38e53bF0aC7cBe0DbbE";
 const curve = process.env.E2E_CURVE_ADDRESS ?? "0xDab85B6Df9f1dF598B39d4e410E01FcCa716B5a5";
 const locker = required("LIQUIDITY_LOCKER_ADDRESS");
+const chain = required("SQUEEZ_CHAIN");
 const account = privateKeyToAccount(required("DEPLOYER_PRIVATE_KEY"));
-const transport = http(required("ELYSIUM_RPC"));
+const transport = http(required("SQUEEZ_RPC"));
 const publicClient = createPublicClient({ transport });
 const walletClient = createWalletClient({ account, transport });
 const curveAbi = [
@@ -50,7 +51,7 @@ const buyHash = await walletClient.writeContract({
   abi: curveAbi,
   functionName: "buy",
   args: [0n, block.timestamp + 300n],
-  value: parseEther("0.12"),
+  value: parseEther(process.env.E2E_GRADUATION_BUY_AMOUNT_NATIVE?.trim() || "0.12"),
 });
 const buyReceipt = await publicClient.waitForTransactionReceipt({ hash: buyHash });
 if (buyReceipt.status !== "success") throw new Error(`Closing buy reverted: ${buyHash}`);
@@ -82,5 +83,5 @@ const evidence = {
   lockDifference: lockDifference.toString(), lockedNative: lockedNative.toString(),
 };
 mkdirSync("docs/evidence/phase-5", { recursive: true });
-writeFileSync("docs/evidence/phase-5/testnet-graduation.json", `${JSON.stringify(evidence, null, 2)}\n`);
+writeFileSync(`docs/evidence/phase-5/${chain}-testnet-graduation.json`, `${JSON.stringify(evidence, null, 2)}\n`);
 console.log(JSON.stringify(evidence, null, 2));

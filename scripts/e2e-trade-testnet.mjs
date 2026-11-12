@@ -9,7 +9,7 @@ const required = (name) => {
 const token = process.env.E2E_TOKEN_ADDRESS ?? "0x122785a32cDaAE6cccE73b9Fe5fAbA5eEa2f1371";
 const curve = process.env.E2E_CURVE_ADDRESS ?? "0x7D09E2290C05168E1220e07Adfe46975d89e71B2";
 const account = privateKeyToAccount(required("DEPLOYER_PRIVATE_KEY"));
-const transport = http(required("ELYSIUM_RPC"));
+const transport = http(required("SQUEEZ_RPC"));
 const publicClient = createPublicClient({ transport });
 const walletClient = createWalletClient({ account, transport });
 const curveAbi = [
@@ -25,7 +25,7 @@ const tokenAbi = [
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
 ];
-const amountIn = parseEther("0.01");
+const amountIn = parseEther(process.env.E2E_BUY_AMOUNT_NATIVE?.trim() || "0.01");
 const quote = await publicClient.readContract({ address: curve, abi: curveAbi, functionName: "quoteBuy", args: [amountIn] });
 const block = await publicClient.getBlock();
 const deadline = block.timestamp + 300n;

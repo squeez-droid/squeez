@@ -10,8 +10,9 @@ const pinataJwt = required("PINATA_JWT");
 const uploadUrl = required("PINATA_UPLOAD_URL");
 const factory = required("FACTORY_ADDRESS");
 const launchFee = BigInt(required("LAUNCH_FEE_HYPE"));
+const chain = required("SQUEEZ_CHAIN");
 const account = privateKeyToAccount(required("DEPLOYER_PRIVATE_KEY"));
-const transport = http(required("ELYSIUM_RPC"));
+const transport = http(required("SQUEEZ_RPC"));
 const publicClient = createPublicClient({ transport });
 const walletClient = createWalletClient({ account, transport });
 
@@ -31,8 +32,12 @@ async function pin(blob, name) {
 // Deterministic 1x1 PNG used only by the permanent on-chain testnet smoke launch.
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 const imageUri = await pin(new Blob([Uint8Array.from(png)], { type: "image/png" }), "squeez-e2e-image.png");
-const metadata = { schema: "squeez.token.v1", name: "Squeez E2E", symbol: "SQE2E",
-  description: "Permanent Elysium testnet launch lifecycle evidence.", image: imageUri, links: {} };
+const metadata = {
+  schema: "squeez.token.v1",
+  name: process.env.E2E_TOKEN_NAME?.trim() || (chain === "robinhood" ? "Squeez Robinhood E2E" : "Squeez E2E"),
+  symbol: process.env.E2E_TOKEN_SYMBOL?.trim() || (chain === "robinhood" ? "SQRH" : "SQE2E"),
+  description: `Permanent ${chain} testnet launch lifecycle evidence.`, image: imageUri, links: {},
+};
 const metadataUri = await pin(new Blob([JSON.stringify(metadata)], { type: "application/json" }), "squeez-e2e-metadata.json");
 
 const abi = [
