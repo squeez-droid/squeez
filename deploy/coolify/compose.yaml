@@ -26,6 +26,7 @@ services:
       SQUEEZ_SERVICE: api
       PORT: 8080
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.squeez.tech}
       ELYSIUM_EXPLORER: ${ELYSIUM_EXPLORER}
       PINATA_JWT: ${PINATA_JWT}
       PINATA_API_URL: ${PINATA_API_URL:-https://api.pinata.cloud}

@@ -5,6 +5,7 @@ x-build: &service-build
 x-runtime: &runtime
   DATABASE_URL: ${DATABASE_URL}
   ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://squeez.tech}
+  PUBLIC_API_URL: ${PUBLIC_API_URL:-https://api.squeez.tech}
   PINATA_JWT: ${PINATA_JWT}
   PINATA_API_URL: ${PINATA_API_URL:-https://api.pinata.cloud}
   PINATA_UPLOAD_URL: ${PINATA_UPLOAD_URL:-https://uploads.pinata.cloud/v3/files}

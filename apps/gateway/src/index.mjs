@@ -18,6 +18,16 @@ function json(res, status, value) {
 
 function cors(req, res) {
   const origin = req.headers.origin;
+  const pathname = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`).pathname;
+  const publicDiscoveryRoute = req.method === "GET" && (
+    /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+  );
+  if (publicDiscoveryRoute) {
+    res.setHeader("access-control-allow-origin", "*");
+    res.setHeader("access-control-allow-methods", "GET,OPTIONS");
+    return true;
+  }
   if (origin && !allowedOrigins.has(origin)) {
     json(res, 403, { error: "Origin not allowed" });
     return false;

@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, keccak256, toBytes, verifyMessage, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import sharp from "sharp";
 import { LOG_EVENTS, SQUEEZ_NETWORKS, WEB_LOG_EVENTS, type LogEvent } from "@squeez/shared";
 import { backendConfig as config } from "./config.js";
 import { writeSystemLog } from "./logger.js";
@@ -23,6 +24,18 @@ const safeRpcMethods = new Set([
 
 function cors(req: IncomingMessage, res: ServerResponse): boolean {
   const origin = req.headers.origin;
+  const pathname = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`).pathname;
+  const publicDiscoveryRoute = req.method === "GET" && (
+    /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+    || /^\/v1\/token-?list\.json$/.test(pathname)
+    || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+  );
+  if (publicDiscoveryRoute) {
+    res.setHeader("access-control-allow-origin", "*");
+    res.setHeader("access-control-allow-methods", "GET,OPTIONS");
+    return true;
+  }
   if (origin && !config.allowedOrigins.has(origin)) {
     res.writeHead(403).end("Origin not allowed");
     return false;
@@ -37,6 +50,14 @@ function cors(req: IncomingMessage, res: ServerResponse): boolean {
 
 function json(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+  res.end(JSON.stringify(body));
+}
+
+function publicJson(res: ServerResponse, status: number, body: unknown, maxAge = 300) {
+  res.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": `public, max-age=${maxAge}, s-maxage=${maxAge}, stale-while-revalidate=600`,
+  });
   res.end(JSON.stringify(body));
 }
 
@@ -948,6 +969,39 @@ const server = createServer(async (req, res) => {
       const result = await pool.query(`select ${columns} from "${config.databaseSchema}"."token" order by "createdAt" desc limit 100`);
       return json(res, 200, result.rows.map(chainQualified));
     }
+    if (req.method === "GET" && ["/v1/token-list.json", "/v1/tokenlist.json"].includes(url.pathname)) {
+      const result = await pool.query(
+        `select address, coalesce(name, '') as name, coalesce(symbol, '') as symbol,
+          created_at as "createdAt"
+         from "${config.databaseSchema}"."token"
+         where name is not null and symbol is not null
+         order by created_at asc limit 10000`,
+      );
+      const targetPath = `${config.chain}/${config.network}`;
+      const publicApiUrl = config.publicApiUrl.replace(/\/$/, "");
+      const newestTimestamp = result.rows.length
+        ? new Date(Number(result.rows.at(-1).createdAt) * 1000).toISOString()
+        : new Date(0).toISOString();
+      return publicJson(res, 200, {
+        name: `Squeez ${config.chain} ${config.network}`.slice(0, 30),
+        timestamp: newestTimestamp,
+        version: { major: 1, minor: result.rows.length, patch: 0 },
+        logoURI: "https://squeez.tech/squeez-logo.png",
+        keywords: ["squeez", config.chain, config.network, "launchpad"],
+        tags: {
+          squeez: { name: "Squeez", description: "Token launched through the Squeez protocol" },
+        },
+        tokens: result.rows.map((token) => ({
+          chainId: config.chainId,
+          address: getAddress(token.address),
+          decimals: 18,
+          name: String(token.name).slice(0, 60),
+          symbol: String(token.symbol).slice(0, 20),
+          logoURI: `${publicApiUrl}/v1/${targetPath}/tokens/${getAddress(token.address)}/logo`,
+          tags: ["squeez"],
+        })),
+      }, 300);
+    }
     const holdersMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/holders$/);
     if (req.method === "GET" && holdersMatch) {
       try {
@@ -992,6 +1046,49 @@ const server = createServer(async (req, res) => {
         },
         imagePath: imageCid ? `/v1/${config.chain}/${config.network}/ipfs/${imageCid}` : null,
       });
+    }
+    const logoMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/logo$/);
+    if (req.method === "GET" && logoMatch) {
+      const record = await pool.query(
+        `select metadata_uri as "metadataUri" from "${config.databaseSchema}"."token"
+         where lower(address) = lower($1) limit 1`,
+        [logoMatch[1]],
+      );
+      const indexedUri = record.rows[0]?.metadataUri as string | undefined;
+      const uri = /^ipfs:\/\/[a-zA-Z0-9]+$/.test(indexedUri ?? "")
+        ? indexedUri
+        : await onchainMetadataUri(getAddress(logoMatch[1]));
+      const metadataCid = uri?.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1];
+      if (!metadataCid) return json(res, 404, { error: "Token metadata is unavailable" });
+      const metadataResponse = await fetch(`${config.pinata.gatewayUrl}/${metadataCid}`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!metadataResponse.ok) return json(res, 502, { error: "Metadata gateway unavailable" });
+      const metadata = await metadataResponse.json() as Record<string, unknown>;
+      const imageCid = typeof metadata.image === "string"
+        ? metadata.image.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1]
+        : undefined;
+      if (!imageCid) return json(res, 404, { error: "Token logo is unavailable" });
+      const imageResponse = await fetch(`${config.pinata.gatewayUrl}/${imageCid}`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!imageResponse.ok) return json(res, 502, { error: "Logo gateway unavailable" });
+      const contentType = imageResponse.headers.get("content-type")?.split(";")[0] ?? "";
+      if (!imageTypes.has(contentType)) return json(res, 415, { error: "Unsupported asset type" });
+      const bytes = await imageResponse.arrayBuffer();
+      if (bytes.byteLength > 5_000_000) return json(res, 413, { error: "Asset is too large" });
+      const normalizedLogo = await sharp(Buffer.from(bytes), { animated: false })
+        .resize(64, 64, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toBuffer();
+      res.writeHead(200, {
+        "content-type": "image/png",
+        "content-length": String(normalizedLogo.byteLength),
+        "cache-control": "public, max-age=31536000, immutable",
+        "access-control-allow-origin": "*",
+      });
+      res.end(normalizedLogo);
+      return;
     }
     const ipfsMatch = url.pathname.match(/^\/v1\/ipfs\/([a-zA-Z0-9]+)$/);
     if (req.method === "GET" && ipfsMatch) {

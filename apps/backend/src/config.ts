@@ -45,6 +45,7 @@ export const backendConfig = {
   systemLogSchema: operationalSchema(target),
   port: Number(process.env.PORT ?? 8080),
   allowedOrigins: new Set(required("ALLOWED_ORIGINS").split(",").map((origin) => origin.trim())),
+  publicApiUrl: optional("PUBLIC_API_URL") ?? optional("NEXT_PUBLIC_API_URL") ?? "https://api.squeez.tech",
   rpcUrl: required("SQUEEZ_RPC"),
   rpcFallbackUrl: optional("SQUEEZ_RPC_FALLBACK"),
   chainId: Number(required("SQUEEZ_CHAIN_ID")),
@@ -98,6 +99,12 @@ export const backendConfig = {
 };
 
 if (!Number.isSafeInteger(backendConfig.port) || backendConfig.port <= 0) throw new Error("PORT is invalid");
+try {
+  const publicApiUrl = new URL(backendConfig.publicApiUrl);
+  if (!["http:", "https:"].includes(publicApiUrl.protocol)) throw new Error("unsupported protocol");
+} catch {
+  throw new Error("PUBLIC_API_URL must be an absolute HTTP(S) URL");
+}
 if (!Number.isSafeInteger(backendConfig.chainId) || backendConfig.chainId <= 0) throw new Error("SQUEEZ_CHAIN_ID is invalid");
 if (!Number.isSafeInteger(backendConfig.indexerMaxLagBlocks) || backendConfig.indexerMaxLagBlocks < 0) {
   throw new Error("INDEXER_MAX_LAG_BLOCKS must be a non-negative integer");

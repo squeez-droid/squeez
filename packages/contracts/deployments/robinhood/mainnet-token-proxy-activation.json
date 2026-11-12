@@ -1,0 +1,7 @@
+{
+  "chain": "robinhood",
+  "chainId": 4663,
+  "curveProxyDeployer": "0x250ebaa1906A2700F757B26EFD419941d5F0E9e5",
+  "factoryImplementation": "0x6223C51A703e967d06A2BAE5aE178Ba080CE0766",
+  "network": "mainnet"
+}
