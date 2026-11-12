@@ -104,6 +104,12 @@ const selectedChainEnv = {
   SQUEEZ_RPC: chainSource[`${chainPrefix}_RPC`],
   SQUEEZ_RPC_FALLBACK: chainSource[`${chainPrefix}_RPC_FALLBACK`],
   SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`],
+  // Keep provider limits target-specific. A conservative public testnet RPC must not throttle
+  // a production provider (or another chain), while the legacy unprefixed keys remain fallbacks.
+  INDEXER_MAX_REQUESTS_PER_SECOND: chainSource[`${chainPrefix}_INDEXER_MAX_REQUESTS_PER_SECOND`]
+    ?? chainSource.INDEXER_MAX_REQUESTS_PER_SECOND,
+  INDEXER_LOG_BLOCK_RANGE: chainSource[`${chainPrefix}_INDEXER_LOG_BLOCK_RANGE`]
+    ?? chainSource.INDEXER_LOG_BLOCK_RANGE,
   DATABASE_SCHEMA: chainSource[`${chainPrefix}_DATABASE_SCHEMA`] ?? chainSource.DATABASE_SCHEMA,
   CROSS_CHAIN_DATABASE_SCHEMA: chain === "robinhood"
     ? (chainSource.ELYSIUM_DATABASE_SCHEMA ?? chainSource.DATABASE_SCHEMA)
