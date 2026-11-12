@@ -2,16 +2,18 @@
 import Link from "next/link";
 import clsx from "clsx";
 import { useTx } from "@/providers/tx";
-import { config } from "@/lib/data";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 import { Button, Modal, Row, Spinner } from "./ui";
 import { IconCheck, IconClose } from "./icons";
 
 export function TxModal() {
   const { state, close, reject } = useTx();
+  const selected = useSelectedTarget();
   if (!state) return null;
+  const explorer = selected.info.explorer.replace(/\/$/, "");
   const steps = [
     { id: "signing", label: "Confirm in wallet" },
-    { id: "pending", label: `Waiting for block (${config.chain.blockTimeMs}ms)` },
+    { id: "pending", label: "Waiting for on-chain confirmation" },
     { id: "success", label: "Done" },
   ];
   const idx = state.phase === "error" ? 0 : steps.findIndex((s) => s.id === state.phase);
@@ -38,8 +40,8 @@ export function TxModal() {
           );
         })}
       </ol>
-      {state.hash && (
-        <a href={`${config.chain.explorer}/tx/${state.hash}`} target="_blank" rel="noreferrer" className="num mt-4 block truncate text-xs text-white underline underline-offset-2">
+      {state.hash && explorer && (
+        <a href={`${explorer}/tx/${state.hash}`} target="_blank" rel="noreferrer" className="num mt-4 block truncate text-xs text-white underline underline-offset-2">
           {state.hash} ↗
         </a>
       )}

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import pg from "pg";
+import { operationalDatabaseUrl } from "./lib/database-url.mjs";
 
 if (process.env.SQUEEZ_CHAIN !== "robinhood" || process.env.SQUEEZ_NETWORK !== "mainnet") {
   throw new Error("Indexer lag check is restricted to Robinhood mainnet");
@@ -27,14 +28,15 @@ const rpcPayload = await rpcResponse.json();
 if (!rpcPayload.result) throw new Error("RPC block number is unavailable");
 const rpcBlock = Number(BigInt(rpcPayload.result));
 
-const pool = new pg.Pool({ connectionString: required("DATABASE_URL"), max: 1, connectionTimeoutMillis: 10_000 });
+const pool = new pg.Pool({ connectionString: operationalDatabaseUrl(required("DATABASE_URL")), max: 1, connectionTimeoutMillis: 10_000 });
 let row;
 try {
   const result = await pool.query(`select
       substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
       (select (value->>'heartbeat_at')::bigint / 1000 from "robinhood_mainnet"._ponder_meta
         where key = 'app' limit 1) as "updatedAt"
-    from "robinhood_mainnet"._ponder_checkpoint where chain_id = 4663 limit 1`);
+    from "robinhood_mainnet"._ponder_checkpoint
+    order by latest_checkpoint desc limit 1`);
   row = result.rows[0];
 } finally {
   await pool.end();

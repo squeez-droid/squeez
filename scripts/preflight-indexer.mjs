@@ -22,7 +22,8 @@ if (!Number.isSafeInteger(expectedChainId) || expectedChainId <= 0) throw new Er
 if (!Number.isSafeInteger(startBlock) || startBlock < 0) throw new Error("FACTORY_START_BLOCK is invalid");
 if (!isAddress(factory)) throw new Error("FACTORY_ADDRESS is invalid");
 
-const client = createPublicClient({ transport: http(required("SQUEEZ_RPC"), { timeout: 15_000 }) });
+const indexerRpc = process.env.INDEXER_RPC?.trim() || required("SQUEEZ_RPC");
+const client = createPublicClient({ transport: http(indexerRpc, { timeout: 15_000 }) });
 const pool = new pg.Pool({ connectionString: required("DATABASE_URL"), max: 1, connectionTimeoutMillis: 10_000 });
 
 try {
@@ -49,6 +50,14 @@ try {
     rpcHead: Number(head),
     blocksToBackfill: Number(head - BigInt(startBlock)),
   }, null, 2));
+} catch (error) {
+  console.error(JSON.stringify({
+    ok: false,
+    target: `${target.chain}:${target.stage}`,
+    provider: new URL(indexerRpc).hostname,
+    error: error instanceof Error && "details" in error ? String(error.details) : "Indexer preflight failed",
+  }, null, 2));
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }

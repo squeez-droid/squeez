@@ -2,6 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import pg from "pg";
+import { operationalDatabaseUrl } from "./lib/database-url.mjs";
 
 if (process.env.SQUEEZ_CHAIN !== "robinhood" || process.env.SQUEEZ_NETWORK !== "mainnet") {
   throw new Error("Public activation is restricted to Robinhood mainnet");
@@ -26,14 +27,15 @@ const rpcPayload = await rpcResponse.json();
 if (rpcPayload.error || !rpcPayload.result) throw new Error("RPC head request returned an error");
 const rpcHead = BigInt(rpcPayload.result);
 
-const database = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10_000 });
+const database = new pg.Pool({ connectionString: operationalDatabaseUrl(process.env.DATABASE_URL), max: 1, connectionTimeoutMillis: 10_000 });
 let state;
 try {
   const result = await database.query(`select
       substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
       (select (value->>'heartbeat_at')::bigint / 1000 from "robinhood_mainnet"._ponder_meta
         where key = 'app' limit 1) as "heartbeatAt"
-    from "robinhood_mainnet"._ponder_checkpoint where chain_id = 4663 limit 1`);
+    from "robinhood_mainnet"._ponder_checkpoint
+    order by latest_checkpoint desc limit 1`);
   state = result.rows[0];
 } finally {
   await database.end();

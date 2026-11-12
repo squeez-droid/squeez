@@ -285,7 +285,8 @@ async function readiness() {
   if (checkpointTable) {
     try {
       const result = await pool.query(`select substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber"
-        from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]);
+        from "${config.databaseSchema}"._ponder_checkpoint
+        order by latest_checkpoint desc limit 1`);
       indexerBlock = result.rows[0] ? Number(result.rows[0].blockNumber) : null;
       checks.indexer = rpcBlock !== null && indexerBlock !== null
         && Math.max(0, rpcBlock - indexerBlock) <= config.indexerMaxLagBlocks;
@@ -315,7 +316,8 @@ async function writeSafety() {
       substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
       (select (value->>'heartbeat_at')::bigint / 1000 from "${config.databaseSchema}"._ponder_meta
         where key = 'app' limit 1) as "updatedAt"
-      from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]),
+      from "${config.databaseSchema}"._ponder_checkpoint
+      order by latest_checkpoint desc limit 1`),
   ]);
   const rpcBlock = rpcResult.status === "fulfilled" ? Number(BigInt(rpcResult.value)) : null;
   const indexed = indexerResult.status === "fulfilled" ? indexerResult.value.rows[0] : null;
@@ -413,7 +415,8 @@ const server = createServer(async (req, res) => {
           substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
           (select (value->>'heartbeat_at')::bigint / 1000 from "${config.databaseSchema}"._ponder_meta
             where key = 'app' limit 1) as "updatedAt"
-          from "${config.databaseSchema}"._ponder_checkpoint where chain_id = $1 limit 1`, [config.chainId]),
+          from "${config.databaseSchema}"._ponder_checkpoint
+          order by latest_checkpoint desc limit 1`),
       ]);
       const rpcBlock = rpcResult.status === "fulfilled" ? Number(BigInt(rpcResult.value)) : null;
       const indexed = indexerResult.status === "fulfilled" ? indexerResult.value.rows[0] : null;

@@ -3,6 +3,7 @@
 import pg from "pg";
 import { createPublicClient, formatEther, getAddress, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { operationalDatabaseUrl } from "./lib/database-url.mjs";
 
 if (process.env.SQUEEZ_CHAIN !== "robinhood" || process.env.SQUEEZ_NETWORK !== "mainnet") {
   throw new Error("Canary preparation is restricted to Robinhood mainnet");
@@ -42,14 +43,15 @@ if (chainId !== 4663) throw new Error("RPC chain ID mismatch");
 const config = await client.readContract({ address: factory, abi: factoryAbi, functionName: "launchConfigs", args: [configId] });
 const hook = await client.readContract({ address: expectedVault, abi: vaultAbi, functionName: "hook" });
 
-const database = new pg.Pool({ connectionString: required("DATABASE_URL"), max: 1, connectionTimeoutMillis: 10_000 });
+const database = new pg.Pool({ connectionString: operationalDatabaseUrl(required("DATABASE_URL")), max: 1, connectionTimeoutMillis: 10_000 });
 let checkpoint;
 try {
   const result = await database.query(`select
       substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
       (select (value->>'heartbeat_at')::bigint / 1000 from "robinhood_mainnet"._ponder_meta
         where key = 'app' limit 1) as "heartbeatAt"
-    from "robinhood_mainnet"._ponder_checkpoint where chain_id = 4663 limit 1`);
+    from "robinhood_mainnet"._ponder_checkpoint
+    order by latest_checkpoint desc limit 1`);
   checkpoint = result.rows[0];
 } finally {
   await database.end();
