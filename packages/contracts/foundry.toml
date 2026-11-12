@@ -7,8 +7,8 @@ libs = ["lib", "../../node_modules"]
 solc_version = "0.8.26"
 evm_version = "cancun"
 optimizer = true
-optimizer_runs = 200
-via_ir = false
+optimizer_runs = 1
+via_ir = true
 fs_permissions = [{ access = "write", path = "./deployments" }]
 
 remappings = [
@@ -33,3 +33,11 @@ line_length = 120
 runs = 64
 depth = 64
 fail_on_revert = false
+
+# Reproduces the compiler identity used by the deployed Robinhood mainnet v4 contracts.
+# Keep this isolated from the size-focused HyperEVM/default artifacts.
+[profile.robinhood_mainnet]
+optimizer = true
+optimizer_runs = 200
+via_ir = false
+out = "out-robinhood-mainnet"

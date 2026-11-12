@@ -2,9 +2,13 @@
 
 import { createPublicClient, http, zeroAddress } from "viem";
 
-const rpc = process.env.SQUEEZ_RPC_FALLBACK?.trim();
-if (!rpc) throw new Error("SQUEEZ_RPC_FALLBACK is required");
-const range = Number(process.argv[2] || "2000");
+const usePrimary = process.argv.includes("--primary");
+const useIndexer = process.argv.includes("--indexer");
+const rpcVariable = useIndexer ? "INDEXER_RPC" : usePrimary ? "SQUEEZ_RPC" : "SQUEEZ_RPC_FALLBACK";
+const rpc = process.env[rpcVariable]?.trim();
+if (!rpc) throw new Error(`${rpcVariable} is required`);
+const rangeArgument = process.argv.slice(2).find((argument) => /^\d+$/.test(argument));
+const range = Number(rangeArgument || "2000");
 if (!Number.isSafeInteger(range) || range < 1) throw new Error("Range must be a positive integer");
 
 const client = createPublicClient({ transport: http(rpc, { timeout: 30_000 }) });

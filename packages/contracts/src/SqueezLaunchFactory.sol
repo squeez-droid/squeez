@@ -5,18 +5,16 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {ISqueezEvents} from "./interfaces/ISqueezEvents.sol";
 import {ISqueezQuoteRegistry} from "./interfaces/ISqueezQuoteRegistry.sol";
 import {ISqueezFeeVault} from "./interfaces/ISqueezFeeVault.sol";
 import {SqueezConstants} from "./libraries/SqueezConstants.sol";
-import {SqueezCurveMath} from "./libraries/SqueezCurveMath.sol";
 import {LaunchConfig, LaunchParams} from "./libraries/SqueezTypes.sol";
-import {SqueezToken} from "./SqueezToken.sol";
 import {SqueezCurve} from "./SqueezCurve.sol";
+import {SqueezTokenDeployer} from "./SqueezTokenDeployer.sol";
+import {SqueezCurveProxyDeployer} from "./SqueezCurveProxyDeployer.sol";
 import {SqueezProtectionPolicyRegistry} from "./SqueezProtectionPolicyRegistry.sol";
 import {ISqueezIdentityRegistry} from "./interfaces/ISqueezIdentityRegistry.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 /// @notice One launch = one call. Deploys SqueezToken + SqueezCurve, mints 1B to the curve,
 /// takes the launch fee and runs the creator's optional opening buy in the same tx.
@@ -58,6 +56,7 @@ contract SqueezLaunchFactory is
     error InvalidAdapter();
     error InvalidProtectionPolicy();
     error InvalidAttestation();
+    error InvalidLaunchDeployer();
 
     ISqueezQuoteRegistry public quoteRegistry;
     ISqueezFeeVault public feeVault;
@@ -74,18 +73,17 @@ contract SqueezLaunchFactory is
     uint32 public tickerLockSeconds;
     address public attester;
     mapping(address creator => mapping(uint256 nonce => bool used)) public attestationNonceUsed;
+    // Appended for upgrade-safe storage compatibility. Existing proxies must configure both before using this version.
+    SqueezTokenDeployer public tokenDeployer;
+    SqueezCurveProxyDeployer public curveProxyDeployer;
+    mapping(address creator => uint256 nonce) public launchNonce;
 
     event LaunchConfigActivated(uint256 indexed configId, LaunchConfig config);
     event GraduationAdapterSet(address indexed previousAdapter, address indexed newAdapter);
     event ProtectionPolicySet(address indexed registry, uint256 indexed policyId, bytes32 indexed policyHash);
     event IdentityRegistrySet(address indexed registry, uint32 tickerLockSeconds);
     event AttesterSet(address indexed attester);
-
-    bytes32 private constant EIP712_DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    bytes32 private constant ATTESTATION_TYPEHASH = keccak256(
-        "CreatorAttestation(address creator,bytes32 socialHash,bytes32 nameCommitment,bytes32 symbolCommitment,bytes32 metadataHash,bytes32 imageHash,uint256 nonce,uint256 deadline)"
-    );
+    event LaunchDeployersSet(address indexed tokenDeployer, address indexed curveProxyDeployer);
 
     constructor() {
         _disableInitializers();
@@ -157,6 +155,24 @@ contract SqueezLaunchFactory is
         emit AttesterSet(attester_);
     }
 
+    function setLaunchDeployers(SqueezTokenDeployer tokenDeployer_, SqueezCurveProxyDeployer curveProxyDeployer_)
+        external
+    {
+        // Initial installation is permissionless only after both deployers have irreversibly bound themselves to
+        // this factory. Replacing an installed pair remains owner-only.
+        if (
+            (address(tokenDeployer) != address(0) || address(curveProxyDeployer) != address(0)) && msg.sender != owner()
+        ) revert InvalidLaunchDeployer();
+        if (
+            address(tokenDeployer_).code.length == 0 || address(curveProxyDeployer_).code.length == 0
+                || tokenDeployer_.factory() != address(this) || curveProxyDeployer_.factory() != address(this)
+                || curveProxyDeployer_.beacon() != curveBeacon
+        ) revert InvalidLaunchDeployer();
+        tokenDeployer = tokenDeployer_;
+        curveProxyDeployer = curveProxyDeployer_;
+        emit LaunchDeployersSet(address(tokenDeployer_), address(curveProxyDeployer_));
+    }
+
     function quoteOpeningBuy(uint256 hypeIn, uint16 creatorFeeBps)
         external
         view
@@ -164,12 +180,7 @@ contract SqueezLaunchFactory is
     {
         if (creatorFeeBps > SqueezConstants.MAX_CREATOR_FEE_BPS) revert InvalidCreatorFee();
         LaunchConfig memory cfg = launchConfigs[activeConfigId];
-        protocolFee = (hypeIn * SqueezConstants.PROTOCOL_FEE_BPS) / SqueezConstants.BPS;
-        creatorFee = (hypeIn * creatorFeeBps) / SqueezConstants.BPS;
-        uint256 afterBaseFees = hypeIn - protocolFee - creatorFee;
-        sniperTax = (afterBaseFees * cfg.sniperTaxStartBps) / SqueezConstants.BPS;
-        uint256 netHype = afterBaseFees - sniperTax;
-        tokensOut = SqueezCurveMath.quoteBuy(cfg.virtualHypeReserve, cfg.virtualTokenReserve, 0, netHype);
+        return tokenDeployer.quoteOpeningBuy(cfg, hypeIn, creatorFeeBps);
     }
 
     function launch(LaunchParams calldata p) external payable nonReentrant returns (address token, address curve) {
@@ -214,35 +225,24 @@ contract SqueezLaunchFactory is
         (bytes32 nameCommitment,) = identityRegistry.nameCommitment(p.name);
         (bytes32 symbolCommitment,) = identityRegistry.symbolCommitment(p.symbol);
         if (
-            attester == address(0) || block.timestamp > creatorAttestation.deadline
-                || creatorAttestation.creator != msg.sender || creatorAttestation.socialHash == bytes32(0)
-                || evidence.socialHash != creatorAttestation.socialHash
-                || creatorAttestation.nameCommitment != nameCommitment
-                || creatorAttestation.symbolCommitment != symbolCommitment
-                || creatorAttestation.metadataHash != keccak256(bytes(p.metadataURI))
-                || creatorAttestation.imageHash != evidence.imageHash
-                || attestationNonceUsed[msg.sender][creatorAttestation.nonce]
-        ) revert InvalidAttestation();
-        bytes32 structHash = keccak256(
-            abi.encode(
-                ATTESTATION_TYPEHASH,
-                creatorAttestation.creator,
-                creatorAttestation.socialHash,
-                creatorAttestation.nameCommitment,
-                creatorAttestation.symbolCommitment,
-                creatorAttestation.metadataHash,
-                creatorAttestation.imageHash,
-                creatorAttestation.nonce,
-                creatorAttestation.deadline
-            )
-        );
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                EIP712_DOMAIN_TYPEHASH, keccak256("Squeez Launch Factory"), keccak256("1"), block.chainid, address(this)
-            )
-        );
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
-        if (ECDSA.recover(digest, signature) != attester) revert InvalidAttestation();
+            address(tokenDeployer) == address(0) || attestationNonceUsed[msg.sender][creatorAttestation.nonce]
+                || !tokenDeployer.verifyAttestation(
+                    abi.encode(
+                        address(this),
+                        attester,
+                        msg.sender,
+                        evidence.imageHash,
+                        evidence.socialHash,
+                        nameCommitment,
+                        symbolCommitment,
+                        keccak256(bytes(p.metadataURI)),
+                        creatorAttestation
+                    ),
+                    signature
+                )
+        ) {
+            revert InvalidAttestation();
+        }
         attestationNonceUsed[msg.sender][creatorAttestation.nonce] = true;
     }
 
@@ -257,14 +257,15 @@ contract SqueezLaunchFactory is
         if (msg.value < requiredValue) revert InsufficientLaunchFee();
         if (msg.value != requiredValue) revert IncorrectLaunchValue();
 
-        (bytes memory curveInitializer, uint256 policyId, bytes32 policyHash) = _curveInitializer(p, cfg);
-        SqueezCurve c = SqueezCurve(payable(address(new BeaconProxy(curveBeacon, curveInitializer))));
-        SqueezToken t = new SqueezToken(p.name, p.symbol, p.metadataURI, address(c));
-        c.initializeToken(address(t));
-        _registerIdentity(p, evidence, address(t), address(c));
-        feeVault.registerCurve(address(t), address(c));
+        SqueezCurve c;
+        uint256 policyId;
+        bytes32 policyHash;
+        (token, c, policyId, policyHash) = _deployLaunchContracts(p, cfg);
+        c.initializeToken(token);
+        _registerIdentity(p, evidence, token, address(c));
+        feeVault.registerCurve(token, address(c));
 
-        _emitLaunchEvents(p, address(t), address(c), policyId, policyHash);
+        _emitLaunchEvents(p, token, address(c), policyId, policyHash);
 
         (bool sent,) = payable(treasury).call{value: cfg.launchFeeHype}("");
         if (!sent) revert TreasuryTransferFailed();
@@ -272,7 +273,39 @@ contract SqueezLaunchFactory is
         if (p.openingBuyHype > 0) {
             c.buyFor{value: p.openingBuyHype}(msg.sender, p.openingBuyMinTokens, block.timestamp);
         }
-        return (address(t), address(c));
+        return (token, address(c));
+    }
+
+    function _deployLaunchContracts(LaunchParams calldata p, LaunchConfig memory cfg)
+        private
+        returns (address token, SqueezCurve curve, uint256 policyId, bytes32 policyHash)
+    {
+        if (address(tokenDeployer) == address(0) || address(curveProxyDeployer) == address(0)) {
+            revert InvalidLaunchDeployer();
+        }
+        uint256 nonce = launchNonce[msg.sender]++;
+        bytes32 rootSalt = keccak256(abi.encode(block.chainid, address(this), msg.sender, nonce, p.name, p.symbol));
+        (curve, policyId, policyHash) = _deployCurve(rootSalt, p, cfg);
+        token = address(
+            tokenDeployer.deploy(
+                keccak256(abi.encode(rootSalt, "SQUEEZ_TOKEN")), p.name, p.symbol, p.metadataURI, address(curve)
+            )
+        );
+    }
+
+    function _deployCurve(bytes32 rootSalt, LaunchParams calldata p, LaunchConfig memory cfg)
+        private
+        returns (SqueezCurve curve, uint256 policyId, bytes32 policyHash)
+    {
+        bytes memory initializer;
+        bool validPolicy;
+        (initializer, policyId, policyHash, validPolicy) = curveProxyDeployer.curveInitializer(
+            address(this), msg.sender, p, feeVault, cfg, protectionPolicyRegistry, activeProtectionPolicyId
+        );
+        if (!validPolicy) revert InvalidProtectionPolicy();
+        curve = SqueezCurve(
+            payable(curveProxyDeployer.deploy(keccak256(abi.encode(rootSalt, "SQUEEZ_CURVE")), initializer))
+        );
     }
 
     function _registerIdentity(
@@ -321,48 +354,6 @@ contract SqueezLaunchFactory is
         if (policyId != 0) emit ProtectionPolicyPinned(token, curve, policyId, policyHash);
     }
 
-    function _curveInitializer(LaunchParams calldata p, LaunchConfig memory cfg)
-        private
-        view
-        returns (bytes memory initializer, uint256 policyId, bytes32 policyHash)
-    {
-        policyId = activeProtectionPolicyId;
-        if (policyId == 0) {
-            initializer = abi.encodeCall(
-                SqueezCurve.initializeCurve,
-                (address(this), msg.sender, p.quote, p.feeRecipient, feeVault, p.creatorFeeBps, cfg, p.feeDestination)
-            );
-        } else {
-            SqueezProtectionPolicyRegistry.Policy memory policy = protectionPolicyRegistry.getPolicy(policyId);
-            if (
-                !policy.enabled || policy.initialFeeBps != cfg.sniperTaxStartBps
-                    || policy.protectionWindowSeconds != cfg.sniperTaxDecaySeconds
-            ) revert InvalidProtectionPolicy();
-            policyHash = policy.policyHash;
-            SqueezCurve.ProtectionPolicyConfig memory curvePolicy = SqueezCurve.ProtectionPolicyConfig({
-                policyId: policyId,
-                policyHash: policyHash,
-                protectionWindowSeconds: policy.protectionWindowSeconds,
-                maxBuyBpsPerTransaction: policy.maxBuyBpsPerTransaction,
-                maxBuyBpsPerAddress: policy.maxBuyBpsPerAddress
-            });
-            initializer = abi.encodeCall(
-                SqueezCurve.initializeCurveProtected,
-                (
-                    address(this),
-                    msg.sender,
-                    p.quote,
-                    p.feeRecipient,
-                    feeVault,
-                    p.creatorFeeBps,
-                    cfg,
-                    p.feeDestination,
-                    curvePolicy
-                )
-            );
-        }
-    }
-
     function _validateLaunchConfig(LaunchConfig memory cfg) private pure {
         if (
             cfg.graduationThresholdHype == 0 || cfg.virtualHypeReserve == 0 || cfg.virtualTokenReserve == 0
@@ -372,23 +363,13 @@ contract SqueezLaunchFactory is
         ) revert InvalidLaunchConfig();
     }
 
-    function _validateLaunchParams(LaunchParams calldata p) private pure {
-        if (p.feeRecipient == address(0)) revert InvalidLaunchParams();
-        uint256 nameLength = bytes(p.name).length;
-        uint256 symbolLength = bytes(p.symbol).length;
-        uint256 metadataLength = bytes(p.metadataURI).length;
-        if (nameLength == 0 || nameLength > 64) revert InvalidName();
-        if (symbolLength == 0 || symbolLength > 16) revert InvalidSymbol();
-        if (metadataLength <= 7 || metadataLength > 200 || !_hasIpfsPrefix(p.metadataURI)) {
-            revert InvalidMetadataURI();
-        }
-        if (p.creatorFeeBps > SqueezConstants.MAX_CREATOR_FEE_BPS) revert InvalidCreatorFee();
-        if (p.openingBuyHype == 0 && p.openingBuyMinTokens != 0) revert InvalidLaunchParams();
-    }
-
-    function _hasIpfsPrefix(string calldata uri) private pure returns (bool) {
-        bytes calldata value = bytes(uri);
-        return value.length >= 7 && value[0] == "i" && value[1] == "p" && value[2] == "f" && value[3] == "s"
-            && value[4] == ":" && value[5] == "/" && value[6] == "/";
+    function _validateLaunchParams(LaunchParams calldata p) private view {
+        uint8 code = tokenDeployer.validateLaunchParams(p);
+        if (code == 0) return;
+        if (code == 2) revert InvalidName();
+        if (code == 3) revert InvalidSymbol();
+        if (code == 4) revert InvalidMetadataURI();
+        if (code == 5) revert InvalidCreatorFee();
+        revert InvalidLaunchParams();
     }
 }

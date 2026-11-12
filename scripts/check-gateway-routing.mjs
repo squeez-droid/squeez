@@ -5,6 +5,8 @@ const targets = readTargets({
   ELYSIUM_TESTNET_API_URL: "http://elysium-testnet:8080/",
   ELYSIUM_TESTNET_CAPABILITY: "enabled",
   ROBINHOOD_TESTNET_API_URL: "http://robinhood-testnet:8080",
+  HYPEREVM_MAINNET_API_URL: "http://hyperevm-mainnet:8080",
+  HYPEREVM_MAINNET_CAPABILITY: "read-only",
   ROBINHOOD_TESTNET_CAPABILITY: "read-only",
   ROBINHOOD_MAINNET_CAPABILITY: "maintenance",
 });
@@ -12,6 +14,8 @@ assert.equal(targets.find((target) => target.id === "elysium:testnet").upstream,
 assert.equal(resolveUpstream("/v1/elysium/testnet/tokens", targets).kind, "proxy");
 assert.equal(resolveUpstream("/v1/robinhood/testnet/config", targets).target.capability, "read-only");
 assert.equal(resolveUpstream("/v1/robinhood/mainnet/config", targets).status, 503);
+assert.equal(resolveUpstream("/v1/hyperevm/mainnet/config", targets).target.capability, "read-only");
+assert.equal(resolveUpstream("/v1/hyperevm/mainnet/config", targets).target.upstream, "http://hyperevm-mainnet:8080");
 assert.equal(resolveUpstream("/v1/elysium/mainnet/config", targets).status, 404);
 assert.equal(resolveUpstream("/v1/tokens", targets).kind, "unmatched");
 assert.throws(() => readTargets({ ROBINHOOD_MAINNET_CAPABILITY: "enabled" }), /API_URL is required/);

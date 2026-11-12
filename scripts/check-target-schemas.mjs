@@ -6,6 +6,8 @@ const cases = [
   [{ chain: "elysium", stage: "mainnet" }, "mainnet", "mainnet_system"],
   [{ chain: "robinhood", stage: "testnet" }, "robinhood_testnet", "robinhood_testnet_system"],
   [{ chain: "robinhood", stage: "mainnet" }, "robinhood_mainnet", "robinhood_mainnet_system"],
+  [{ chain: "hyperevm", stage: "testnet" }, "hyperevm_testnet", "hyperevm_testnet_system"],
+  [{ chain: "hyperevm", stage: "mainnet" }, "hyperevm_mainnet", "hyperevm_mainnet_system"],
 ];
 for (const [target, dataSchema, logSchema] of cases) {
   assert.equal(deploymentSchema(target), dataSchema);

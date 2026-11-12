@@ -8,6 +8,8 @@ import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
 import {SqueezLaunchFactory} from "../src/SqueezLaunchFactory.sol";
 import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
+import {SqueezTokenDeployer} from "../src/SqueezTokenDeployer.sol";
+import {SqueezCurveProxyDeployer} from "../src/SqueezCurveProxyDeployer.sol";
 import {LaunchConfig} from "../src/libraries/SqueezTypes.sol";
 
 abstract contract ProxyTestBase {
@@ -63,5 +65,10 @@ abstract contract ProxyTestBase {
                     )
                 ))
         );
+        SqueezTokenDeployer tokenDeployer = new SqueezTokenDeployer(address(this));
+        SqueezCurveProxyDeployer curveProxyDeployer = new SqueezCurveProxyDeployer(address(this), curveBeacon);
+        tokenDeployer.bindFactory(address(proxy));
+        curveProxyDeployer.bindFactory(address(proxy));
+        proxy.setLaunchDeployers(tokenDeployer, curveProxyDeployer);
     }
 }

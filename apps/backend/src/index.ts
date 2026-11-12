@@ -494,7 +494,7 @@ const server = createServer(async (req, res) => {
         ...(crossChain ? [{
           type: "cross-chain",
           originalToken: crossChain.token,
-          chain: config.chain === "robinhood" ? "elysium" : "robinhood",
+          chain: "cross-chain",
         }] : []),
       ];
       return json(res, 200, {
@@ -866,9 +866,7 @@ const server = createServer(async (req, res) => {
         chain: {
           id: config.chainId,
           slug: config.chain,
-          name: config.chain === "robinhood"
-            ? (config.network === "mainnet" ? "Robinhood Chain" : "Robinhood Chain Testnet")
-            : (config.network === "mainnet" ? "Elysium" : "Elysium Testnet"),
+          name: config.networkInfo.name,
           explorer: config.explorer,
         },
         contracts: config.contracts,

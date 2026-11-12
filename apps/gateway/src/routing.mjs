@@ -1,6 +1,8 @@
 export const TARGETS = [
   ["elysium", "testnet", 99801, "ELYSIUM_TESTNET"],
   ["elysium", "mainnet", 99901, "ELYSIUM_MAINNET"],
+  ["hyperevm", "testnet", 998, "HYPEREVM_TESTNET"],
+  ["hyperevm", "mainnet", 999, "HYPEREVM_MAINNET"],
   ["robinhood", "testnet", 46630, "ROBINHOOD_TESTNET"],
   ["robinhood", "mainnet", 4663, "ROBINHOOD_MAINNET"],
 ];
@@ -21,7 +23,7 @@ export function readTargets(env) {
 }
 
 export function resolveUpstream(pathname, targets) {
-  const match = pathname.match(/^\/v1\/(elysium|robinhood)\/(testnet|mainnet)(?:\/|$)/);
+  const match = pathname.match(/^\/v1\/(elysium|hyperevm|robinhood)\/(testnet|mainnet)(?:\/|$)/);
   if (!match) return { kind: "unmatched" };
   const target = targets.find((candidate) => candidate.chain === match[1] && candidate.stage === match[2]);
   if (!target || target.capability === "coming-soon") return { kind: "unavailable", status: 404, target };

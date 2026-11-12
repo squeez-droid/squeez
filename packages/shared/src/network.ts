@@ -1,5 +1,5 @@
 /** A deployment target is the product of a chain and a release stage. */
-export const CHAINS = ["elysium", "robinhood"] as const;
+export const CHAINS = ["elysium", "hyperevm", "robinhood"] as const;
 export const STAGES = ["testnet", "mainnet"] as const;
 
 export type SqueezChain = (typeof CHAINS)[number];

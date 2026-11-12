@@ -35,6 +35,16 @@ export const SQUEEZ_NETWORKS: Record<`${SqueezChain}:${Stage}`, SqueezNetworkInf
     chain: "elysium", stage: "mainnet", chainId: 99901, name: "Elysium", shortName: "Elysium",
     nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 }, explorer: "", testnet: false,
   },
+  "hyperevm:testnet": {
+    chain: "hyperevm", stage: "testnet", chainId: 998, name: "HyperEVM Testnet", shortName: "HyperEVM",
+    nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 },
+    explorer: "https://testnet.purrsec.com", testnet: true,
+  },
+  "hyperevm:mainnet": {
+    chain: "hyperevm", stage: "mainnet", chainId: 999, name: "HyperEVM", shortName: "HyperEVM",
+    nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 },
+    explorer: "https://hyperevmscan.io", testnet: false,
+  },
   "robinhood:testnet": {
     chain: "robinhood", stage: "testnet", chainId: 46630, name: "Robinhood Chain Testnet", shortName: "Robinhood",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },

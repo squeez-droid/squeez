@@ -12,7 +12,7 @@ export type TargetRoute =
   | { kind: "unrelated"; pathname: string };
 
 export function resolveTargetRoute(pathname: string, served: ServedTarget): TargetRoute {
-  const match = pathname.match(/^\/v1\/(elysium|robinhood)\/(testnet|mainnet)(\/.*)?$/);
+  const match = pathname.match(/^\/v1\/(elysium|hyperevm|robinhood)\/(testnet|mainnet)(\/.*)?$/);
   if (match) {
     const [, chain, stage, suffix = ""] = match;
     if (chain !== served.chain || stage !== served.stage) {

@@ -32,6 +32,7 @@ export const backendConfig = {
   chain: target.chain,
   network: target.stage,
   target,
+  networkInfo,
   capability: capability as "enabled" | "read-only",
   release: {
     mode: releaseMode as "internal" | "community-canary" | "public-beta",

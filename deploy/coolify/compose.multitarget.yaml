@@ -42,6 +42,18 @@ x-runtime: &runtime
   ROBINHOOD_MAX_WALLET_BPS: ${ROBINHOOD_MAX_WALLET_BPS}
   ROBINHOOD_MAX_WALLET_WINDOW_SECONDS: ${ROBINHOOD_MAX_WALLET_WINDOW_SECONDS}
   ROBINHOOD_LAUNCH_FEE_HYPE: ${ROBINHOOD_LAUNCH_FEE_HYPE}
+  HYPEREVM_CHAIN_ID: ${HYPEREVM_CHAIN_ID:-999}
+  HYPEREVM_RPC: ${HYPEREVM_RPC}
+  HYPEREVM_RPC_FALLBACK: ${HYPEREVM_RPC_FALLBACK}
+  HYPEREVM_EXPLORER: ${HYPEREVM_EXPLORER:-https://hyperevmscan.io}
+  HYPEREVM_DATABASE_SCHEMA: ${HYPEREVM_DATABASE_SCHEMA:-hyperevm_mainnet}
+  HYPEREVM_GRADUATION_THRESHOLD_HYPE: ${HYPEREVM_GRADUATION_THRESHOLD_HYPE}
+  HYPEREVM_SNIPER_TAX_START_BPS: ${HYPEREVM_SNIPER_TAX_START_BPS}
+  HYPEREVM_SNIPER_TAX_DECAY_SECONDS: ${HYPEREVM_SNIPER_TAX_DECAY_SECONDS}
+  HYPEREVM_MAX_BUY_BPS_PER_TRANSACTION: ${HYPEREVM_MAX_BUY_BPS_PER_TRANSACTION}
+  HYPEREVM_MAX_WALLET_BPS: ${HYPEREVM_MAX_WALLET_BPS}
+  HYPEREVM_MAX_WALLET_WINDOW_SECONDS: ${HYPEREVM_MAX_WALLET_WINDOW_SECONDS}
+  HYPEREVM_LAUNCH_FEE_HYPE: ${HYPEREVM_LAUNCH_FEE_HYPE}
 
 x-service: &service
   build: *service-build
@@ -64,6 +76,9 @@ services:
       ROBINHOOD_TESTNET_CAPABILITY: ${ROBINHOOD_TESTNET_CAPABILITY:-enabled}
       ROBINHOOD_MAINNET_API_URL: http://api-robinhood-mainnet:8080
       ROBINHOOD_MAINNET_CAPABILITY: ${ROBINHOOD_MAINNET_CAPABILITY:-read-only}
+      HYPEREVM_MAINNET_API_URL: http://api-hyperevm-mainnet:8080
+      HYPEREVM_MAINNET_CAPABILITY: ${HYPEREVM_MAINNET_CAPABILITY:-read-only}
+      HYPEREVM_TESTNET_CAPABILITY: coming-soon
       ELYSIUM_MAINNET_CAPABILITY: coming-soon
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
@@ -73,6 +88,8 @@ services:
       api-robinhood-testnet:
         condition: service_healthy
       api-robinhood-mainnet:
+        condition: service_healthy
+      api-hyperevm-mainnet:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health/ready"]
@@ -172,4 +189,37 @@ services:
       INDEXER_LOG_BLOCK_RANGE: ${INDEXER_LOG_BLOCK_RANGE:-10}
     depends_on:
       api-robinhood-mainnet:
+        condition: service_started
+
+  api-hyperevm-mainnet:
+    <<: *service
+    environment:
+      <<: *runtime
+      SQUEEZ_SERVICE: api
+      SQUEEZ_CHAIN: hyperevm
+      SQUEEZ_NETWORK: mainnet
+      SQUEEZ_API_CAPABILITY: read-only
+      DATABASE_SCHEMA: hyperevm_mainnet
+      CROSS_CHAIN_DATABASE_SCHEMA: robinhood_mainnet
+      PORT: 8080
+    expose: ["8080"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/v1/hyperevm/mainnet/ready"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
+
+  indexer-hyperevm-mainnet:
+    <<: *service
+    environment:
+      <<: *runtime
+      SQUEEZ_SERVICE: indexer
+      SQUEEZ_CHAIN: hyperevm
+      SQUEEZ_NETWORK: mainnet
+      DATABASE_SCHEMA: hyperevm_mainnet
+      INDEXER_MAX_REQUESTS_PER_SECOND: ${HYPEREVM_INDEXER_MAX_REQUESTS_PER_SECOND:-2}
+      INDEXER_LOG_BLOCK_RANGE: ${HYPEREVM_INDEXER_LOG_BLOCK_RANGE:-10}
+    depends_on:
+      api-hyperevm-mainnet:
         condition: service_started

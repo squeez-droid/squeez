@@ -9,7 +9,9 @@ import contentJson from "@data/content.json";
 import landingJson from "@data/landing.json";
 import type { Candle, CreatorFeeEvent, Holder, QuotePair, Token, Trade } from "./types";
 
-const fallbackChain = process.env.NEXT_PUBLIC_SQUEEZ_CHAIN === "robinhood" ? "Robinhood Chain" : "Elysium";
+const fallbackChain = process.env.NEXT_PUBLIC_SQUEEZ_CHAIN === "robinhood"
+  ? "Robinhood Chain"
+  : process.env.NEXT_PUBLIC_SQUEEZ_CHAIN === "hyperevm" ? "HyperEVM" : "Elysium";
 const fallbackStage = process.env.NEXT_PUBLIC_SQUEEZ_NETWORK === "mainnet" ? "" : " Testnet";
 
 /** Static copy only. Market, wallet, protocol-state, and token data must never be added here. */

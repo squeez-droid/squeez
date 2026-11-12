@@ -29,11 +29,11 @@ const sharedKeys = [
   "WRAPPED_NATIVE_ADDRESS", "GRADUATION_THRESHOLD_HYPE", "VIRTUAL_HYPE_RESERVE", "VIRTUAL_TOKEN_RESERVE",
   "SNIPER_TAX_START_BPS", "SNIPER_TAX_DECAY_SECONDS", "MAX_BUY_BPS_PER_TRANSACTION", "MAX_WALLET_BPS",
   "MAX_WALLET_WINDOW_SECONDS", "LAUNCH_FEE_HYPE", "TICKER_LOCK_SECONDS", "INDEXER_MAX_REQUESTS_PER_SECOND",
-  "INDEXER_LOG_BLOCK_RANGE", "ALLOWED_ORIGINS",
+  "INDEXER_LOG_BLOCK_RANGE", "INDEXER_START_BLOCK", "INDEXER_RPC", "ALLOWED_ORIGINS",
   "SQUEEZ_RELEASE_MODE", "SQUEEZ_COMMUNITY_TESTING_ENABLED", "SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI",
   "SQUEEZ_RISK_ACK_VERSION",
 ];
-const secretKeys = new Set(["SQUEEZ_RPC", "SQUEEZ_RPC_FALLBACK", "DATABASE_URL"]);
+const secretKeys = new Set(["SQUEEZ_RPC", "SQUEEZ_RPC_FALLBACK", "INDEXER_RPC", "DATABASE_URL"]);
 const dataFor = (service) => [
   ...sharedKeys.flatMap((key) => process.env[key] ? [{
     key, value: process.env[key], is_preview: false, is_literal: true, is_multiline: false,
@@ -41,6 +41,10 @@ const dataFor = (service) => [
   }] : []),
   { key: "SQUEEZ_SERVICE", value: service, is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   { key: "PORT", value: "3000", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
+  ...(service === "indexer" && process.env.PONDER_EXPERIMENTAL_DB ? [{
+    key: "PONDER_EXPERIMENTAL_DB", value: process.env.PONDER_EXPERIMENTAL_DB,
+    is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false,
+  }] : []),
   { key: "VIRTUAL_HYPE_RESERVE", value: (BigInt(process.env.GRADUATION_THRESHOLD_HYPE) * 2n / 5n).toString(), is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   { key: "X_OAUTH_ENABLED", value: "false", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   ...(service === "api" ? [{ key: "SQUEEZ_API_CAPABILITY", value: "read-only", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false }] : []),

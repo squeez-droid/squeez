@@ -3,13 +3,13 @@ import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadDeploymentEnv } from "../tools/deployment-address-book.mjs";
 
-const supportedChains = ['elysium', 'robinhood'];
+const supportedChains = ['elysium', 'hyperevm', 'robinhood'];
 const firstArgument = process.argv[2];
 const explicitChain = supportedChains.includes(firstArgument);
 const chain = explicitChain ? firstArgument : (process.env.SQUEEZ_CHAIN ?? 'elysium');
 const network = explicitChain ? process.argv[3] : (firstArgument ?? process.env.SQUEEZ_NETWORK);
 if (!supportedChains.includes(chain) || !['testnet', 'mainnet'].includes(network)) {
-  throw new Error("Usage: build-deployment-manifest.mjs [elysium|robinhood] <testnet|mainnet>");
+  throw new Error("Usage: build-deployment-manifest.mjs [elysium|hyperevm|robinhood] <testnet|mainnet>");
 }
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const chainId = String(process.env.SQUEEZ_CHAIN_ID ?? "");

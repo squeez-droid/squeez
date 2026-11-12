@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { createPublicClient, getAddress, http } from "viem";
 
 const required = (name) => {
@@ -12,6 +13,11 @@ if (required("SQUEEZ_CHAIN") !== "robinhood" || required("SQUEEZ_NETWORK") !== "
 }
 const expectedChainId = Number(required("SQUEEZ_CHAIN_ID"));
 if (expectedChainId !== 4663) throw new Error("unexpected Robinhood mainnet chain ID");
+
+execFileSync("forge", ["build", "--root", "packages/contracts", "--profile", "robinhood_mainnet"], {
+  stdio: "inherit",
+});
+const artifactRoot = "packages/contracts/out-robinhood-mainnet";
 
 const contracts = [
   { name: "SqueezHook", address: required("SQUEEZ_HOOK_ADDRESS"), artifact: "SqueezHook.sol/SqueezHook.json" },
@@ -42,7 +48,7 @@ if (await client.getChainId() !== expectedChainId) throw new Error("RPC chain ID
 const results = [];
 let compiler;
 for (const contract of contracts) {
-  const artifact = JSON.parse(readFileSync(resolve("packages/contracts/out", contract.artifact), "utf8"));
+  const artifact = JSON.parse(readFileSync(resolve(artifactRoot, contract.artifact), "utf8"));
   const artifactCompiler = {
     version: artifact.metadata?.compiler?.version,
     optimizerEnabled: artifact.metadata?.settings?.optimizer?.enabled,

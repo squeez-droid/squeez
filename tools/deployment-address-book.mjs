@@ -2,6 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 export const FIELD_TO_ENV = {
+  chainConfigStartBlock: "CHAIN_CONFIG_START_BLOCK",
+  chainConfig: "CHAIN_CONFIG_ADDRESS",
+  chainConfigImplementation: "CHAIN_CONFIG_IMPLEMENTATION_ADDRESS",
   startBlock: "FACTORY_START_BLOCK",
   factory: "FACTORY_ADDRESS",
   factoryImplementation: "FACTORY_IMPLEMENTATION_ADDRESS",
@@ -11,6 +14,8 @@ export const FIELD_TO_ENV = {
   protectionPolicyRegistryImplementation: "PROTECTION_POLICY_REGISTRY_IMPLEMENTATION_ADDRESS",
   identityRegistry: "IDENTITY_REGISTRY_ADDRESS",
   identityRegistryImplementation: "IDENTITY_REGISTRY_IMPLEMENTATION_ADDRESS",
+  tokenDeployer: "TOKEN_DEPLOYER_ADDRESS",
+  curveProxyDeployer: "CURVE_PROXY_DEPLOYER_ADDRESS",
   feeVault: "FEE_VAULT_ADDRESS",
   feeVaultImplementation: "FEE_VAULT_IMPLEMENTATION_ADDRESS",
   curveBeacon: "CURVE_BEACON_ADDRESS",
@@ -45,7 +50,7 @@ export const FIELD_TO_ENV = {
 export function loadDeploymentEnv(repositoryRoot, network, chain = "elysium") {
   const directory = resolve(repositoryRoot, "packages/contracts/deployments");
   const targetDirectory = resolve(directory, chain);
-  const suffixes = ["", "-core-upgrade", "-curve-upgrade", "-v4-stack", "-graduation",
+  const suffixes = ["", "-chain-config", "-core-upgrade", "-curve-upgrade", "-v4-stack", "-graduation",
     "-graduation-infra", "-hook", "-hook-config", "-swap-router", "-launch-config", "-protected-launch", "-attester"];
   const nestedPaths = suffixes.map((suffix) => resolve(targetDirectory, `${network}${suffix}.json`));
   // Preserve the deployed Elysium address book until its files are mechanically moved and verified.

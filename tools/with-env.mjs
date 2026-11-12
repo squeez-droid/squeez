@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs a command with the env file of one network loaded.
 //
-//   node ../../tools/with-env.mjs [elysium|robinhood] <testnet|mainnet> <command> [args...]
+//   node ../../tools/with-env.mjs [elysium|hyperevm|robinhood] <testnet|mainnet> <command> [args...]
 //
 // Reads `.env.<network>` from the current working directory (the workspace that calls it).
 // Variables already set in the shell win, so CI and secret managers can override the file.
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { FIELD_TO_ENV, loadDeploymentEnv } from "./deployment-address-book.mjs";
 
 const NETWORKS = ["testnet", "mainnet"];
-const CHAINS = ["elysium", "robinhood"];
+const CHAINS = ["elysium", "hyperevm", "robinhood"];
 
 function fail(message) {
   console.error(`with-env: ${message}`);
@@ -82,8 +82,8 @@ if (chain !== "elysium") {
   // The original root env used unprefixed contract fields for Elysium. Never let those values leak into another
   // chain; Robinhood receives addresses only from its own address book or an explicit runtime override.
   for (const key of legacyDeploymentKeys) delete fileEnv[key];
-  const reuseElysiumWallets = (runtimeEnv.ROBINHOOD_REUSE_ELYSIUM_WALLETS
-    ?? fileEnv.ROBINHOOD_REUSE_ELYSIUM_WALLETS) === "true";
+  const reuseKey = `${chain.toUpperCase()}_REUSE_ELYSIUM_WALLETS`;
+  const reuseElysiumWallets = (runtimeEnv[reuseKey] ?? fileEnv[reuseKey]) === "true";
   if (!reuseElysiumWallets) for (const key of walletKeys) delete fileEnv[key];
 }
 const chainPrefix = chain.toUpperCase();
@@ -95,6 +95,8 @@ for (const key of [
   "MAX_BUY_BPS_PER_TRANSACTION", "MAX_WALLET_BPS", "MAX_WALLET_WINDOW_SECONDS",
   "SNIPER_TAX_START_BPS", "SNIPER_TAX_DECAY_SECONDS", "TICKER_LOCK_SECONDS",
   "LAUNCH_FEE_HYPE", "GRADUATION_THRESHOLD_HYPE",
+  "USDC_ADDRESS", "UNIT_ASSET_ADDRESS", "ONDO_ASSET_ADDRESS",
+  "QUOTE_ORACLE_ADDRESS", "QUOTE_ORACLE_MAX_AGE_SECONDS",
   "GOVERNANCE_TIMELOCK_DELAY_SECONDS", "GOVERNANCE_TIMELOCK_ADDRESS",
   "GOVERNANCE_SAFE_ADDRESS",
 ]) {
@@ -112,6 +114,7 @@ const selectedChainEnv = {
     ?? chainSource.INDEXER_MAX_REQUESTS_PER_SECOND,
   INDEXER_LOG_BLOCK_RANGE: chainSource[`${chainPrefix}_INDEXER_LOG_BLOCK_RANGE`]
     ?? chainSource.INDEXER_LOG_BLOCK_RANGE,
+  INDEXER_RPC: chainSource[`${chainPrefix}_INDEXER_RPC`] ?? chainSource.INDEXER_RPC,
   DATABASE_SCHEMA: chainSource[`${chainPrefix}_DATABASE_SCHEMA`] ?? chainSource.DATABASE_SCHEMA,
   CROSS_CHAIN_DATABASE_SCHEMA: chain === "robinhood"
     ? (chainSource.ELYSIUM_DATABASE_SCHEMA ?? chainSource.DATABASE_SCHEMA)
@@ -123,10 +126,16 @@ const env = {
   ...prefixedOverrides,
   ...deploymentEnv,
   ...runtimeEnv,
+  // Chain-qualified values are the final authority for routing/provider settings. This prevents a legacy
+  // unprefixed secret (for example Coolify's INDEXER_RPC) from silently routing Robinhood to another provider.
+  ...selectedChainEnv,
+  ...prefixedOverrides,
   SQUEEZ_CHAIN: chain,
   SQUEEZ_NETWORK: network,
 };
 // The browser receives only the public API URL and network selector. Public contract routing data is fetched from
 // `/v1/config`, keeping every network value behind the same backend boundary as RPC access.
-const child = spawn(command.join(" "), { env, shell: true, stdio: "inherit" });
+// Preserve argv boundaries. Joining into a shell string loses quoting, makes ordinary `node -e` commands fail,
+// and lets values intended as arguments be interpreted as shell syntax.
+const child = spawn(command[0], command.slice(1), { env, shell: false, stdio: "inherit" });
 child.on("exit", (code, signal) => process.exit(signal ? 1 : (code ?? 0)));

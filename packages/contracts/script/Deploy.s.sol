@@ -8,6 +8,9 @@ import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
 import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
 import {SqueezIdentityRegistry} from "../src/SqueezIdentityRegistry.sol";
+import {SqueezTokenDeployer} from "../src/SqueezTokenDeployer.sol";
+import {SqueezCurveProxyDeployer} from "../src/SqueezCurveProxyDeployer.sol";
+import {SqueezChainConfig} from "../src/SqueezChainConfig.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {UpgradeableBeacon} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import {LaunchConfig} from "../src/libraries/SqueezTypes.sol";
@@ -29,6 +32,10 @@ contract Deploy is Script {
         address protectionPolicyRegistryImplementation;
         address identityRegistry;
         address identityRegistryImplementation;
+        address tokenDeployer;
+        address curveProxyDeployer;
+        address chainConfig;
+        address chainConfigImplementation;
     }
 
     function run() external {
@@ -37,6 +44,7 @@ contract Deploy is Script {
         LaunchConfig memory launchConfig = _launchConfig();
 
         uint256 deployerKey = vm.envOr("DEPLOYER_PRIVATE_KEY", uint256(0));
+        address deployer = deployerKey == 0 ? vm.envAddress("DEPLOYER_ADDRESS") : vm.addr(deployerKey);
         if (deployerKey == 0) vm.startBroadcast();
         else vm.startBroadcast(deployerKey);
 
@@ -51,6 +59,15 @@ contract Deploy is Script {
         (deployment.factory, deployment.factoryImplementation) = _deployFactory(
             admin, treasury, deployment.registry, deployment.feeVault, deployment.curveBeacon, launchConfig
         );
+        deployment.tokenDeployer = address(new SqueezTokenDeployer(deployer));
+        deployment.curveProxyDeployer = address(new SqueezCurveProxyDeployer(deployer, deployment.curveBeacon));
+        SqueezTokenDeployer(deployment.tokenDeployer).bindFactory(deployment.factory);
+        SqueezCurveProxyDeployer(deployment.curveProxyDeployer).bindFactory(deployment.factory);
+        SqueezLaunchFactory(payable(deployment.factory))
+            .setLaunchDeployers(
+                SqueezTokenDeployer(deployment.tokenDeployer), SqueezCurveProxyDeployer(deployment.curveProxyDeployer)
+            );
+        (deployment.chainConfig, deployment.chainConfigImplementation) = _deployChainConfig(admin);
         vm.stopBroadcast();
 
         string memory object = "deployment";
@@ -73,6 +90,11 @@ contract Deploy is Script {
         );
         vm.serializeAddress(object, "identityRegistry", deployment.identityRegistry);
         vm.serializeAddress(object, "identityRegistryImplementation", deployment.identityRegistryImplementation);
+        vm.serializeAddress(object, "tokenDeployer", deployment.tokenDeployer);
+        vm.serializeAddress(object, "curveProxyDeployer", deployment.curveProxyDeployer);
+        vm.serializeUint(object, "chainConfigStartBlock", deploymentBlock);
+        vm.serializeAddress(object, "chainConfigImplementation", deployment.chainConfigImplementation);
+        vm.serializeAddress(object, "chainConfig", deployment.chainConfig);
         string memory json = vm.serializeAddress(object, "factory", deployment.factory);
         if (!vm.envOr("DEPLOYMENT_DRY_RUN", false)) {
             string memory directory = string.concat(vm.projectRoot(), "/deployments/", chain);
@@ -106,6 +128,11 @@ contract Deploy is Script {
     function _deployCurveBeacon(address admin) private returns (address beacon, address implementation) {
         implementation = address(new SqueezCurve());
         beacon = address(new UpgradeableBeacon(implementation, admin));
+    }
+
+    function _deployChainConfig(address admin) private returns (address proxy, address implementation) {
+        implementation = address(new SqueezChainConfig());
+        proxy = address(new ERC1967Proxy(implementation, abi.encodeCall(SqueezChainConfig.initialize, (admin))));
     }
 
     function _deployFactory(
