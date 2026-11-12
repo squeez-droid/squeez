@@ -3,6 +3,7 @@ import { content, landing as L } from "@/lib/data";
 import { pad } from "@/lib/format";
 import { BrandLogo } from "@/components/brand-logo";
 import { IconArrowRight } from "@/components/icons";
+import { XLink } from "@/components/x-link";
 
 /** Symmetric technical masthead with the brand held at its visual center. */
 export function LandingHeader() {
@@ -21,6 +22,7 @@ export function LandingHeader() {
           <span className="font-display text-[14px] font-bold uppercase tracking-[-0.02em]">{content.brand.name}</span>
         </Link>
         <div className="flex items-center justify-end gap-5">
+          <XLink label={false} className="text-muted" />
           <nav className="hidden items-center gap-5 lg:flex" aria-label="Secondary landing navigation">
             {L.nav.slice(2, 4).map((n, i) => (
               <a key={n.href} href={n.href} className="num text-[11px] uppercase tracking-[0.12em] text-muted hover:text-white">

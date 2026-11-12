@@ -25,6 +25,6 @@ export function useCommunityCanary() {
   };
 
   const open = !isMainnet || Boolean(release?.communityTestingEnabled && release.mode !== "internal");
-  const actionAllowed = open && (!isMainnet || acknowledged);
+  const actionAllowed = open;
   return { isMainnet, release, open, acknowledged, actionAllowed, accept };
 }

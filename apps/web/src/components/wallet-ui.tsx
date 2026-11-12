@@ -123,7 +123,6 @@ export function WalletGateButton({ children, onClick, disabled, className, varia
   const canary = useCommunityCanary();
   if (protocol.data?.capability === "read-only") return <Button size={size} className={className} variant="secondary" disabled>Read only</Button>;
   if (canary.isMainnet && !canary.open) return <Button size={size} className={className} variant="secondary" disabled>Canary not open</Button>;
-  if (canary.isMainnet && !canary.acknowledged) return <Button size={size} className={className} variant="secondary" disabled>Acknowledge risk above</Button>;
   if (dataSource.data?.writeSafe === false) {
     return <Button size={size} className={className} variant="secondary" disabled>Writes paused</Button>;
   }

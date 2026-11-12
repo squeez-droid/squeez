@@ -3,6 +3,7 @@ import { THRESHOLD } from "@/lib/curve";
 import { ChainClock } from "../landing-bits";
 import { DitherCurve } from "../motion";
 import { Container, CtaLink, labelCls, normalWidth } from "../primitives";
+import { ContractAddressBadge } from "@/components/contract-address-badge";
 
 /** Monumental launch terminal: protocol metadata, live curve and a direct path into the app. */
 export function HeroSection() {
@@ -21,7 +22,8 @@ export function HeroSection() {
           <div className="hero-dither" aria-hidden><DitherCurve cell={3} /></div>
           <div className="hero-grid-noise" aria-hidden />
           <div className="hero-copy">
-            <span className="num text-[11px] uppercase tracking-[0.14em] text-muted">● [ LIVE ] · TESTNET RELEASE</span>
+            <span className="num text-[11px] uppercase tracking-[0.14em] text-muted">● [ LIVE ] · MULTICHAIN RELEASE</span>
+            <ContractAddressBadge />
             <h1 className="mt-5 font-display text-[clamp(3.2rem,7.4vw,7.5rem)] font-semibold uppercase leading-[0.82] tracking-[-0.055em] text-white" style={normalWidth}>
               Fair launches.<br />Locked liquidity.
             </h1>

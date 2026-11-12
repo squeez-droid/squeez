@@ -3,10 +3,13 @@ import { content, landing as L } from "@/lib/data";
 import { BrandLogo } from "@/components/brand-logo";
 import { IconArrowUpRight } from "@/components/icons";
 import { NegativeToggle } from "../motion";
+import { XLink } from "@/components/x-link";
+import { FooterReaction } from "@/components/footer-reaction";
 
 export function LandingFooter() {
   return (
     <footer className="border-t border-line">
+      <FooterReaction />
       <div className="mx-auto grid max-w-[90rem] gap-8 px-4 py-10 text-xs text-muted md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end md:px-8">
         <div>
           <Link href="/" className="flex items-center gap-2 text-white">
@@ -16,6 +19,7 @@ export function LandingFooter() {
           <p className="mt-3 max-w-md">{content.footer.disclaimer}</p>
         </div>
         <ul className="flex flex-wrap gap-x-5 gap-y-2">
+          <li><XLink className="ulink" /></li>
           {content.footer.links.map((l) => (
             <li key={l.href}>
               <a href={l.href} target="_blank" rel="noreferrer" className="ulink inline-flex items-center gap-1 hover:text-white">

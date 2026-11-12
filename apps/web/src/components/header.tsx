@@ -10,6 +10,8 @@ import { BrandLogo } from "./brand-logo";
 import { IconArrowUpRight, IconClose, IconMenu, IconSearch } from "./icons";
 import { NetworkSelector } from "./network-selector";
 import { useSelectedTarget } from "@/lib/use-selected-target";
+import { XLink } from "./x-link";
+import { FooterReaction } from "./footer-reaction";
 
 export function Header() {
   const path = usePathname();
@@ -54,6 +56,7 @@ export function Header() {
           )}
         </div>
         <div className="ml-auto flex items-center gap-2 sm:ml-0">
+          <XLink label={false} className="hidden h-10 w-10 items-center justify-center border border-line text-muted sm:inline-flex" />
           <NetworkSelector />
           <WalletButton />
         </div>
@@ -81,6 +84,7 @@ export function Footer() {
       ];
   return (
     <footer className="mt-16 border-t border-line">
+      <FooterReaction />
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <BrandLogo size={40} className="shrink-0" />
@@ -90,6 +94,7 @@ export function Footer() {
           </div>
         </div>
         <div className="flex flex-wrap gap-4">
+          <XLink className="text-muted" />
           {links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white">{l.label}<IconArrowUpRight width={12} height={12} /></a>)}
         </div>
       </div>

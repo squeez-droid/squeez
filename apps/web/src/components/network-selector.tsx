@@ -4,6 +4,7 @@ import { SQUEEZ_NETWORKS, type SqueezNetworkInfo } from "@squeez/shared";
 import clsx from "clsx";
 import { useDeploymentRegistry, type DeploymentCapability } from "@/lib/deployments";
 import { useSelectedTarget } from "@/lib/use-selected-target";
+import { useProtocolConfig } from "@/lib/protocol-config";
 
 const options = Object.values(SQUEEZ_NETWORKS) as SqueezNetworkInfo[];
 
@@ -15,6 +16,7 @@ export function NetworkSelector() {
   const selected = useSelectedTarget();
   const activeId = selected.id;
   const registry = useDeploymentRegistry();
+  const protocol = useProtocolConfig();
   const capabilities = new Map(registry.data?.map((target) => [`${target.chain}:${target.stage}`, target.capability]));
   const label = (capability: DeploymentCapability, active: boolean) => capability === "enabled"
     ? (active ? "Active" : "Available")
@@ -40,7 +42,9 @@ export function NetworkSelector() {
           {options.map((option) => {
             const id = `${option.chain}:${option.stage}`;
             const active = id === activeId;
-            const capability = capabilities.get(id) ?? (active ? "enabled" : "coming-soon");
+            const capability = active && protocol.data?.capability
+              ? protocol.data.capability
+              : capabilities.get(id) ?? (active ? "enabled" : "coming-soon");
             const available = capability === "enabled" || capability === "read-only";
             return (
               <button
