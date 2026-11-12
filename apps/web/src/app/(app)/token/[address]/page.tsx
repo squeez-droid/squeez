@@ -26,7 +26,6 @@ import { IdentityBadges } from "@/components/identity-badges";
 import { PriceChart, type Timeframe } from "@/components/price-chart";
 import { getProtocolConfig, type RuntimeProtocolConfig } from "@/lib/protocol-config";
 import type { Candle } from "@/lib/types";
-import { apiUrl } from "@/lib/chain";
 import { useSelectedTarget } from "@/lib/use-selected-target";
 import { useRewards } from "@/components/rewards/use-rewards";
 import { IconTelegram, IconWebsite, IconX } from "@/components/icons";
@@ -35,6 +34,20 @@ function TokenImage({ src }: { src: string }) {
   // Images are immutable, API-proxied IPFS assets; preserving their source size avoids a second image service.
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt="" className="h-16 w-16 rounded-lg border border-line object-cover" />;
+}
+
+function socialLabel(kind: "website" | "x" | "telegram", value: string): string {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.replace(/^www\./i, "");
+    const path = url.pathname.replace(/^\/+|\/+$/g, "");
+    if (kind === "website") return hostname;
+    const username = path.split("/").filter(Boolean).at(-1);
+    if (username) return `@${username.replace(/^@/, "")}`;
+    return hostname;
+  } catch {
+    return kind === "website" ? value : `@${value.replace(/^@/, "")}`;
+  }
 }
 
 export default function TokenPage({ params }: { params: Promise<{ address: string }> }) {
@@ -118,7 +131,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
       <div className="mt-4"><DataSourceState status={sourceStatus} /></div>
       <div className="mt-4 flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-4">
-          {metadata?.imagePath && <TokenImage src={`${apiUrl}${metadata.imagePath}`} />}
+          {metadata?.imagePath && <TokenImage src={`${selected.targetApiUrl}${metadata.imagePath}`} />}
           <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-3xl font-bold uppercase text-white">{token.name ?? "Metadata pending"}</h1>
@@ -129,9 +142,9 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
           <p className="num mt-2 text-xs text-muted">{token.address}</p>
           {metadata?.description && <p className="mt-3 max-w-2xl text-sm text-muted">{metadata.description}</p>}
           {metadata?.links && <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {metadata.links.website && <a href={metadata.links.website} target="_blank" rel="noreferrer" aria-label="Open token website" className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconWebsite width={14} height={14} /><span>Website</span></a>}
-            {metadata.links.x && <a href={metadata.links.x} target="_blank" rel="noreferrer" aria-label="Open token X account" className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconX width={13} height={13} /><span>X</span></a>}
-            {metadata.links.telegram && <a href={metadata.links.telegram} target="_blank" rel="noreferrer" aria-label="Open token Telegram" className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconTelegram width={14} height={14} /><span>Telegram</span></a>}
+            {metadata.links.website && <a href={metadata.links.website} target="_blank" rel="noreferrer" aria-label={`Open ${socialLabel("website", metadata.links.website)}`} className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconWebsite width={14} height={14} /><span>{socialLabel("website", metadata.links.website)}</span></a>}
+            {metadata.links.x && <a href={metadata.links.x} target="_blank" rel="noreferrer" aria-label={`Open X account ${socialLabel("x", metadata.links.x)}`} className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconX width={13} height={13} /><span>{socialLabel("x", metadata.links.x)}</span></a>}
+            {metadata.links.telegram && <a href={metadata.links.telegram} target="_blank" rel="noreferrer" aria-label={`Open Telegram ${socialLabel("telegram", metadata.links.telegram)}`} className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconTelegram width={14} height={14} /><span>{socialLabel("telegram", metadata.links.telegram)}</span></a>}
           </div>}
           </div>
         </div>

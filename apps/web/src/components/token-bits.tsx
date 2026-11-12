@@ -2,7 +2,6 @@
 
 import clsx from "clsx";
 import { useEffect, useState } from "react";
-import { apiUrl } from "@/lib/chain";
 import { getQuote } from "@/lib/data";
 import { getIndexedMetadata, type IndexedToken } from "@/lib/indexer";
 import type { Token } from "@/lib/types";
@@ -14,7 +13,7 @@ function indexedImage(address: string, targetApiUrl: string) {
   let request = indexedImageCache.get(key);
   if (!request) {
     request = getIndexedMetadata(address, undefined, targetApiUrl)
-      .then((metadata) => metadata?.imagePath ? `${apiUrl}${metadata.imagePath}` : null)
+      .then((metadata) => metadata?.imagePath ? `${targetApiUrl}${metadata.imagePath}` : null)
       .catch(() => null);
     indexedImageCache.set(key, request);
   }

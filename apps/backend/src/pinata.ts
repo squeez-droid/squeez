@@ -57,7 +57,7 @@ export async function pinLaunchMetadata(input: {
     decimals: 18,
     description: input.description,
     image: imageUri,
-    icons: [imageUri],
+    icons: [{ uri: imageUri, type: input.imageMime, purpose: "token-icon" }],
     imageHash,
     perceptualHash,
     links: {

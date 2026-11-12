@@ -86,7 +86,7 @@ export interface IndexedStats {
 }
 
 export interface IndexedMetadata {
-  schema: "squeez.token.v1" | null;
+  schema: "squeez.token.v1" | "squeez.token.v2" | null;
   description: string;
   links: { website?: string | null; x?: string | null; telegram?: string | null };
   imagePath: string | null;

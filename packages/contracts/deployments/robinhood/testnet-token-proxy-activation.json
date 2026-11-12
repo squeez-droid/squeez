@@ -1,0 +1,8 @@
+{
+  "chain": "robinhood",
+  "chainId": 46630,
+  "curveProxyDeployer": "0x4D6Fb900a5127e104af737518DC3971b90210352",
+  "factoryImplementation": "0x305e6c379306378661D1ABd0731CCdC633431A02",
+  "network": "testnet",
+  "tokenDeployer": "0x6985386b6C09F203ddF0AB9Bd1719B6970e46ee9"
+}

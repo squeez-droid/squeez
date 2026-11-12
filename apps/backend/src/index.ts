@@ -67,6 +67,24 @@ const quoteRegistryAbi = [{
     { name: "routerPath", type: "bytes" }, { name: "active", type: "bool" },
   ] }],
 }] as const;
+const tokenMetadataAbi = [
+  { type: "function", name: "tokenURI", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "metadataURI", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+] as const;
+
+async function onchainMetadataUri(token: Address): Promise<string | null> {
+  for (const functionName of ["tokenURI", "metadataURI"] as const) {
+    try {
+      const data = encodeFunctionData({ abi: tokenMetadataAbi, functionName });
+      const result = await rpc("eth_call", [{ to: token, data }, "latest"]);
+      const uri = decodeFunctionResult({ abi: tokenMetadataAbi, functionName, data: result as Hex });
+      if (typeof uri === "string" && /^ipfs:\/\/[a-zA-Z0-9]+$/.test(uri)) return uri;
+    } catch {
+      // Legacy tokens may expose only metadataURI; try the next ERC-1046-compatible selector.
+    }
+  }
+  return null;
+}
 
 function uploadMessage(address: string, nonce: string, expiresAt: number): string {
   return `Squeez metadata upload\nWallet: ${address}\nNonce: ${nonce}\nExpires: ${expiresAt}`;
@@ -952,7 +970,10 @@ const server = createServer(async (req, res) => {
         `select metadata_uri as "metadataUri" from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`,
         [metadataMatch[1]],
       );
-      const uri = record.rows[0]?.metadataUri as string | undefined;
+      const indexedUri = record.rows[0]?.metadataUri as string | undefined;
+      const uri = /^ipfs:\/\/[a-zA-Z0-9]+$/.test(indexedUri ?? "")
+        ? indexedUri
+        : await onchainMetadataUri(getAddress(metadataMatch[1]));
       const cid = uri?.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1];
       if (!cid) return json(res, 404, { error: "Token metadata is unavailable" });
       const response = await fetch(`${config.pinata.gatewayUrl}/${cid}`, { signal: AbortSignal.timeout(10_000) });
@@ -962,7 +983,7 @@ const server = createServer(async (req, res) => {
       const rawLinks = typeof payload.links === "object" && payload.links ? payload.links as Record<string, unknown> : {};
       return json(res, 200, {
         chainId: config.chainId,
-        schema: payload.schema === "squeez.token.v1" ? payload.schema : null,
+        schema: payload.schema === "squeez.token.v1" || payload.schema === "squeez.token.v2" ? payload.schema : null,
         description: safeMetadataText(payload.description, 280),
         links: {
           website: safeMetadataUrl(rawLinks.website),

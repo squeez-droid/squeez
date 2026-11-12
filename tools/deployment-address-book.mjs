@@ -54,7 +54,7 @@ export function loadDeploymentEnv(repositoryRoot, network, chain = "elysium") {
   const targetDirectory = resolve(directory, chain);
   const suffixes = ["", "-chain-config", "-core-upgrade", "-curve-upgrade", "-v4-stack", "-graduation",
     "-graduation-infra", "-hook", "-hook-config", "-swap-router", "-launch-config", "-protected-launch", "-attester",
-    "-token-proxy", "-token-upgrade"];
+    "-token-proxy", "-token-proxy-activation", "-token-upgrade"];
   const nestedPaths = suffixes.map((suffix) => resolve(targetDirectory, `${network}${suffix}.json`));
   // Preserve the deployed Elysium address book until its files are mechanically moved and verified.
   const legacyPaths = chain === "elysium"

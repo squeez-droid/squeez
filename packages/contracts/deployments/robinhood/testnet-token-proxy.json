@@ -1,0 +1,8 @@
+{
+  "chain": "robinhood",
+  "chainId": 46630,
+  "network": "testnet",
+  "tokenBeacon": "0xaaACBe27562E7166D7048b723B1cC52BaBF6d20b",
+  "tokenDeployer": "0x6985386b6C09F203ddF0AB9Bd1719B6970e46ee9",
+  "tokenImplementation": "0x153454E1De89bE364dF5E40CD422b5D0818D52AF"
+}

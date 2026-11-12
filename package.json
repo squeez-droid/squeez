@@ -51,6 +51,7 @@
     "upgrade:contracts:core:testnet": "npm run upgrade:core:testnet -w @squeez/contracts",
     "upgrade:contracts:curve:testnet": "npm run upgrade:curve:testnet -w @squeez/contracts",
     "deploy:contracts:token-proxy:robinhood:testnet": "npm run deploy:token-proxy:robinhood:testnet -w @squeez/contracts",
+    "activate:contracts:token-proxy:robinhood:testnet": "npm run activate:token-proxy:robinhood:testnet -w @squeez/contracts",
     "deploy:contracts:token-proxy:robinhood:mainnet": "npm run deploy:token-proxy:robinhood:mainnet -w @squeez/contracts",
     "upgrade:contracts:token:robinhood:testnet": "npm run upgrade:token:robinhood:testnet -w @squeez/contracts",
     "configure:contracts:graduation:testnet": "npm run configure:graduation:testnet -w @squeez/contracts",
