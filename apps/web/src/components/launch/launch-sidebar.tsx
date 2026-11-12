@@ -31,7 +31,7 @@ function TokenPreview({ api }: { api: LaunchFormApi }) {
         <p className="mt-3 line-clamp-3 text-sm text-muted">{f.description || T.descriptionPlaceholder}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
           <MiniStat label={T.startMcap} value="On-chain" />
-          <MiniStat label={T.gradMcap} value={`${api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} HYPE`} />
+          <MiniStat label={T.gradMcap} value={`${api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} ${api.nativeSymbol}`} />
         </div>
       </div>
     </Card>

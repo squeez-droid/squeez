@@ -1,4 +1,4 @@
-import { deploymentSchema, operationalSchema, parseDeploymentTarget } from "@squeez/shared";
+import { SQUEEZ_NETWORKS, deploymentSchema, deploymentTargetId, operationalSchema, parseDeploymentTarget } from "@squeez/shared";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -18,6 +18,7 @@ function optional(name: string): string | null {
 }
 
 const target = parseDeploymentTarget(process.env.SQUEEZ_CHAIN, process.env.SQUEEZ_NETWORK);
+const networkInfo = SQUEEZ_NETWORKS[deploymentTargetId(target)];
 const capability = process.env.SQUEEZ_API_CAPABILITY?.trim() || "enabled";
 if (!['enabled', 'read-only'].includes(capability)) throw new Error("SQUEEZ_API_CAPABILITY must be enabled or read-only");
 
@@ -32,6 +33,7 @@ export const backendConfig = {
   rpcUrl: required("SQUEEZ_RPC"),
   rpcFallbackUrl: optional("SQUEEZ_RPC_FALLBACK"),
   chainId: Number(required("SQUEEZ_CHAIN_ID")),
+  nativeCurrencySymbol: networkInfo.nativeCurrency.symbol,
   explorer: required("SQUEEZ_EXPLORER"),
   databaseUrl: required("DATABASE_URL"),
   databaseSchema: required("DATABASE_SCHEMA"),

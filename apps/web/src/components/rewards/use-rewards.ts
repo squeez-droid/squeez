@@ -114,7 +114,7 @@ export function useRewards() {
     void tx.run({
       title: label,
       wallet: wallet.address,
-      lines: [{ label: "Fee asset", value: "Native HYPE" }, { label: "Tokens", value: String(tokens.length) }],
+      lines: [{ label: "Fee asset", value: `Native ${selected.info.nativeCurrency.symbol}` }, { label: "Tokens", value: String(tokens.length) }],
       successTitle: "Creator fees claimed",
       successBody: "The on-chain balance and indexed claim history will refresh shortly.",
       onSuccess: () => { void load(); window.setTimeout(() => void load(), 4000); },
@@ -129,7 +129,7 @@ export function useRewards() {
       if (!finalHash) throw new Error("No claimable creator fee was found.");
       return { hash: finalHash, wait: async () => undefined };
     });
-  }, [feeVault, publicClient, wallet.address, tx, writer, load]);
+  }, [feeVault, publicClient, wallet.address, tx, writer, load, selected.info.nativeCurrency.symbol]);
 
   const totals = useMemo(() => created.reduce((sum, item) => ({
     claimable: sum.claimable + item.claimableHype,

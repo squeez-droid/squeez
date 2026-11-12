@@ -76,7 +76,7 @@ export function WalletModal() {
         Squeez runs on {selected.chain.name}. Gas uses {selected.info.nativeCurrency.symbol}.
         {selected.info.faucet && (
           <>
-            {" "}Need testnet HYPE? Get some from the{" "}
+            {" "}Need testnet {selected.info.nativeCurrency.symbol}? Get some from the{" "}
             <a className="text-white underline underline-offset-2" href={selected.info.faucet} target="_blank" rel="noreferrer">faucet</a>.
           </>
         )}

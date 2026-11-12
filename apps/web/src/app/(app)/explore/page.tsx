@@ -11,6 +11,7 @@ import { DataSourceState } from "@/components/data-source-state";
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
 import { useSelectedTarget } from "@/lib/use-selected-target";
+import { IndexedTokenAvatar } from "@/components/token-bits";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
@@ -19,6 +20,7 @@ const PAGE_SIZE = 12;
 
 export default function ExplorePage() {
   const selected = useSelectedTarget();
+  const nativeSymbol = selected.info.nativeCurrency.symbol;
   const [tokens, setTokens] = useState<IndexedToken[]>([]);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortMode>("trending");
@@ -82,8 +84,8 @@ export default function ExplorePage() {
       </div>
 
       <div className="grid grid-cols-2 gap-px border-x border-b border-line bg-line md:grid-cols-4">
-        <Stat className="bg-bg p-4" label="Volume · 24h" value={stats ? `${fmtNum(Number(formatEther(BigInt(stats.volume24hHype))), 4)} HYPE` : "—"} sub={stats ? `${stats.trades24h} trades` : undefined} />
-        <Stat className="bg-bg p-4" label="Creator fees · 24h" value={stats ? `${fmtNum(Number(formatEther(BigInt(stats.creatorFees24hHype))), 4)} HYPE` : "—"} />
+        <Stat className="bg-bg p-4" label="Volume · 24h" value={stats ? `${fmtNum(Number(formatEther(BigInt(stats.volume24hHype))), 4)} ${nativeSymbol}` : "—"} sub={stats ? `${stats.trades24h} trades` : undefined} />
+        <Stat className="bg-bg p-4" label="Creator fees · 24h" value={stats ? `${fmtNum(Number(formatEther(BigInt(stats.creatorFees24hHype))), 4)} ${nativeSymbol}` : "—"} />
         <Stat className="bg-bg p-4" label="$SQUEEZ burned" value={stats ? fmtNum(Number(formatEther(BigInt(stats.squeezBurned))), 2) : "—"} sub="Indexed burn events" />
         <Stat className="bg-bg p-4" label="Tokens launched" value={stats?.tokensLaunched ?? "—"} sub={stats ? `${stats.tokensGraduated} graduated` : undefined} />
       </div>
@@ -126,9 +128,12 @@ export default function ExplorePage() {
             return (
             <Link key={token.address} href={`/token/${token.address}`} className="bg-bg p-5 hover:bg-surface">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="flex min-w-0 items-start gap-3">
+                  <IndexedTokenAvatar token={token} targetApiUrl={selected.targetApiUrl} size={44} />
+                  <div className="min-w-0">
                   <h2 className="font-display text-xl font-semibold uppercase text-white">{token.name ?? "Metadata pending"}</h2>
                   <p className="num text-xs text-muted">{token.symbol ? `$${token.symbol}` : shortAddr(token.address, 6)}</p>
+                  </div>
                 </div>
                 <Badge tone={token.status === "graduated" ? "mint" : "primary"}>{token.status === "graduated" ? "Graduated" : token.status === "graduating" ? "Graduating" : "Curve"}</Badge>
               </div>
@@ -138,7 +143,7 @@ export default function ExplorePage() {
                 <div><dt className="text-muted">Config</dt><dd className="num mt-1 text-white">#{token.launchConfigId}</dd></div>
                 <div><dt className="text-muted">Creator</dt><dd className="num mt-1 text-white">{shortAddr(token.creator)}</dd></div>
                 <div><dt className="text-muted">Block</dt><dd className="num mt-1 text-white">{token.launchBlockNumber}</dd></div>
-                <div><dt className="text-muted">Volume 24h</dt><dd className="num mt-1 text-white">{fmtNum(Number(formatEther(BigInt(token.volume24hHype ?? "0"))), 4)} HYPE</dd></div>
+                <div><dt className="text-muted">Volume 24h</dt><dd className="num mt-1 text-white">{fmtNum(Number(formatEther(BigInt(token.volume24hHype ?? "0"))), 4)} {nativeSymbol}</dd></div>
                 <div><dt className="text-muted">Trades</dt><dd className="num mt-1 text-white">{token.tradeCount ?? 0}</dd></div>
               </dl>
               <div className="mt-5 border-t border-line pt-4">
@@ -148,8 +153,8 @@ export default function ExplorePage() {
                 </div>
                 <Progress value={progress} glow={progress >= 80} />
                 <div className="num mt-2 flex justify-between text-[10px] text-muted">
-                  <span>{fmtNum(raised, 4)} HYPE raised</span>
-                  <span>{threshold > 0 ? `${fmtNum(threshold, 4)} HYPE` : "Threshold unavailable"}</span>
+                  <span>{fmtNum(raised, 4)} {nativeSymbol} raised</span>
+                  <span>{threshold > 0 ? `${fmtNum(threshold, 4)} ${nativeSymbol}` : "Threshold unavailable"}</span>
                 </div>
               </div>
             </Link>

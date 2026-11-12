@@ -4,10 +4,12 @@ import { config, content, stats } from "@/lib/data";
 import { THRESHOLD } from "@/lib/curve";
 import { bpsToPct, fmtCompact, fmtNum, fmtUsd } from "@/lib/format";
 import { Card, Row } from "@/components/ui";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const P = config.protocol;
 
 export default function FeesPage() {
+  const nativeSymbol = useSelectedTarget().info.nativeCurrency.symbol;
   const [creatorBps, setCreatorBps] = useState(200);
   const [amount, setAmount] = useState(100);
   const burn = (amount * P.PROTOCOL_FEE_BPS * P.BURN_BPS_OF_PROTOCOL) / 1e8;
@@ -65,10 +67,10 @@ export default function FeesPage() {
         </Card>
         <Card className="p-5">
           <div className="text-sm text-muted">Launch fee</div>
-          <div className="mt-1 font-display tabular-nums text-5xl font-bold text-white">{P.launchFeeHype} <span className="text-xl text-muted">HYPE</span></div>
+          <div className="mt-1 font-display tabular-nums text-5xl font-bold text-white">{P.launchFeeHype} <span className="text-xl text-muted">{nativeSymbol}</span></div>
           <div className="mt-1 text-xs text-muted">Flat, to treasury{P.launchFeeTbd && " (placeholder, TBD)"}.</div>
           <div className="mt-4 space-y-0.5 border-t border-line pt-3">
-            <Row label="Graduation threshold" value={`${THRESHOLD} HYPE`} />
+            <Row label="Graduation threshold" value={`${THRESHOLD} ${nativeSymbol}`} />
             <Row label="Supply on curve" value="5/7" />
             <Row label="LP + locked" value="10/49 + 4/49" />
           </div>
@@ -88,7 +90,7 @@ export default function FeesPage() {
             </label>
             <div className="rounded-lg bg-bg p-3">
               <Row label="Total fee" value={`${bpsToPct(P.PROTOCOL_FEE_BPS + creatorBps)} · $${fmtNum(burn + treasury + creator, 2)}`} />
-              <p className="mt-1 text-xs text-muted">On the curve fees are taken in HYPE. After graduation the hook takes them from the quote side.</p>
+              <p className="mt-1 text-xs text-muted">On the curve fees are taken in {nativeSymbol}. After graduation the hook takes them from the quote side.</p>
             </div>
           </div>
           <div>

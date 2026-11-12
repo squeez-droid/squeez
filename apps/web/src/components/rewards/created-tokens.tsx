@@ -4,10 +4,12 @@ import { content } from "@/lib/data";
 import { bpsToPct, feeDestinationLabel, fmtNum } from "@/lib/format";
 import { Badge, Button, Card, Empty } from "@/components/ui";
 import { claimKey, type RewardsApi } from "./use-rewards";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const T = content.rewards.created;
 
 export function CreatedTokensCard({ api }: { api: RewardsApi }) {
+  const nativeSymbol = useSelectedTarget().info.nativeCurrency.symbol;
   const action = <Link href="/launch"><Button size="sm" variant="secondary">{T.newLaunch}</Button></Link>;
 
   if (api.created.length === 0) {
@@ -40,7 +42,7 @@ export function CreatedTokensCard({ api }: { api: RewardsApi }) {
                     <Link href={`/token/${t.address}`} className="flex items-center gap-2 hover:text-white hover:underline">
                       <span>
                         <span className="block font-medium text-white">{t.name ?? "Metadata pending"}</span>
-                        <span className="flex items-center gap-1 text-xs text-muted">${t.symbol ?? "TOKEN"} · {t.quote === "0x0000000000000000000000000000000000000000" ? "HYPE" : "ERC-20"}</span>
+                        <span className="flex items-center gap-1 text-xs text-muted">${t.symbol ?? "TOKEN"} · {t.quote === "0x0000000000000000000000000000000000000000" ? nativeSymbol : "ERC-20"}</span>
                       </span>
                     </Link>
                   </td>
@@ -51,7 +53,7 @@ export function CreatedTokensCard({ api }: { api: RewardsApi }) {
                     buybackBps: t.buybackBps,
                   })}</td>
                   <td className="num text-white">{fmtNum(lifetimeHype, 2)}</td>
-                  <td className="num text-white">{fmtNum(c, 4)} <span className="text-xs text-muted">HYPE</span></td>
+                  <td className="num text-white">{fmtNum(c, 4)} <span className="text-xs text-muted">{nativeSymbol}</span></td>
                   <td className="pr-4 text-right">
                     <Button size="sm" disabled={c <= 0} onClick={() => api.claim(key, c, `$${t.symbol ?? "TOKEN"}`)}>{content.rewards.claim}</Button>
                   </td>

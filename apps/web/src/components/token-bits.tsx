@@ -1,5 +1,10 @@
+"use client";
+
 import clsx from "clsx";
+import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/chain";
 import { getQuote } from "@/lib/data";
+import { getIndexedMetadata, type IndexedToken } from "@/lib/indexer";
 import type { Token } from "@/lib/types";
 
 /** Token image from IPFS when present; otherwise a ticker monogram (monochrome, deterministic). */
@@ -18,6 +23,27 @@ export function TokenAvatar({ token, size = 40, className }: { token: Pick<Token
       <span className="relative tracking-tight">{t}</span>
     </div>
   );
+}
+
+/** Resolve the image from the IPFS metadata URI indexed from the launch event. */
+export function IndexedTokenAvatar({ token, targetApiUrl, size = 40, className }: {
+  token: Pick<IndexedToken, "address" | "symbol">;
+  targetApiUrl: string;
+  size?: number;
+  className?: string;
+}) {
+  const [image, setImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setImage(null);
+    getIndexedMetadata(token.address, controller.signal, targetApiUrl)
+      .then((metadata) => setImage(metadata?.imagePath ? `${apiUrl}${metadata.imagePath}` : null))
+      .catch(() => setImage(null));
+    return () => controller.abort();
+  }, [targetApiUrl, token.address]);
+
+  return <TokenAvatar token={{ image, ticker: token.symbol ?? "?" }} size={size} className={className} />;
 }
 
 export function PairBadge({ quote, className }: { quote: string; className?: string }) {

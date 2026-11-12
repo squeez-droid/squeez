@@ -858,7 +858,7 @@ const server = createServer(async (req, res) => {
         const category = asset === "0x0000000000000000000000000000000000000000" ? "crypto"
           : config.quoteAssets.usdc?.toLowerCase() === asset ? "stable"
           : config.quoteAssets.unit?.toLowerCase() === asset || config.quoteAssets.ondo?.toLowerCase() === asset ? "stock" : "unclassified";
-        const symbol = category === "crypto" ? "HYPE" : category === "stable" ? "USDC"
+        const symbol = category === "crypto" ? config.nativeCurrencySymbol : category === "stable" ? "USDC"
           : config.quoteAssets.unit?.toLowerCase() === asset ? "UNIT" : config.quoteAssets.ondo?.toLowerCase() === asset ? "ONDO" : null;
         return { asset: quote.asset, decimals: quote.decimals, category, symbol, routeConfigured: quote.routerPath !== "0x" };
       });

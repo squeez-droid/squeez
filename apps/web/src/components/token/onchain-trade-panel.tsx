@@ -12,6 +12,7 @@ import { useTx } from "@/providers/tx";
 import { useWallet } from "@/providers/wallet";
 import { WalletGateButton } from "@/components/wallet-ui";
 import { Row, Segmented, inputCls } from "@/components/ui";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const SLIPPAGE_OPTIONS = [50, 100, 200] as const;
 const DEADLINE_SECONDS = 10 * 60;
@@ -21,6 +22,7 @@ function toWei(value: string) {
 }
 
 export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken; onConfirmed: () => void }) {
+  const nativeSymbol = useSelectedTarget().info.nativeCurrency.symbol;
   const wallet = useWallet();
   const tx = useTx();
   const publicClient = usePublicClient();
@@ -91,9 +93,9 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
       title: `${side === "buy" ? "Buy" : "Sell"} $${symbol}`,
       wallet: wallet.address,
       lines: [
-        { label: side === "buy" ? "Pay" : "Sell", value: `${amount} ${side === "buy" ? "HYPE" : symbol}` },
-        { label: "Quoted output", value: `${formatEther(output)} ${side === "buy" ? symbol : "HYPE"}` },
-        { label: "Minimum output", value: `${formatEther(minOutput)} ${side === "buy" ? symbol : "HYPE"}` },
+        { label: side === "buy" ? "Pay" : "Sell", value: `${amount} ${side === "buy" ? nativeSymbol : symbol}` },
+        { label: "Quoted output", value: `${formatEther(output)} ${side === "buy" ? symbol : nativeSymbol}` },
+        { label: "Minimum output", value: `${formatEther(minOutput)} ${side === "buy" ? symbol : nativeSymbol}` },
         { label: "Slippage", value: bpsToPct(slippageBps) },
       ],
       successTitle: `${side === "buy" ? "Buy" : "Sell"} confirmed on-chain`,
@@ -154,7 +156,7 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
       </div>
 
       <div className="mt-4 flex items-center justify-between text-xs text-muted">
-        <span>{side === "buy" ? "Pay with HYPE" : `Sell $${token.symbol ?? "TOKEN"}`}</span>
+        <span>{side === "buy" ? `Pay with ${nativeSymbol}` : `Sell $${token.symbol ?? "TOKEN"}`}</span>
         {wallet.status === "connected" && <button type="button" onClick={() => setAmount(String(balance))}>Balance {balance.toFixed(6)}</button>}
       </div>
       <input className={`${inputCls} num mt-1 h-12 text-lg`} type="number" min="0" inputMode="decimal"
@@ -167,10 +169,10 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
       </div>
 
       <div className="mt-4 rounded-lg bg-bg p-3 text-xs">
-        <Row label="On-chain quote" value={quote ? `${formatEther(output)} ${side === "buy" ? token.symbol ?? "TOKEN" : "HYPE"}` : "—"} />
-        <Row label={`Protocol fee${isV4 ? " (estimated)" : ""}`} value={quote ? `${formatEther(protocolFee)} HYPE` : "—"} />
-        <Row label={`Creator fee (${bpsToPct(token.creatorFeeBps)})${isV4 ? " · estimated" : ""}`} value={quote ? `${formatEther(creatorFee)} HYPE` : "—"} />
-        {sniperTax > 0n && <Row label="Sniper tax" value={`${formatEther(sniperTax)} HYPE`} />}
+        <Row label="On-chain quote" value={quote ? `${formatEther(output)} ${side === "buy" ? token.symbol ?? "TOKEN" : nativeSymbol}` : "—"} />
+        <Row label={`Protocol fee${isV4 ? " (estimated)" : ""}`} value={quote ? `${formatEther(protocolFee)} ${nativeSymbol}` : "—"} />
+        <Row label={`Creator fee (${bpsToPct(token.creatorFeeBps)})${isV4 ? " · estimated" : ""}`} value={quote ? `${formatEther(creatorFee)} ${nativeSymbol}` : "—"} />
+        {sniperTax > 0n && <Row label="Sniper tax" value={`${formatEther(sniperTax)} ${nativeSymbol}`} />}
         <Row label="Deadline" value="10 minutes" />
       </div>
 

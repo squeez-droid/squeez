@@ -20,7 +20,7 @@ export function ClaimHistoryCard({ api }: { api: RewardsApi }) {
               <li key={h.txHash} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                 <span className="text-white">${h.symbol}</span>
                 <Badge tone={isCreator ? "primary" : "mint"}>{isCreator ? T.creator : T.holder}</Badge>
-                <span className="num ml-auto text-white">{fmtNum(h.amountHype, 4)} HYPE</span>
+                <span className="num ml-auto text-white">{fmtNum(h.amountHype, 4)} {selected.info.nativeCurrency.symbol}</span>
                 <span className="w-12 text-right text-xs text-muted">{timeAgo(h.timestamp, NOW)}</span>
                 <a href={`${explorer}/tx/${h.txHash}`} target="_blank" rel="noreferrer" className="num text-xs text-muted hover:text-white hover:underline">
                   {shortAddr(h.txHash)} ↗

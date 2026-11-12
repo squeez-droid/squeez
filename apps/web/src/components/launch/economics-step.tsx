@@ -47,7 +47,7 @@ export function EconomicsStep({ api, onBack, onReview, onRequestHolders }: Econo
       </div>
 
       <p className="text-center text-xs text-muted sm:text-right">
-        Launch fee {api.protocol.data?.launchConfig.launchFeeHype ?? "—"} HYPE. Graduates at {api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} HYPE. Protocol fee {(PROTOCOL_FEE_BPS / 100).toFixed(1)}%.
+        Launch fee {api.protocol.data?.launchConfig.launchFeeHype ?? "—"} {api.nativeSymbol}. Graduates at {api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} {api.nativeSymbol}. Protocol fee {(PROTOCOL_FEE_BPS / 100).toFixed(1)}%.
       </p>
     </Card>
   );

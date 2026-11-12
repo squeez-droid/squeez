@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import clsx from "clsx";
 import { tokenMarket } from "@/lib/market";
@@ -7,8 +9,10 @@ import { THRESHOLD } from "@/lib/curve";
 import type { Token } from "@/lib/types";
 import { Badge, Progress } from "./ui";
 import { PairBadge, TokenAvatar } from "./token-bits";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 export function TokenCard({ token }: { token: Token }) {
+  const nativeSymbol = useSelectedTarget().info.nativeCurrency.symbol;
   const m = tokenMarket(token);
   const grad = token.status === "graduated";
   return (
@@ -35,7 +39,7 @@ export function TokenCard({ token }: { token: Token }) {
       <div className="mt-4">
         <div className="num mb-1.5 flex justify-between text-[11px]">
           <span className="text-muted">{grad ? "v4 pool" : "curve"}</span>
-          <span className="text-white/80">{grad ? "LP locked" : `${fmtNum(token.hypeRaised, 1)} / ${THRESHOLD} HYPE`}</span>
+          <span className="text-white/80">{grad ? "LP locked" : `${fmtNum(token.hypeRaised, 1)} / ${THRESHOLD} ${nativeSymbol}`}</span>
         </div>
         <Progress value={m.progress} glow={grad || m.progress >= 80} />
       </div>
@@ -46,7 +50,6 @@ export function TokenCard({ token }: { token: Token }) {
     </Link>
   );
 }
-
 export function TokenRow({ token, rank }: { token: Token; rank: number }) {
   const m = tokenMarket(token);
   const grad = token.status === "graduated";

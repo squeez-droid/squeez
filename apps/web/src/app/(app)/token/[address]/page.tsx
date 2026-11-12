@@ -39,6 +39,7 @@ function TokenImage({ src }: { src: string }) {
 export default function TokenPage({ params }: { params: Promise<{ address: string }> }) {
   const { address } = use(params);
   const selected = useSelectedTarget();
+  const nativeSymbol = selected.info.nativeCurrency.symbol;
   const [token, setToken] = useState<IndexedToken | null>(null);
   const [trades, setTrades] = useState<IndexedTrade[]>([]);
   const [fees, setFees] = useState<IndexedCreatorFee[]>([]);
@@ -139,8 +140,8 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <section className="grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-4">
-            <div className="bg-surface p-4"><div className="text-xs text-muted">Last price</div><div className="num mt-1 text-white">{lastPrice === null ? "—" : `${lastPrice.toPrecision(5)} HYPE`}</div></div>
-            <div className="bg-surface p-4"><div className="text-xs text-muted">Indexed volume</div><div className="num mt-1 text-white">{volumeHype.toFixed(6)} HYPE</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">Last price</div><div className="num mt-1 text-white">{lastPrice === null ? "—" : `${lastPrice.toPrecision(5)} ${nativeSymbol}`}</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">Indexed volume</div><div className="num mt-1 text-white">{volumeHype.toFixed(6)} {nativeSymbol}</div></div>
             <div className="bg-surface p-4"><div className="text-xs text-muted">Trades</div><div className="num mt-1 text-white">{trades.length}</div></div>
             <div className="bg-surface p-4"><div className="text-xs text-muted">Holders</div><div className="num mt-1 text-white">{holdersReady ? holders.length : "Indexing…"}</div></div>
           </section>
@@ -188,11 +189,11 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
           </section>
           <section className="rounded-xl border border-line bg-surface p-5">
             <div className="flex items-end justify-between gap-4">
-              <div><h2 className="font-medium text-white">Bonding progress</h2><p className="mt-1 text-xs text-muted">HYPE held by the curve toward automatic graduation.</p></div>
+              <div><h2 className="font-medium text-white">Bonding progress</h2><p className="mt-1 text-xs text-muted">{nativeSymbol} held by the curve toward automatic graduation.</p></div>
               <strong className="num text-2xl text-white">{bondingProgress.toFixed(1)}%</strong>
             </div>
             <Progress value={bondingProgress} glow={bondingProgress >= 80} className="mt-4 h-2" />
-            <div className="num mt-2 flex justify-between text-xs text-muted"><span>{raised.toFixed(6)} HYPE raised</span><span>{threshold > 0 ? `${threshold} HYPE target` : "Threshold unavailable"}</span></div>
+            <div className="num mt-2 flex justify-between text-xs text-muted"><span>{raised.toFixed(6)} {nativeSymbol} raised</span><span>{threshold > 0 ? `${threshold} ${nativeSymbol} target` : "Threshold unavailable"}</span></div>
           </section>
           <section className="rounded-xl border border-line bg-surface p-5">
             <h2 className="font-medium text-white">Indexed on-chain trades</h2>
@@ -203,7 +204,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
                 {trades.slice(0, 20).map((trade) => (
                   <div key={trade.id} className="grid grid-cols-[70px_1fr_1fr] gap-3 py-2">
                     <span className={trade.isBuy ? "text-primary" : "text-red-300"}>{trade.isBuy ? "Buy" : "Sell"}</span>
-                    <span className="num text-white">{Number(formatEther(BigInt(trade.hypeAmount))).toFixed(6)} HYPE</span>
+                    <span className="num text-white">{Number(formatEther(BigInt(trade.hypeAmount))).toFixed(6)} {nativeSymbol}</span>
                     <span className="num text-right text-muted">{shortAddr(trade.trader, 5)}</span>
                   </div>
                 ))}
@@ -221,7 +222,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
                     <span className={fee.kind === "accrued" ? "text-primary" : "text-mint"}>{fee.kind}</span>
                     <span className="num text-white">
                       {fee.asset === "0x0000000000000000000000000000000000000000"
-                        ? `${Number(formatEther(BigInt(fee.amount))).toFixed(6)} HYPE`
+                        ? `${Number(formatEther(BigInt(fee.amount))).toFixed(6)} ${nativeSymbol}`
                         : `${fee.amount} units · ${shortAddr(fee.asset, 4)}`}
                     </span>
                   </div>
@@ -238,7 +239,7 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
               <p className="mt-2 text-sm text-muted">Connect the configured fee-recipient wallet to view and claim creator fees.</p>
             ) : (
               <>
-                <div className="mt-3 divide-y divide-line text-sm"><Row label="Claimable" value={`${creatorReward.claimableHype.toFixed(6)} HYPE`} /><Row label="Lifetime accrued" value={`${creatorReward.lifetimeHype.toFixed(6)} HYPE`} /></div>
+                <div className="mt-3 divide-y divide-line text-sm"><Row label="Claimable" value={`${creatorReward.claimableHype.toFixed(6)} ${nativeSymbol}`} /><Row label="Lifetime accrued" value={`${creatorReward.lifetimeHype.toFixed(6)} ${nativeSymbol}`} /></div>
                 <Button className="mt-4 w-full" disabled={creatorReward.claimableHype <= 0} onClick={() => rewards.claim(token.address, creatorReward.claimableHype, `$${token.symbol ?? "TOKEN"}`)}>Claim creator fees</Button>
               </>
             )}
@@ -251,10 +252,10 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
               <Row label="Fee recipient" value={shortAddr(token.feeRecipient, 6)} />
               <Row label="Creator fee" value={bpsToPct(token.creatorFeeBps)} />
               <Row label="Launch config" value={`#${token.launchConfigId}`} />
-              <Row label="Quote" value={token.quote === "0x0000000000000000000000000000000000000000" ? "HYPE" : shortAddr(token.quote, 6)} />
+              <Row label="Quote" value={token.quote === "0x0000000000000000000000000000000000000000" ? nativeSymbol : shortAddr(token.quote, 6)} />
               <Row label="Pool" value={token.pool ? shortAddr(token.pool, 6) : "Not graduated"} />
               <Row label="Active venue" value={token.venue === "uniswap-v4" ? "Uniswap v4 pool" : "Bonding curve"} />
-              <Row label="HYPE raised" value={`${raised.toFixed(6)} HYPE`} />
+              <Row label={`${nativeSymbol} raised`} value={`${raised.toFixed(6)} ${nativeSymbol}`} />
               <Row label="Bonding progress" value={`${bondingProgress.toFixed(1)}%`} />
             </div>
             {explorer && <div className="mt-4 flex flex-wrap gap-3 border-t border-line pt-4 text-xs text-primary">

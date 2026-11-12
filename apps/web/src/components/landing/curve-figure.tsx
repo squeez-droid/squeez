@@ -1,9 +1,13 @@
+"use client";
+
 import { THRESHOLD, SUPPLY } from "@/lib/curve";
 import { HYPE_USD } from "@/lib/market";
 import { fmtPrice, fmtUsd } from "@/lib/format";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 // Bonding curve diagram computed from config.json (not an illustration).
 export function CurveFigure({ caption }: { caption: string }) {
+  const nativeSymbol = useSelectedTarget().info.nativeCurrency.symbol;
   // The landing page is also rendered before the runtime/on-chain config is
   // available. Keep the diagram informative in that state instead of feeding
   // a zero threshold into the SVG coordinate calculations.
@@ -26,7 +30,7 @@ export function CurveFigure({ caption }: { caption: string }) {
 
   return (
     <figure className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={`Bonding curve from 0 to ${threshold} HYPE. Price at graduation is ${mult.toFixed(2)} times the launch price.`}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={`Bonding curve from 0 to ${threshold} ${nativeSymbol}. Price at graduation is ${mult.toFixed(2)} times the launch price.`}>
         <defs>
           <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="7" stroke="rgb(250 250 250 / 0.14)" strokeWidth="1" />
@@ -35,7 +39,7 @@ export function CurveFigure({ caption }: { caption: string }) {
         {ticks.map((t) => (
           <g key={t}>
             <line x1={x(t)} x2={x(t)} y1={padT - 12} y2={H - padB} stroke="#262626" />
-            <text x={x(t) + (t === threshold ? -6 : 6)} y={H - 12} textAnchor={t === threshold ? "end" : "start"} fill="#8C8C8C" fontSize="14" fontFamily="var(--font-mono)">{Number(t.toFixed(3))} HYPE</text>
+            <text x={x(t) + (t === threshold ? -6 : 6)} y={H - 12} textAnchor={t === threshold ? "end" : "start"} fill="#8C8C8C" fontSize="14" fontFamily="var(--font-mono)">{Number(t.toFixed(3))} {nativeSymbol}</text>
           </g>
         ))}
         <line x1={padL} x2={W - padR} y1={H - padB} y2={H - padB} stroke="#525252" />
@@ -43,8 +47,8 @@ export function CurveFigure({ caption }: { caption: string }) {
         <path d={d} fill="none" stroke="#FAFAFA" strokeWidth="2.5" className="draw" style={{ ["--len" as string]: 1500 }} />
         <circle cx={x(0)} cy={y(p0)} r="5" fill="#000" stroke="#FAFAFA" strokeWidth="2" />
         <rect x={x(threshold) - 7} y={y(p1) - 7} width="14" height="14" fill="#FAFAFA" />
-        <text x={x(0) + 16} y={y(p0) - 14} fill="#D4D4D4" fontSize="14" fontFamily="var(--font-mono)">launch · {fmtPrice(p0)} HYPE · mcap {fmtUsd(p0 * supply * HYPE_USD)}</text>
-        <text x={x(threshold) - 20} y={y(p1) + 5} textAnchor="end" fill="#FAFAFA" fontSize="14" fontFamily="var(--font-mono)">graduation · {mult.toFixed(2)}× · mcap {fmtUsd(p1 * supply * HYPE_USD)} → Uniswap v4</text>
+        <text x={x(0) + 16} y={y(p0) - 14} fill="#D4D4D4" fontSize="14" fontFamily="var(--font-mono)">launch · {fmtPrice(p0)} {nativeSymbol}{nativeSymbol === "HYPE" ? ` · mcap ${fmtUsd(p0 * supply * HYPE_USD)}` : ""}</text>
+        <text x={x(threshold) - 20} y={y(p1) + 5} textAnchor="end" fill="#FAFAFA" fontSize="14" fontFamily="var(--font-mono)">graduation · {mult.toFixed(2)}×{nativeSymbol === "HYPE" ? ` · mcap ${fmtUsd(p1 * supply * HYPE_USD)}` : ""} → Uniswap v4</text>
       </svg>
       <figcaption className="mt-3 max-w-xl text-xs text-muted">{caption}</figcaption>
     </figure>

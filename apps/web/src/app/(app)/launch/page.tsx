@@ -54,9 +54,9 @@ export default function LaunchPage() {
     void tx.run({
       title: fill(T.txTitle, { ticker }),
       lines: [
-        { label: T.launchFee, value: `${api.launchFeeHype} HYPE` },
-        { label: T.openingBuy, value: api.opening ? `${fmtNum(api.opening, 4)} HYPE` : "—" },
-        { label: T.txTotal, value: `${fmtNum(api.launchFeeHype + api.opening, 4)} HYPE + gas` },
+        { label: T.launchFee, value: `${api.launchFeeHype} ${api.nativeSymbol}` },
+        { label: T.openingBuy, value: api.opening ? `${fmtNum(api.opening, 4)} ${api.nativeSymbol}` : "—" },
+        { label: T.txTotal, value: `${fmtNum(api.launchFeeHype + api.opening, 4)} ${api.nativeSymbol} + gas` },
       ],
       successTitle: fill(T.successTitle, { ticker }),
       successBody: T.successBody,

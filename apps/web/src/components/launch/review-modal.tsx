@@ -22,9 +22,9 @@ export function ReviewModal({ api, open, onClose, onSubmit }: ReviewModalProps) 
     [T.creatorFee, bpsToPct(f.creatorFeeBps)],
     [T.destination, api.destinationLabel],
     [T.feeWallet, shortAddr(f.feeWallet, 6)],
-    [T.openingBuy, opening ? `${fmtNum(opening, 4)} HYPE → ${fmtNum(openingQuote.outAmount, 0)} ${f.ticker}` : "—"],
-    [T.launchFee, `${api.protocol.data?.launchConfig.launchFeeHype ?? "—"} HYPE`],
-    [T.launchConfig, `on-chain · grad ${api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} HYPE`],
+    [T.openingBuy, opening ? `${fmtNum(opening, 4)} ${api.nativeSymbol} → ${fmtNum(openingQuote.outAmount, 0)} ${f.ticker}` : "—"],
+    [T.launchFee, `${api.protocol.data?.launchConfig.launchFeeHype ?? "—"} ${api.nativeSymbol}`],
+    [T.launchConfig, `on-chain · grad ${api.protocol.data?.launchConfig.graduationThresholdHype ?? "—"} ${api.nativeSymbol}`],
   ];
 
   return (

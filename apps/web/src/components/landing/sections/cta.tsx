@@ -1,17 +1,21 @@
+"use client";
+
 import { config, landing as L } from "@/lib/data";
 import { THRESHOLD } from "@/lib/curve";
 import { IconArrowUpRight } from "@/components/icons";
 import { ReactionField } from "../motion";
 import { Container, CtaLink, KeyValueList, SectionLabel } from "../primitives";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const P = config.protocol;
 const LC = config.launchConfig;
 
 /** 008: big closing statement with the reaction field figure. */
 export function CtaSection() {
+  const nativeSymbol = useSelectedTarget().info.nativeCurrency.symbol;
   const C = L.cta;
   const field = L.figures.field;
-  const rows = [...C.rows, { k: "Graduation", v: `${THRESHOLD} HYPE` }, { k: "Launch fee", v: `${P.launchFeeHype} HYPE` }];
+  const rows = [...C.rows, { k: "Graduation", v: `${THRESHOLD} ${nativeSymbol}` }, { k: "Launch fee", v: `${P.launchFeeHype} ${nativeSymbol}` }];
   return (
     <section className="border-t border-line">
       <Container className="py-20 md:py-28">

@@ -15,6 +15,7 @@ function PairStatus({ status, enabled }: { status: string; enabled: boolean }) {
 
 export function PairPicker({ api }: { api: LaunchFormApi }) {
   const { form: f, set, selectGroup } = api;
+  const pairs = (group: PairGroup) => pairsForGroup(group, api.nativeSymbol);
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
@@ -26,8 +27,8 @@ export function PairPicker({ api }: { api: LaunchFormApi }) {
         {content.launch.pairGroups.map((g) => (
           <button
             key={g.id}
-            disabled={pairsForGroup(g.id as PairGroup).length === 0}
-            title={pairsForGroup(g.id as PairGroup).length === 0 ? "Enabled only after the quote asset and graduation route are verified on-chain" : undefined}
+            disabled={pairs(g.id as PairGroup).length === 0}
+            title={pairs(g.id as PairGroup).length === 0 ? "Enabled only after the quote asset and graduation route are verified on-chain" : undefined}
             onClick={() => selectGroup(g.id as PairGroup)}
             className={clsx("rounded-md border px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40", f.group === g.id ? "border-white bg-white text-bg" : "border-line bg-bg text-muted hover:text-white")}
           >
@@ -37,7 +38,7 @@ export function PairPicker({ api }: { api: LaunchFormApi }) {
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        {pairsForGroup(f.group).map((p) => (
+        {pairs(f.group).map((p) => (
           <ChoiceCard key={p.symbol} selected={f.quote === p.symbol} disabled={!p.enabled} onClick={() => set("quote", p.symbol)} className="flex items-center gap-3 px-3 py-2.5 disabled:opacity-50">
             <QuoteDot symbol={p.symbol} size={24} />
             <span className="min-w-0 flex-1">

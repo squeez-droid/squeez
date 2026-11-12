@@ -71,15 +71,13 @@ const INITIAL: LaunchForm = {
 };
 
 const E = content.launch.errors;
-const nativeHypePair: QuotePair = {
-  symbol: "HYPE", name: "Native HYPE", category: "crypto", source: "SqueezQuoteRegistry",
-  status: "ready", enabled: true, decimals: 18, usd: 0, color: "#50E3C2",
-  address: "0x0000000000000000000000000000000000000000",
-};
-
 /** Quote pairs shown for a pair group in the Economics step. */
-export function pairsForGroup(group: PairGroup): QuotePair[] {
-  return group === "hype" ? [nativeHypePair] : [];
+export function pairsForGroup(group: PairGroup, nativeSymbol = "HYPE"): QuotePair[] {
+  return group === "hype" ? [{
+    symbol: nativeSymbol, name: `Native ${nativeSymbol}`, category: "crypto", source: "SqueezQuoteRegistry",
+    status: "ready", enabled: true, decimals: 18, usd: 0, color: "#50E3C2",
+    address: "0x0000000000000000000000000000000000000000",
+  }] : [];
 }
 
 function validateIdentity(f: LaunchForm): FormErrors {
@@ -96,6 +94,7 @@ function validateIdentity(f: LaunchForm): FormErrors {
 /** Form state, validation and derived numbers for the launch wizard. */
 export function useLaunchForm() {
   const selected = useSelectedTarget();
+  const nativeSymbol = selected.info.nativeCurrency.symbol;
   const targetApiUrl = selected.targetApiUrl;
   const wallet = useWallet();
   const signer = useSignMessage();
@@ -108,6 +107,12 @@ export function useLaunchForm() {
   const [identityChecking, setIdentityChecking] = useState(false);
   const [xVerification, setXVerification] = useState<XVerification>({ verified: false });
   const [xVerificationLoading, setXVerificationLoading] = useState(false);
+
+  useEffect(() => {
+    setForm((current) => current.group === "hype" && current.quote !== nativeSymbol
+      ? { ...current, quote: nativeSymbol }
+      : current);
+  }, [nativeSymbol]);
 
   const set = <K extends keyof LaunchForm>(key: K, value: LaunchForm[K]) => {
     if (["name", "ticker", "image", "description", "x", "telegram", "website"].includes(key)) {
@@ -240,16 +245,16 @@ export function useLaunchForm() {
     if (!isAddress(form.feeWallet)) e.feeWallet = E.feeWallet;
     if (form.creatorFeeBps < 0 || form.creatorFeeBps > MAX_CREATOR_FEE_BPS) e.fee = E.fee;
     if (!form.destWallet && !form.destBuyback && !form.destHolders) e.dest = E.dest;
-    if (form.destBuyback || form.destHolders) e.dest = "Only direct fee-wallet payouts are enabled for the HYPE v1 release.";
+    if (form.destBuyback || form.destHolders) e.dest = `Only direct fee-wallet payouts are enabled for the ${nativeSymbol} v1 release.`;
     if (opening < 0) e.opening = E.openingNegative;
     if (maxWalletPct > 0 && openingPct > maxWalletPct) e.opening = fill(E.openingMaxWallet, { pct: maxWalletPct });
     if (wallet.status === "connected" && opening + launchFeeHype > (wallet.balances.HYPE ?? 0)) e.opening = E.openingBalance;
     if (openingWei > 0n && openingRead.isError) e.opening = "Unable to quote the opening buy on-chain.";
     return e;
-  }, [form, opening, openingPct, maxWalletPct, launchFeeHype, openingWei, openingRead.isError, wallet.status, wallet.balances.HYPE]);
+  }, [form, opening, openingPct, maxWalletPct, launchFeeHype, openingWei, openingRead.isError, wallet.status, wallet.balances.HYPE, nativeSymbol]);
 
   const selectGroup = (group: PairGroup) => {
-    const first = pairsForGroup(group)[0];
+    const first = pairsForGroup(group, nativeSymbol)[0];
     if (first) patch({ group, quote: first.symbol });
   };
 
@@ -315,7 +320,7 @@ export function useLaunchForm() {
     identityOk: Object.keys(identityErrors).length === 0 && !identityChecking,
     economicsOk: Object.keys(economicsErrors).length === 0,
     opening, openingWei, openingTokensOut: tokensOut, openingQuote, openingPct, openingQuoteLoading: openingRead.isLoading,
-    launchFeeHype, maxWalletPct, protocol, destinationLabel, walletAddress: wallet.address,
+    launchFeeHype, maxWalletPct, protocol, destinationLabel, walletAddress: wallet.address, nativeSymbol,
     uploadMetadata, metadataUploading, metadataError, identityCheck, identityChecking,
     xVerification, xVerificationLoading, connectX, disconnectX, requestXAttestation,
   };
