@@ -260,7 +260,7 @@ contract SqueezLaunchFactory is
         SqueezCurve c;
         uint256 policyId;
         bytes32 policyHash;
-        (token, c, policyId, policyHash) = _deployLaunchContracts(p, cfg);
+        (token, c, policyId, policyHash) = _deployLaunchContracts(p, cfg, evidence.imageHash);
         c.initializeToken(token);
         _registerIdentity(p, evidence, token, address(c));
         feeVault.registerCurve(token, address(c));
@@ -276,7 +276,7 @@ contract SqueezLaunchFactory is
         return (token, address(c));
     }
 
-    function _deployLaunchContracts(LaunchParams calldata p, LaunchConfig memory cfg)
+    function _deployLaunchContracts(LaunchParams calldata p, LaunchConfig memory cfg, bytes32 imageHash)
         private
         returns (address token, SqueezCurve curve, uint256 policyId, bytes32 policyHash)
     {
@@ -288,7 +288,12 @@ contract SqueezLaunchFactory is
         (curve, policyId, policyHash) = _deployCurve(rootSalt, p, cfg);
         token = address(
             tokenDeployer.deploy(
-                keccak256(abi.encode(rootSalt, "SQUEEZ_TOKEN")), p.name, p.symbol, p.metadataURI, address(curve)
+                keccak256(abi.encode(rootSalt, "SQUEEZ_TOKEN")),
+                p.name,
+                p.symbol,
+                p.metadataURI,
+                imageHash,
+                address(curve)
             )
         );
     }

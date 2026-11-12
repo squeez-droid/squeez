@@ -2,6 +2,8 @@
 pragma solidity ^0.8.26;
 
 import {SqueezToken} from "./SqueezToken.sol";
+import {SqueezTokenUpgradeable} from "./SqueezTokenUpgradeable.sol";
+import {BeaconProxy} from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {LaunchConfig, LaunchParams} from "./libraries/SqueezTypes.sol";
 import {SqueezConstants} from "./libraries/SqueezConstants.sol";
@@ -36,6 +38,7 @@ contract SqueezTokenDeployer {
     error AlreadyBound();
 
     address public immutable binder;
+    address public immutable tokenBeacon;
     address public factory;
 
     event FactoryBound(address indexed factory);
@@ -47,9 +50,12 @@ contract SqueezTokenDeployer {
         "CreatorAttestation(address creator,bytes32 socialHash,bytes32 nameCommitment,bytes32 symbolCommitment,bytes32 metadataHash,bytes32 imageHash,uint256 nonce,uint256 deadline)"
     );
 
-    constructor(address binder_) {
-        if (binder_ == address(0)) revert Unauthorized();
+    constructor(address binder_, address tokenBeacon_) {
+        if (binder_ == address(0) || tokenBeacon_ == address(0) || tokenBeacon_.code.length == 0) {
+            revert Unauthorized();
+        }
         binder = binder_;
+        tokenBeacon = tokenBeacon_;
     }
 
     function bindFactory(address factory_) external {
@@ -64,10 +70,13 @@ contract SqueezTokenDeployer {
         string calldata name,
         string calldata symbol,
         string calldata metadataURI,
+        bytes32 imageHash,
         address curve
     ) external returns (SqueezToken token) {
         if (msg.sender != factory || curve == address(0)) revert Unauthorized();
-        token = new SqueezToken{salt: salt}(name, symbol, metadataURI, curve);
+        bytes memory initializer =
+            abi.encodeCall(SqueezTokenUpgradeable.initialize, (name, symbol, metadataURI, imageHash, curve));
+        token = SqueezToken(address(new BeaconProxy{salt: salt}(tokenBeacon, initializer)));
         emit TokenDeployed(address(token), curve, salt);
     }
 

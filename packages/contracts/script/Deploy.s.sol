@@ -9,6 +9,7 @@ import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
 import {SqueezIdentityRegistry} from "../src/SqueezIdentityRegistry.sol";
 import {SqueezTokenDeployer} from "../src/SqueezTokenDeployer.sol";
+import {SqueezTokenUpgradeable} from "../src/SqueezTokenUpgradeable.sol";
 import {SqueezCurveProxyDeployer} from "../src/SqueezCurveProxyDeployer.sol";
 import {SqueezChainConfig} from "../src/SqueezChainConfig.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -26,6 +27,8 @@ contract Deploy is Script {
         address feeVaultImplementation;
         address curveBeacon;
         address curveImplementation;
+        address tokenBeacon;
+        address tokenImplementation;
         address factory;
         address factoryImplementation;
         address protectionPolicyRegistry;
@@ -56,10 +59,12 @@ contract Deploy is Script {
         (deployment.identityRegistry, deployment.identityRegistryImplementation) = _deployIdentityRegistry(admin);
         (deployment.feeVault, deployment.feeVaultImplementation) = _deployVault(admin, treasury);
         (deployment.curveBeacon, deployment.curveImplementation) = _deployCurveBeacon(admin);
+        deployment.tokenImplementation = address(new SqueezTokenUpgradeable());
+        deployment.tokenBeacon = address(new UpgradeableBeacon(deployment.tokenImplementation, admin));
         (deployment.factory, deployment.factoryImplementation) = _deployFactory(
             admin, treasury, deployment.registry, deployment.feeVault, deployment.curveBeacon, launchConfig
         );
-        deployment.tokenDeployer = address(new SqueezTokenDeployer(deployer));
+        deployment.tokenDeployer = address(new SqueezTokenDeployer(deployer, deployment.tokenBeacon));
         deployment.curveProxyDeployer = address(new SqueezCurveProxyDeployer(deployer, deployment.curveBeacon));
         SqueezTokenDeployer(deployment.tokenDeployer).bindFactory(deployment.factory);
         SqueezCurveProxyDeployer(deployment.curveProxyDeployer).bindFactory(deployment.factory);
@@ -83,6 +88,8 @@ contract Deploy is Script {
         vm.serializeAddress(object, "feeVaultImplementation", deployment.feeVaultImplementation);
         vm.serializeAddress(object, "curveBeacon", deployment.curveBeacon);
         vm.serializeAddress(object, "curveImplementation", deployment.curveImplementation);
+        vm.serializeAddress(object, "tokenBeacon", deployment.tokenBeacon);
+        vm.serializeAddress(object, "tokenImplementation", deployment.tokenImplementation);
         vm.serializeAddress(object, "factoryImplementation", deployment.factoryImplementation);
         vm.serializeAddress(object, "protectionPolicyRegistry", deployment.protectionPolicyRegistry);
         vm.serializeAddress(

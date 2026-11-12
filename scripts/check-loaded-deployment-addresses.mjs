@@ -14,6 +14,7 @@ const checks = {
   QUOTE_REGISTRY_ADDRESS: deployment.quoteRegistry,
   FEE_VAULT_ADDRESS: deployment.feeVault,
   CURVE_BEACON_ADDRESS: deployment.curveBeacon,
+  ...(deployment.tokenBeacon ? { TOKEN_BEACON_ADDRESS: deployment.tokenBeacon } : {}),
 };
 for (const [name, expected] of Object.entries(checks)) {
   if (process.env[name] !== expected) throw new Error(`${name} was not loaded from the ${chain}:${network} address book`);

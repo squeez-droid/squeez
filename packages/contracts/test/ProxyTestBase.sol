@@ -9,6 +9,7 @@ import {SqueezLaunchFactory} from "../src/SqueezLaunchFactory.sol";
 import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
 import {SqueezTokenDeployer} from "../src/SqueezTokenDeployer.sol";
+import {SqueezTokenUpgradeable} from "../src/SqueezTokenUpgradeable.sol";
 import {SqueezCurveProxyDeployer} from "../src/SqueezCurveProxyDeployer.sol";
 import {LaunchConfig} from "../src/libraries/SqueezTypes.sol";
 
@@ -65,7 +66,8 @@ abstract contract ProxyTestBase {
                     )
                 ))
         );
-        SqueezTokenDeployer tokenDeployer = new SqueezTokenDeployer(address(this));
+        UpgradeableBeacon tokenBeacon = new UpgradeableBeacon(address(new SqueezTokenUpgradeable()), admin);
+        SqueezTokenDeployer tokenDeployer = new SqueezTokenDeployer(address(this), address(tokenBeacon));
         SqueezCurveProxyDeployer curveProxyDeployer = new SqueezCurveProxyDeployer(address(this), curveBeacon);
         tokenDeployer.bindFactory(address(proxy));
         curveProxyDeployer.bindFactory(address(proxy));

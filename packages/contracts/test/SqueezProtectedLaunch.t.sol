@@ -8,6 +8,7 @@ import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
 import {SqueezLaunchFactory} from "../src/SqueezLaunchFactory.sol";
 import {SqueezIdentityRegistry} from "../src/SqueezIdentityRegistry.sol";
+import {SqueezTokenUpgradeable} from "../src/SqueezTokenUpgradeable.sol";
 import {ISqueezIdentityRegistry} from "../src/interfaces/ISqueezIdentityRegistry.sol";
 import {SqueezProtectionPolicyRegistry} from "../src/SqueezProtectionPolicyRegistry.sol";
 import {SqueezQuoteRegistry} from "../src/SqueezQuoteRegistry.sol";
@@ -83,6 +84,9 @@ contract SqueezProtectedLaunchTest is Test, ProxyTestBase {
         vm.prank(creator);
         (address token,) = factory.launchWithIdentity{value: 0.001 ether}(_params(), evidence);
         assertEq(identities.getIdentity(token).imageHash, imageHash);
+        assertEq(SqueezTokenUpgradeable(token).imageHash(), imageHash);
+        assertEq(SqueezTokenUpgradeable(token).tokenURI(), "ipfs://bafy-protected");
+        assertEq(SqueezTokenUpgradeable(token).metadataHash(), keccak256("ipfs://bafy-protected"));
     }
 
     function test_LaunchWithIdentityRejectsMissingImageEvidence() public {

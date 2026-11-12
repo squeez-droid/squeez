@@ -50,11 +50,14 @@ export async function pinLaunchMetadata(input: {
   );
   const imageUri = `ipfs://${imageCid}`;
   const metadata = {
-    schema: "squeez.token.v1",
+    interop: { erc1046: true },
+    schema: "squeez.token.v2",
     name: input.name,
     symbol: input.symbol,
+    decimals: 18,
     description: input.description,
     image: imageUri,
+    icons: [imageUri],
     imageHash,
     perceptualHash,
     links: {

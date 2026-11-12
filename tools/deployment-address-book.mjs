@@ -15,6 +15,8 @@ export const FIELD_TO_ENV = {
   identityRegistry: "IDENTITY_REGISTRY_ADDRESS",
   identityRegistryImplementation: "IDENTITY_REGISTRY_IMPLEMENTATION_ADDRESS",
   tokenDeployer: "TOKEN_DEPLOYER_ADDRESS",
+  tokenBeacon: "TOKEN_BEACON_ADDRESS",
+  tokenImplementation: "TOKEN_IMPLEMENTATION_ADDRESS",
   curveProxyDeployer: "CURVE_PROXY_DEPLOYER_ADDRESS",
   feeVault: "FEE_VAULT_ADDRESS",
   feeVaultImplementation: "FEE_VAULT_IMPLEMENTATION_ADDRESS",
@@ -51,7 +53,8 @@ export function loadDeploymentEnv(repositoryRoot, network, chain = "elysium") {
   const directory = resolve(repositoryRoot, "packages/contracts/deployments");
   const targetDirectory = resolve(directory, chain);
   const suffixes = ["", "-chain-config", "-core-upgrade", "-curve-upgrade", "-v4-stack", "-graduation",
-    "-graduation-infra", "-hook", "-hook-config", "-swap-router", "-launch-config", "-protected-launch", "-attester"];
+    "-graduation-infra", "-hook", "-hook-config", "-swap-router", "-launch-config", "-protected-launch", "-attester",
+    "-token-proxy", "-token-upgrade"];
   const nestedPaths = suffixes.map((suffix) => resolve(targetDirectory, `${network}${suffix}.json`));
   // Preserve the deployed Elysium address book until its files are mechanically moved and verified.
   const legacyPaths = chain === "elysium"
