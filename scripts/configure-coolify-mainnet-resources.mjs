@@ -34,11 +34,22 @@ const sharedKeys = [
   "SQUEEZ_RISK_ACK_VERSION",
 ];
 const secretKeys = new Set(["SQUEEZ_RPC", "SQUEEZ_RPC_FALLBACK", "INDEXER_RPC", "DATABASE_URL"]);
+const databaseUrlFor = (service) => {
+  if (service !== "api" || !process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  const url = new URL(process.env.DATABASE_URL);
+  // Hosted APIs use Supabase's transaction pooler so multiple chain/network services do not consume the
+  // small session-pool quota. Ponder indexers retain session mode because they own long-running checkpoints.
+  if (url.hostname.endsWith(".pooler.supabase.com") && (url.port === "" || url.port === "5432")) url.port = "6543";
+  return url.toString();
+};
 const dataFor = (service) => [
-  ...sharedKeys.flatMap((key) => process.env[key] ? [{
-    key, value: process.env[key], is_preview: false, is_literal: true, is_multiline: false,
-    is_shown_once: secretKeys.has(key),
-  }] : []),
+  ...sharedKeys.flatMap((key) => {
+    const value = key === "DATABASE_URL" ? databaseUrlFor(service) : process.env[key];
+    return value ? [{
+      key, value, is_preview: false, is_literal: true, is_multiline: false,
+      is_shown_once: secretKeys.has(key),
+    }] : [];
+  }),
   { key: "SQUEEZ_SERVICE", value: service, is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   { key: "PORT", value: "3000", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   ...(service === "indexer" && process.env.PONDER_EXPERIMENTAL_DB ? [{

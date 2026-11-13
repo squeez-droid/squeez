@@ -299,7 +299,9 @@ async function readiness() {
 
   const database = await Promise.allSettled([
     pool.query("select 1"),
-    pool.query("select to_regnamespace($1) is not null as available", [config.databaseSchema]),
+    // Supabase's transaction pooler intentionally exposes a smaller compatibility surface than a direct
+    // PostgreSQL session. information_schema works in both modes, while to_regnamespace() is unavailable there.
+    pool.query("select exists (select 1 from information_schema.schemata where schema_name = $1) as available", [config.databaseSchema]),
     pool.query("select to_regclass($1) is not null as available", [`${config.databaseSchema}._ponder_checkpoint`]),
   ]);
   checks.database = database[0].status === "fulfilled";

@@ -4,5 +4,6 @@
   "network": "mainnet",
   "poolManager": "0x12D4Fd9C5DeDd00ab8a0bCe2CF0167bbf94b6B1F",
   "squeezHook": "0xeD974dd380BE08451d96653004d5c222EDe4e0cc",
-  "swapRouter": "0x3f457EB07107711aF2a303881551160e6b745F2b"
+  "swapRouter": "0x3f457EB07107711aF2a303881551160e6b745F2b",
+  "swapRouterStartBlock": 51127559
 }

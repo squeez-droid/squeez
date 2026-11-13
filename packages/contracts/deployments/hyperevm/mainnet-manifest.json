@@ -3,11 +3,13 @@
   "chain": "hyperevm",
   "network": "mainnet",
   "chainId": 999,
-  "generatedAt": "2026-11-13T05:05:51.166Z",
+  "generatedAt": "2026-11-13T05:45:38.355Z",
   "authoritativeFragments": [
     "packages/contracts/deployments/hyperevm/mainnet.json",
     "packages/contracts/deployments/hyperevm/mainnet-graduation-infra.json",
     "packages/contracts/deployments/hyperevm/mainnet-hook.json",
+    "packages/contracts/deployments/hyperevm/mainnet-hook-config.json",
+    "packages/contracts/deployments/hyperevm/mainnet-graduation.json",
     "packages/contracts/deployments/hyperevm/mainnet-swap-router.json"
   ],
   "deployment": {
@@ -45,7 +47,8 @@
     "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
     "poolManager": "0x12D4Fd9C5DeDd00ab8a0bCe2CF0167bbf94b6B1F",
     "salt": "0x00000000000000000000000000000000000000000000000000000000000014fb",
-    "swapRouter": "0x3f457EB07107711aF2a303881551160e6b745F2b"
+    "swapRouter": "0x3f457EB07107711aF2a303881551160e6b745F2b",
+    "swapRouterStartBlock": 51127559
   },
   "resolvedAddresses": {
     "CHAIN_CONFIG_START_BLOCK": "51121909",
@@ -75,17 +78,90 @@
     "POSITION_MANAGER": "0x0d7Ab5B3db668128Aff6F70C4eBC71D7d4DA9bf9",
     "PERMIT2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
     "SWAP_ROUTER_ADDRESS": "0x3f457EB07107711aF2a303881551160e6b745F2b",
+    "SWAP_ROUTER_START_BLOCK": "51127559",
     "V4_LP_FEE_BPS": "0",
     "V4_TICK_SPACING": "60"
   },
   "summary": {
-    "broadcastRuns": 4,
-    "transactionCount": 25,
-    "totalGasUsed": "19867288",
-    "totalTransactionFeeWei": "1996580868254214"
+    "broadcastRuns": 6,
+    "transactionCount": 27,
+    "totalGasUsed": "19974411",
+    "totalTransactionFeeWei": "2007293168361337"
   },
   "directDeploymentTransactions": [],
   "broadcastHistory": [
+    {
+      "script": "ConfigureGraduation.s.sol",
+      "file": "packages/contracts/broadcast/ConfigureGraduation.s.sol/999/run-1794548693153.json",
+      "timestamp": 1794548696386,
+      "commit": "3dc6a22",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "55116",
+      "totalTransactionFeeWei": "5511600055116",
+      "transactions": [
+        {
+          "hash": "0x3df96c037b855b1942445dd6740b7c31d9eb08849cbbed26317dc57c7775c7ea",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0xe04bb5b9421254d4636610618cb06fca4e1b77e1",
+          "function": "setGraduationAdapter(address)",
+          "arguments": [
+            "0x5470289A5FeA54f979aC07a1b1822B23cC00727A"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0xe04bb5b9421254d4636610618cb06fca4e1b77e1",
+          "nonce": "1",
+          "valueWei": "0",
+          "gasLimit": "76128",
+          "gasUsed": "55116",
+          "effectiveGasPriceWei": "100000001",
+          "transactionFeeWei": "5511600055116",
+          "status": "1",
+          "blockNumber": "51129993",
+          "blockHash": "0x4f8ded63c6aac57cc2fc5211b326a9b1f1f7d505d191b28933ff372c26b7691b",
+          "transactionIndex": "3",
+          "logCount": 1,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "ConfigureSqueezHook.s.sol",
+      "file": "packages/contracts/broadcast/ConfigureSqueezHook.s.sol/999/run-1794548673229.json",
+      "timestamp": 1794548676493,
+      "commit": "3dc6a22",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "52007",
+      "totalTransactionFeeWei": "5200700052007",
+      "transactions": [
+        {
+          "hash": "0x9c9834ca97e06a74ab04aa5f5780e7695cccc3f5da26df7c0b4d7ea541a2ff25",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x6405d6786d7f53726c27b9890a15cb66d2e46f13",
+          "function": "setHook(address)",
+          "arguments": [
+            "0xeD974dd380BE08451d96653004d5c222EDe4e0cc"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x6405d6786d7f53726c27b9890a15cb66d2e46f13",
+          "nonce": "0",
+          "valueWei": "0",
+          "gasLimit": "71834",
+          "gasUsed": "52007",
+          "effectiveGasPriceWei": "100000001",
+          "transactionFeeWei": "5200700052007",
+          "status": "1",
+          "blockNumber": "51129973",
+          "blockHash": "0xd5b0cb7c356d879cd1e8ff6f7c6935a2b51c5ae2b7a943ae2d3bd0e3ee901548",
+          "transactionIndex": "2",
+          "logCount": 1,
+          "additionalContracts": []
+        }
+      ]
+    },
     {
       "script": "Deploy.s.sol",
       "file": "packages/contracts/broadcast/Deploy.s.sol/999/run-1794540751174.json",
