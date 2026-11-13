@@ -7,6 +7,7 @@ import { getIndexedMetadata, type IndexedToken } from "@/lib/indexer";
 import type { Token } from "@/lib/types";
 import type { SqueezChain, Stage } from "@squeez/shared";
 import { ChainBadge } from "./chain-logo";
+import { apiAssetUrl } from "@/lib/api-asset-url";
 
 const indexedImageCache = new Map<string, Promise<string | null>>();
 
@@ -15,7 +16,7 @@ function indexedImage(address: string, targetApiUrl: string) {
   let request = indexedImageCache.get(key);
   if (!request) {
     request = getIndexedMetadata(address, undefined, targetApiUrl)
-      .then((metadata) => metadata?.imagePath ? `${targetApiUrl}${metadata.imagePath}` : null)
+      .then((metadata) => apiAssetUrl(metadata?.imagePath))
       .catch(() => null);
     indexedImageCache.set(key, request);
   }
