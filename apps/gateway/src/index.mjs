@@ -8,11 +8,13 @@ const maxBodyBytes = Number(process.env.GATEWAY_MAX_BODY_BYTES || 8_000_000);
 const requestsPerMinute = Number(process.env.GATEWAY_REQUESTS_PER_MINUTE || 300);
 const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean));
 const rateWindows = new Map();
+const exploreCache = new Map();
 if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes <= 0) throw new Error("GATEWAY_MAX_BODY_BYTES is invalid");
 if (!Number.isSafeInteger(requestsPerMinute) || requestsPerMinute <= 0) throw new Error("GATEWAY_REQUESTS_PER_MINUTE is invalid");
 
 function json(res, status, value) {
-  res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+  if (!res.hasHeader("cache-control")) res.setHeader("cache-control", "no-store");
+  res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(value));
 }
 
@@ -20,6 +22,8 @@ function cors(req, res) {
   const origin = req.headers.origin;
   const pathname = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`).pathname;
   const publicDiscoveryRoute = req.method === "GET" && (
+    pathname === "/v1/explore"
+    ||
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
   );
@@ -38,6 +42,66 @@ function cors(req, res) {
   res.setHeader("access-control-allow-methods", "GET,POST,DELETE,OPTIONS");
   res.setHeader("access-control-allow-credentials", "true");
   return true;
+}
+
+const EXPLORE_CHAINS = new Set(["elysium", "hyperevm", "robinhood"]);
+const EXPLORE_STAGES = new Set(["testnet", "mainnet"]);
+
+async function aggregateExplore(url) {
+  const stage = url.searchParams.get("network") || "mainnet";
+  if (!EXPLORE_STAGES.has(stage)) throw Object.assign(new Error("Invalid network filter"), { status: 400 });
+  const requested = (url.searchParams.get("chains") || "all").split(",").map((value) => value.trim()).filter(Boolean);
+  const chains = requested.includes("all") ? [...EXPLORE_CHAINS] : [...new Set(requested)];
+  if (!chains.length || chains.some((chain) => !EXPLORE_CHAINS.has(chain))) {
+    throw Object.assign(new Error("Invalid chain filter"), { status: 400 });
+  }
+  const cacheKey = `${stage}:${chains.slice().sort().join(",")}`;
+  const cached = exploreCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const candidates = targets.filter((target) => target.stage === stage
+    && chains.includes(target.chain)
+    && target.upstream
+    && ["enabled", "read-only"].includes(target.capability));
+  const results = await Promise.all(candidates.map(async (target) => {
+    const base = `${target.upstream}/v1/${target.chain}/${target.stage}`;
+    try {
+      const [tokensResponse, statsResponse, configResponse] = await Promise.all([
+        fetch(`${base}/tokens`, { signal: AbortSignal.timeout(6_000) }),
+        fetch(`${base}/stats`, { signal: AbortSignal.timeout(6_000) }),
+        fetch(`${base}/config`, { signal: AbortSignal.timeout(6_000) }),
+      ]);
+      if (!tokensResponse.ok || !statsResponse.ok || !configResponse.ok) throw new Error("Target discovery request failed");
+      const [tokens, stats, config] = await Promise.all([tokensResponse.json(), statsResponse.json(), configResponse.json()]);
+      const targetInfo = {
+        chain: target.chain,
+        stage: target.stage,
+        chainId: target.chainId,
+        capability: target.capability,
+        nativeSymbol: config?.chain?.nativeCurrency?.symbol || (target.chain === "robinhood" ? "ETH" : "HYPE"),
+        explorer: config?.chain?.explorer || "",
+        graduationThreshold: config?.launchConfig?.graduationThresholdHype || null,
+      };
+      return { ok: true, target: target.id, targetInfo, stats, tokens: Array.isArray(tokens)
+        ? tokens.map((token) => ({ ...token, target: targetInfo })) : [] };
+    } catch (error) {
+      return { ok: false, target: target.id, error: error instanceof Error ? error.message : "Target unavailable" };
+    }
+  }));
+  const healthy = results.filter((result) => result.ok);
+  const value = {
+    network: stage,
+    chains,
+    generatedAt: new Date().toISOString(),
+    targets: {
+      healthy: healthy.map((result) => ({ ...result.targetInfo, id: result.target, stats: result.stats })),
+      degraded: results.filter((result) => !result.ok).map((result) => ({ id: result.target, error: result.error })),
+      unavailable: chains.filter((chain) => !candidates.some((target) => target.chain === chain)),
+    },
+    tokens: healthy.flatMap((result) => result.tokens),
+  };
+  exploreCache.set(cacheKey, { value, expiresAt: Date.now() + 15_000 });
+  return value;
 }
 
 function rateLimit(req, res, targetId) {
@@ -83,6 +147,11 @@ const server = createServer(async (req, res) => {
       return json(res, 200, targets.map(({ upstream: _upstream, ...target }) => ({
         ...target, apiBasePath: `/v1/${target.chain}/${target.stage}`,
       })));
+    }
+    if (req.method === "GET" && url.pathname === "/v1/explore") {
+      if (!rateLimit(req, res, "explore")) return;
+      res.setHeader("cache-control", "public, max-age=10, s-maxage=15, stale-while-revalidate=30");
+      return json(res, 200, await aggregateExplore(url));
     }
     if (req.method === "GET" && url.pathname === "/health/ready") {
       const served = targets.filter((target) => target.upstream && target.capability !== "coming-soon");

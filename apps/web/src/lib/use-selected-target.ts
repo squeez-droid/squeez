@@ -5,21 +5,27 @@ import { useSyncExternalStore } from "react";
 import { apiUrl, deploymentTarget, supportedChains } from "./chain";
 
 export function useSelectedTarget() {
-  const query = useSyncExternalStore(
+  const location = useSyncExternalStore(
     (notify) => { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify); },
-    () => window.location.search || (() => {
+    () => `${window.location.pathname}${window.location.search}`,
+    () => "",
+  );
+  const queryStart = location.indexOf("?");
+  const pathname = queryStart >= 0 ? location.slice(0, queryStart) : location;
+  const query = queryStart >= 0 ? location.slice(queryStart) : "";
+  const canonicalTokenTarget = pathname.match(/^\/token\/(elysium|hyperevm|robinhood)\/(testnet|mainnet)\/0x[a-fA-F0-9]{40}\/?$/);
+  const storedQuery = query || (() => {
+      if (typeof window === "undefined") return "";
       const stored = window.localStorage.getItem("squeez.deploymentTarget");
       if (!stored) return "";
       const [chain, network] = stored.split(":");
       return `?chain=${encodeURIComponent(chain)}&network=${encodeURIComponent(network)}`;
-    })(),
-    () => "",
-  );
-  const search = new URLSearchParams(query);
+    })();
+  const search = new URLSearchParams(storedQuery);
   let target = deploymentTarget;
   try {
-    const chain = search.get("chain") ?? deploymentTarget.chain;
-    const stage = search.get("network") ?? deploymentTarget.stage;
+    const chain = canonicalTokenTarget?.[1] ?? search.get("chain") ?? deploymentTarget.chain;
+    const stage = canonicalTokenTarget?.[2] ?? search.get("network") ?? deploymentTarget.stage;
     target = parseDeploymentTarget(chain, stage);
   } catch {
     target = deploymentTarget;

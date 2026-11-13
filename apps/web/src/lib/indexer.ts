@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { Address } from "@squeez/shared";
-import { targetApiUrl } from "./chain";
+import type { Address, SqueezChain, Stage } from "@squeez/shared";
+import { apiUrl, targetApiUrl } from "./chain";
 import { useSelectedTarget } from "./use-selected-target";
 
 export interface IndexedToken {
@@ -85,6 +85,34 @@ export interface IndexedStats {
   tokensGraduated: number;
 }
 
+export interface ExploreTarget {
+  id: string;
+  chain: SqueezChain;
+  stage: Stage;
+  chainId: number;
+  capability: "enabled" | "read-only";
+  nativeSymbol: string;
+  explorer: string;
+  graduationThreshold: string | null;
+  stats: IndexedStats;
+}
+
+export interface GlobalIndexedToken extends IndexedToken {
+  target: Omit<ExploreTarget, "id" | "stats">;
+}
+
+export interface GlobalExploreResponse {
+  network: Stage;
+  chains: SqueezChain[];
+  generatedAt: string;
+  targets: {
+    healthy: ExploreTarget[];
+    degraded: Array<{ id: string; error: string }>;
+    unavailable: SqueezChain[];
+  };
+  tokens: GlobalIndexedToken[];
+}
+
 export interface IndexedMetadata {
   schema: "squeez.token.v1" | "squeez.token.v2" | null;
   description: string;
@@ -120,6 +148,13 @@ async function request<T>(path: string, signal?: AbortSignal, baseUrl = targetAp
 
 export function listIndexedTokens(signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedToken[]> {
   return request<IndexedToken[]>("/v1/tokens", signal, baseUrl);
+}
+
+export async function getGlobalExplore(stage: Stage, chains: SqueezChain[] | "all", signal?: AbortSignal): Promise<GlobalExploreResponse> {
+  const chainFilter = chains === "all" ? "all" : chains.join(",");
+  const response = await fetch(`${apiUrl}/v1/explore?network=${stage}&chains=${encodeURIComponent(chainFilter)}`, { signal });
+  if (!response.ok) throw new Error(`Global Explore request failed (${response.status}).`);
+  return response.json() as Promise<GlobalExploreResponse>;
 }
 
 export async function getIndexedToken(address: string, signal?: AbortSignal, baseUrl = targetApiUrl): Promise<IndexedToken | null> {
