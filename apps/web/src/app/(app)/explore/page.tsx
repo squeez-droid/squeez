@@ -11,7 +11,7 @@ import { DataSourceState } from "@/components/data-source-state";
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
 import { useSelectedTarget } from "@/lib/use-selected-target";
-import { IndexedTokenArtwork, IndexedTokenAvatar } from "@/components/token-bits";
+import { IndexedTokenArtwork, NetworkTokenAvatar } from "@/components/token-bits";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
@@ -136,7 +136,7 @@ export default function ExplorePage() {
               <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-28 bg-gradient-to-t from-bg to-transparent group-hover:from-surface" />
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3 pr-6">
-                  <IndexedTokenAvatar token={token} targetApiUrl={selected.targetApiUrl} size={44} className="border border-white/15 shadow-lg" />
+                  <NetworkTokenAvatar token={token} targetApiUrl={selected.targetApiUrl} chain={selected.target.chain} stage={selected.target.stage} size={44} className="border border-white/15 shadow-lg" />
                   <div className="min-w-0">
                   <h2 className="font-display text-xl font-semibold uppercase text-white">{token.name ?? "Metadata pending"}</h2>
                   <p className="num text-xs text-muted">{token.symbol ? `$${token.symbol}` : shortAddr(token.address, 6)}</p>

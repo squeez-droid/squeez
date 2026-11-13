@@ -6,6 +6,8 @@ import { Card, Row, Swatch } from "@/components/ui";
 import { PairBadge, TokenAvatar } from "@/components/token-bits";
 import { IconShield } from "@/components/icons";
 import type { LaunchFormApi } from "./use-launch-form";
+import { ChainBadge } from "@/components/chain-logo";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const T = content.launch.preview;
 const burnBps = (PROTOCOL_FEE_BPS * BURN_BPS_OF_PROTOCOL) / 10000;
@@ -15,11 +17,15 @@ const barPct = (bps: number) => `${bps / 11}%`;
 
 function TokenPreview({ api }: { api: LaunchFormApi }) {
   const f = api.form;
+  const selected = useSelectedTarget();
   return (
     <Card title={T.title}>
       <div className="p-4">
         <div className="flex items-center gap-3">
-          {f.image ? <TokenAvatar token={{ image: f.image, ticker: f.ticker }} size={52} /> : <div className="h-[52px] w-[52px] rounded-md border border-dashed border-line" />}
+          <span className="relative inline-flex shrink-0">
+            {f.image ? <TokenAvatar token={{ image: f.image, ticker: f.ticker }} size={52} /> : <div className="h-[52px] w-[52px] rounded-md border border-dashed border-line" />}
+            <ChainBadge chain={selected.target.chain} stage={selected.target.stage} size={18} />
+          </span>
           <div className="min-w-0">
             <div className="truncate font-semibold text-white">{f.name || T.namePlaceholder}</div>
             <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">

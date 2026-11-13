@@ -29,6 +29,7 @@ import type { Candle } from "@/lib/types";
 import { useSelectedTarget } from "@/lib/use-selected-target";
 import { useRewards } from "@/components/rewards/use-rewards";
 import { IconTelegram, IconWebsite, IconX } from "@/components/icons";
+import { ChainBadge } from "@/components/chain-logo";
 
 function TokenImage({ src }: { src: string }) {
   // Images are immutable, API-proxied IPFS assets; preserving their source size avoids a second image service.
@@ -131,7 +132,12 @@ export default function TokenPage({ params }: { params: Promise<{ address: strin
       <div className="mt-4"><DataSourceState status={sourceStatus} /></div>
       <div className="mt-4 flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-4">
-          {metadata?.imagePath && <TokenImage src={`${selected.targetApiUrl}${metadata.imagePath}`} />}
+          {metadata?.imagePath && (
+            <span className="relative inline-flex shrink-0">
+              <TokenImage src={`${selected.targetApiUrl}${metadata.imagePath}`} />
+              <ChainBadge chain={selected.target.chain} stage={selected.target.stage} size={20} />
+            </span>
+          )}
           <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-3xl font-bold uppercase text-white">{token.name ?? "Metadata pending"}</h1>

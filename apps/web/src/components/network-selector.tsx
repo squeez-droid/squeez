@@ -5,12 +5,9 @@ import clsx from "clsx";
 import { useDeploymentRegistry, type DeploymentCapability } from "@/lib/deployments";
 import { useSelectedTarget } from "@/lib/use-selected-target";
 import { useProtocolConfig } from "@/lib/protocol-config";
+import { ChainLogo } from "./chain-logo";
 
 const options = Object.values(SQUEEZ_NETWORKS) as SqueezNetworkInfo[];
-
-function Dot({ active }: { active: boolean }) {
-  return <span aria-hidden className={clsx("h-2 w-2 rounded-full", active ? "bg-emerald-400" : "bg-muted/50")} />;
-}
 
 export function NetworkSelector() {
   const selected = useSelectedTarget();
@@ -26,7 +23,7 @@ export function NetworkSelector() {
   return (
     <details className="group relative">
       <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-md border border-line bg-surface px-3 text-left text-xs text-white transition-colors hover:border-muted [&::-webkit-details-marker]:hidden">
-        <Dot active />
+        <ChainLogo chain={selected.target.chain} size={18} />
         <span className="hidden max-w-32 truncate sm:inline">{selected.info.name}</span>
         <span className="sm:hidden">{selected.info.shortName}</span>
         <span className="num text-[10px] text-muted">{selected.info.nativeCurrency.symbol}</span>
@@ -66,7 +63,7 @@ export function NetworkSelector() {
                   active ? "bg-bg text-white" : available ? "text-white hover:bg-bg" : "cursor-not-allowed text-muted opacity-60",
                 )}
               >
-                <Dot active={active} />
+                <ChainLogo chain={option.chain} size={30} className={active ? "ring-2 ring-emerald-400/50" : undefined} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm">{option.name}</span>
                   <span className="num block text-[10px] uppercase text-muted">

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { getQuote } from "@/lib/data";
 import { getIndexedMetadata, type IndexedToken } from "@/lib/indexer";
 import type { Token } from "@/lib/types";
+import type { SqueezChain, Stage } from "@squeez/shared";
+import { ChainBadge } from "./chain-logo";
 
 const indexedImageCache = new Map<string, Promise<string | null>>();
 
@@ -55,6 +57,23 @@ export function IndexedTokenAvatar({ token, targetApiUrl, size = 40, className }
   }, [targetApiUrl, token.address]);
 
   return <TokenAvatar token={{ image, ticker: token.symbol ?? "?" }} size={size} className={className} />;
+}
+
+/** Token avatar with a compact chain/network marker anchored to its bottom-right corner. */
+export function NetworkTokenAvatar({ token, targetApiUrl, chain, stage, size = 40, className }: {
+  token: Pick<IndexedToken, "address" | "symbol">;
+  targetApiUrl: string;
+  chain: SqueezChain;
+  stage: Stage;
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <span className="relative inline-flex shrink-0">
+      <IndexedTokenAvatar token={token} targetApiUrl={targetApiUrl} size={size} className={className} />
+      <ChainBadge chain={chain} stage={stage} size={Math.max(14, Math.round(size * 0.36))} />
+    </span>
+  );
 }
 
 /** Full-bleed token artwork for cards. Uses the same cached metadata request as IndexedTokenAvatar. */

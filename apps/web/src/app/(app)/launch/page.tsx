@@ -8,7 +8,7 @@ import { fill, fmtNum } from "@/lib/format";
 import { useTx } from "@/providers/tx";
 import { PageHeader } from "@/components/ui";
 import { Empty } from "@/components/ui";
-import { EconomicsStep, HoldersConfirm, IdentityStep, LaunchSidebar, ReviewModal, Stepper, useLaunchForm } from "@/components/launch";
+import { EconomicsStep, HoldersConfirm, IdentityStep, LaunchSidebar, LaunchTargetPicker, ReviewModal, Stepper, useLaunchForm } from "@/components/launch";
 import { useCommunityCanary } from "@/lib/community-canary";
 import { useDataSourceStatus } from "@/lib/indexer";
 
@@ -129,6 +129,7 @@ export default function LaunchPage() {
     <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
       <div>
         <PageHeader title={content.launch.title} intro={content.launch.noAllocation} />
+        <LaunchTargetPicker />
         <Stepper step={step} canAdvance={api.identityOk} onSelect={setStep} onBlocked={() => setShowErrors(true)} />
 
         {step === 0 && <IdentityStep api={api} showErrors={showErrors} onContinue={goToEconomics} />}
