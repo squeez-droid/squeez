@@ -58,6 +58,7 @@ export default function LaunchPage() {
     }
     const { ticker } = api.form;
     const factory = api.protocol.data?.contracts.factory;
+    const attestationRequired = Boolean(api.protocol.data?.creatorAttestation.required);
     setReviewOpen(false);
     void tx.run({
       title: fill(T.txTitle, { ticker }),
@@ -86,9 +87,15 @@ export default function LaunchPage() {
         openingBuyMinTokens: api.openingWei > 0n ? api.openingTokensOut * 99n / 100n : 0n,
       } as const;
       const value = parseEther(launchFee) + api.openingWei;
+      if (attestationRequired && !api.xVerification.verified) {
+        throw new Error("Connect and verify X before launching on this protected target.");
+      }
       const signed = api.xVerification.verified
         ? await api.requestXAttestation(identityEvidence.metadataURI, identityEvidence.imageHash)
         : null;
+      if (attestationRequired && !signed) {
+        throw new Error("A valid cross-chain creator attestation is required.");
+      }
       const hash = signed
         ? await (async () => {
           return contractWrite.writeContractAsync({

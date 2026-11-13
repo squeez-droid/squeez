@@ -88,14 +88,21 @@ export function IdentityStep({ api, showErrors, onContinue }: IdentityStepProps)
                 </div>
                 <p className="mt-1 text-xs text-muted">
                   {api.xVerification.verified
-                    ? `Connected as @${api.xVerification.username}. Verification remains optional.`
-                    : "Optionally prove control of an X account. Launch remains available without it."}
+                    ? `Connected as @${api.xVerification.username}. Your cross-chain identity attestation is ready.`
+                    : api.protocol.data?.creatorAttestation.required
+                      ? "Connect X is required to enforce anti-vamp identity protection across every Squeez chain."
+                      : "Optionally prove control of an X account. Launch remains available without it."}
                 </p>
+                {showErrors && api.identityErrors.xVerification && (
+                  <p className="mt-1 text-xs text-warn">{api.identityErrors.xVerification}</p>
+                )}
               </div>
               {api.xVerification.verified ? (
                 <Button variant="secondary" onClick={() => void api.disconnectX()}>Disconnect X</Button>
               ) : api.protocol.data?.creatorAttestation.enabled ? (
-                <Button loading={api.xVerificationLoading} onClick={() => void api.connectX()}>Verify with X</Button>
+                <Button loading={api.xVerificationLoading} onClick={() => void api.connectX()}>
+                  {api.protocol.data?.creatorAttestation.required ? "Connect X — Required" : "Verify with X"}
+                </Button>
               ) : (
                 <Badge tone="muted">Coming soon</Badge>
               )}

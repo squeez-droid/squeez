@@ -19,7 +19,8 @@ export interface RuntimeProtocolConfig {
   creatorAttestation: {
     enabled: boolean;
     configured: boolean;
-    optional: true;
+    required: boolean;
+    optional: boolean;
     maxLaunchesPer24h: number;
   };
   chain: { id: number; name: string; explorer: string };

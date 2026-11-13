@@ -1,0 +1,10 @@
+{
+  "applied": true,
+  "attester": "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
+  "chain": "elysium",
+  "chainId": 99901,
+  "factory": "0x6d89D199D2a2A253CaeB322BA5b2Cd8A558408cD",
+  "factoryImplementation": "0xeB371680b19363872F9e364f306F8E024d996cfe",
+  "network": "mainnet",
+  "owner": "0x2E8ca95e429F34E6e876E078DCd8E51eB31645B9"
+}

@@ -56,6 +56,7 @@ contract SqueezLaunchFactory is
     error InvalidAdapter();
     error InvalidProtectionPolicy();
     error InvalidAttestation();
+    error AttestationRequired();
     error InvalidLaunchDeployer();
 
     ISqueezQuoteRegistry public quoteRegistry;
@@ -77,12 +78,15 @@ contract SqueezLaunchFactory is
     SqueezTokenDeployer public tokenDeployer;
     SqueezCurveProxyDeployer public curveProxyDeployer;
     mapping(address creator => uint256 nonce) public launchNonce;
+    // Appended for UUPS storage compatibility. Defaults to false on existing proxies until governance enables it.
+    bool public attestationRequired;
 
     event LaunchConfigActivated(uint256 indexed configId, LaunchConfig config);
     event GraduationAdapterSet(address indexed previousAdapter, address indexed newAdapter);
     event ProtectionPolicySet(address indexed registry, uint256 indexed policyId, bytes32 indexed policyHash);
     event IdentityRegistrySet(address indexed registry, uint32 tickerLockSeconds);
     event AttesterSet(address indexed attester);
+    event AttestationRequirementSet(bool required);
     event LaunchDeployersSet(address indexed tokenDeployer, address indexed curveProxyDeployer);
 
     constructor() {
@@ -155,6 +159,12 @@ contract SqueezLaunchFactory is
         emit AttesterSet(attester_);
     }
 
+    function setAttestationRequired(bool required) external onlyOwner {
+        if (required && attester == address(0)) revert InvalidAttestation();
+        attestationRequired = required;
+        emit AttestationRequirementSet(required);
+    }
+
     function setLaunchDeployers(SqueezTokenDeployer tokenDeployer_, SqueezCurveProxyDeployer curveProxyDeployer_)
         external
     {
@@ -184,6 +194,7 @@ contract SqueezLaunchFactory is
     }
 
     function launch(LaunchParams calldata p) external payable nonReentrant returns (address token, address curve) {
+        if (attestationRequired) revert AttestationRequired();
         return _launch(p, IdentityEvidenceInput({imageHash: bytes32(0), socialHash: bytes32(0), templateVersion: 1}));
     }
 
@@ -193,6 +204,7 @@ contract SqueezLaunchFactory is
         nonReentrant
         returns (address token, address curve)
     {
+        if (attestationRequired) revert AttestationRequired();
         if (
             address(identityRegistry) != address(0)
                 && (evidence.imageHash == bytes32(0) || evidence.templateVersion == 0)

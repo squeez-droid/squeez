@@ -4,6 +4,10 @@ import { ChainClock } from "../landing-bits";
 import { DitherCurve } from "../motion";
 import { Container, CtaLink, labelCls, normalWidth } from "../primitives";
 import { ContractAddressBadge } from "@/components/contract-address-badge";
+import { ChainLogo, chainLabel } from "@/components/chain-logo";
+import type { SqueezChain } from "@squeez/shared";
+
+const HERO_CHAINS: SqueezChain[] = ["robinhood", "hyperevm", "elysium"];
 
 /** Monumental launch terminal: protocol metadata, live curve and a direct path into the app. */
 export function HeroSection() {
@@ -13,7 +17,7 @@ export function HeroSection() {
       <Container className="relative flex min-h-[calc(100svh-3.5rem)] flex-col border-x border-line px-0 md:px-0">
         <div className="hero-meta-grid">
           <div><span className={labelCls}>Protocol</span><strong>SQUEEZ<br />LAUNCHPAD</strong></div>
-          <div><span className={labelCls}>Networks</span><strong>ELYSIUM<br />ROBINHOOD CHAIN</strong></div>
+          <div><span className={labelCls}>Networks</span><strong>ROBINHOOD · HYPEREVM<br />ELYSIUM · EVM</strong></div>
           <div><span className={labelCls}>System</span><strong>CURVE · V4 · LOCK<br />ONCHAIN ONLY</strong></div>
           <div className="text-right"><span className={labelCls}>Chain time</span><strong className="num"><ChainClock seconds={false} /></strong></div>
         </div>
@@ -22,7 +26,18 @@ export function HeroSection() {
           <div className="hero-dither" aria-hidden><DitherCurve cell={3} /></div>
           <div className="hero-grid-noise" aria-hidden />
           <div className="hero-copy">
-            <span className="num text-[11px] uppercase tracking-[0.14em] text-muted">● [ LIVE ] · MULTICHAIN RELEASE</span>
+            <div className="flex max-w-full flex-wrap items-center gap-3">
+              <span className="num shrink-0 text-[11px] uppercase tracking-[0.14em] text-muted">● [ LIVE ] · MULTICHAIN RELEASE</span>
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2" aria-label="Supported EVM chains">
+                {HERO_CHAINS.map((chain) => (
+                  <span key={chain} className="flex items-center gap-2 rounded-full border border-line bg-bg/80 py-1.5 pl-1.5 pr-3 backdrop-blur-sm">
+                    <ChainLogo chain={chain} size={24} />
+                    <span className="num text-[9px] uppercase tracking-[0.12em] text-white">{chainLabel(chain)}</span>
+                  </span>
+                ))}
+                <span className="num ml-1 text-[9px] uppercase tracking-[0.14em] text-muted">EVM</span>
+              </div>
+            </div>
             <ContractAddressBadge />
             <h1 className="mt-5 font-display text-[clamp(3.2rem,7.4vw,7.5rem)] font-semibold uppercase leading-[0.82] tracking-[-0.055em] text-white" style={normalWidth}>
               Fair launches.<br />Locked liquidity.

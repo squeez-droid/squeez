@@ -113,6 +113,43 @@ contract SqueezProtectedLaunchTest is Test, ProxyTestBase {
         assertTrue(factory.attestationNonceUsed(creator, 41));
     }
 
+    function test_AttestationRequirementBlocksUnsignedLaunchPaths() public {
+        factory.setAttestationRequired(true);
+        assertTrue(factory.attestationRequired());
+
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.AttestationRequired.selector);
+        factory.launch{value: 0.001 ether}(_params());
+
+        SqueezLaunchFactory.IdentityEvidenceInput memory evidence = SqueezLaunchFactory.IdentityEvidenceInput({
+            imageHash: sha256("real-image-bytes"), socialHash: bytes32(0), templateVersion: 1
+        });
+        vm.prank(creator);
+        vm.expectRevert(SqueezLaunchFactory.AttestationRequired.selector);
+        factory.launchWithIdentity{value: 0.001 ether}(_params(), evidence);
+
+        SqueezLaunchFactory.CreatorAttestation memory attestation;
+        bytes memory signature;
+        (evidence, attestation, signature) = _signedAttestation(creator, 99, block.timestamp + 10 minutes);
+        vm.prank(creator);
+        (address token,) =
+            factory.launchWithAttestation{value: 0.001 ether}(_params(), evidence, attestation, signature);
+        assertEq(identities.getIdentity(token).socialHash, attestation.socialHash);
+    }
+
+    function test_AttestationRequirementCannotBeEnabledWithoutAttester() public {
+        SqueezLaunchFactory fresh = _deployFactory(
+            address(this),
+            _deployRegistry(address(this)),
+            _deployVault(address(this), treasury),
+            treasury,
+            address(_deployCurveBeacon(address(this))),
+            _config()
+        );
+        vm.expectRevert(SqueezLaunchFactory.InvalidAttestation.selector);
+        fresh.setAttestationRequired(true);
+    }
+
     function test_LaunchWithAttestationRejectsReplay() public {
         (
             SqueezLaunchFactory.IdentityEvidenceInput memory evidence,

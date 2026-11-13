@@ -93,8 +93,8 @@ if (!apply || blockers.length > 0) {
   const token = credentials.COOLIFY_API_TOKEN;
   if (!base || !token) throw new Error("Coolify API credentials are missing");
   const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
-  const variable = (key, value) => ({
-    key, value, is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false,
+  const variable = (key, value, secret = false) => ({
+    key, value, is_preview: false, is_literal: true, is_multiline: false, is_shown_once: secret,
   });
   const update = async (uuid, data) => {
     const response = await fetch(`${base}/api/v1/applications/${uuid}/envs/bulk`, {
@@ -104,10 +104,13 @@ if (!apply || blockers.length > 0) {
   };
   await update(apiUuid, [
     variable("SQUEEZ_API_CAPABILITY", "enabled"),
+    variable("INDEXER_MAX_LAG_BLOCKS", String(maxLagBlocks)),
+    variable("INDEXER_STALE_SECONDS", String(staleSeconds)),
     variable("SQUEEZ_RELEASE_MODE", "community-canary"),
     variable("SQUEEZ_COMMUNITY_TESTING_ENABLED", "true"),
     variable("SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI", maxOpeningBuyWei),
     variable("SQUEEZ_RISK_ACK_VERSION", acknowledgementVersion),
+    ...(process.env.PINATA_JWT ? [variable("PINATA_JWT", process.env.PINATA_JWT, true)] : []),
   ]);
   await update(gatewayUuid, [variable(`${chain.toUpperCase()}_MAINNET_CAPABILITY`, "enabled")]);
   console.log(JSON.stringify({ ...result, applied: true, resources: { apiUuid, gatewayUuid } }, null, 2));

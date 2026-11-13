@@ -88,6 +88,12 @@ if (chain !== "elysium") {
 }
 const chainPrefix = chain.toUpperCase();
 const chainSource = { ...fileEnv, ...runtimeEnv };
+const primaryRpc = chainSource[`${chainPrefix}_RPC`] ?? chainSource.SQUEEZ_RPC;
+const fallbackRpc = chainSource[`${chainPrefix}_RPC_FALLBACK`] ?? chainSource.SQUEEZ_RPC_FALLBACK;
+const selectedRpc = runtimeEnv.SQUEEZ_RPC_SELECTION === "fallback" ? fallbackRpc : primaryRpc;
+if (runtimeEnv.SQUEEZ_RPC_SELECTION === "fallback" && !fallbackRpc) {
+  fail(`${chainPrefix}_RPC_FALLBACK is required when SQUEEZ_RPC_SELECTION=fallback`);
+}
 const prefixedOverrides = {};
 for (const key of [
   ...legacyDeploymentKeys,
@@ -101,6 +107,7 @@ for (const key of [
   "GOVERNANCE_SAFE_ADDRESS",
   "SQUEEZ_API_CAPABILITY", "SQUEEZ_RELEASE_MODE", "SQUEEZ_COMMUNITY_TESTING_ENABLED",
   "SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI", "SQUEEZ_RISK_ACK_VERSION",
+  "X_OAUTH_ENABLED", "X_ATTESTATION_REQUIRED", "X_REDIRECT_URI",
 ]) {
   const value = chainSource[`${chainPrefix}_${key}`];
   if (value?.trim()) prefixedOverrides[key] = value;
@@ -109,7 +116,7 @@ const selectedChainEnv = {
   // Hosted single-target containers commonly inject the canonical unprefixed keys. Prefer a chain-qualified
   // value when present, but never erase an explicit runtime value merely because the root dotenv file is absent.
   SQUEEZ_CHAIN_ID: chainSource[`${chainPrefix}_CHAIN_ID`] ?? chainSource.SQUEEZ_CHAIN_ID,
-  SQUEEZ_RPC: chainSource[`${chainPrefix}_RPC`] ?? chainSource.SQUEEZ_RPC,
+  SQUEEZ_RPC: selectedRpc,
   SQUEEZ_RPC_FALLBACK: chainSource[`${chainPrefix}_RPC_FALLBACK`] ?? chainSource.SQUEEZ_RPC_FALLBACK,
   SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`] ?? chainSource.SQUEEZ_EXPLORER,
   // Keep provider limits target-specific. A conservative public testnet RPC must not throttle

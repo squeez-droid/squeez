@@ -1,0 +1,10 @@
+{
+  "applied": false,
+  "attester": "0x9BAFe9c46948A6603386AAF5De07BECcd4C751ED",
+  "chain": "robinhood",
+  "chainId": 4663,
+  "factory": "0x7fd8F81f27d010f6550bA92203c1D5322Dd7B30E",
+  "factoryImplementation": "0xCE0e4Dfc02162FB7313Ef1d4E0b33CBa412Ed40B",
+  "network": "mainnet",
+  "owner": "0xfa476Fab5bebe15E23D6fb1a69E1634c92097F57"
+}

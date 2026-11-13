@@ -3,7 +3,7 @@
 import { STAGES, type Stage } from "@squeez/shared";
 import clsx from "clsx";
 import { useDeploymentRegistry } from "@/lib/deployments";
-import { useSelectedTarget } from "@/lib/use-selected-target";
+import { selectDeploymentTarget, useSelectedTarget } from "@/lib/use-selected-target";
 
 const stageLabel = (stage: Stage) => stage === "mainnet" ? "Mainnet" : "Testnet";
 
@@ -19,8 +19,17 @@ export function NetworkSelector() {
     url.searchParams.set("network", stage);
     if (url.pathname === "/explore") url.searchParams.delete("chain");
     else url.searchParams.set("chain", selected.target.chain);
-    window.localStorage.setItem("squeez.deploymentTarget", `${selected.target.chain}:${stage}`);
-    window.location.assign(url.toString());
+    if (tokenRoute) {
+      // A canonical token page must render a different route when its stage
+      // changes. Launch/Explore only change query state and stay mounted.
+      window.localStorage.setItem("squeez.deploymentTarget", `${selected.target.chain}:${stage}`);
+      window.location.assign(url.toString());
+      return;
+    }
+    selectDeploymentTarget(
+      { chain: selected.target.chain, stage },
+      { includeChainInUrl: url.pathname !== "/explore" },
+    );
   };
 
   const liveCount = (stage: Stage) => registry.data?.filter((target) => target.stage === stage

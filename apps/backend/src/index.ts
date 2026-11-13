@@ -4,7 +4,10 @@ import { Pool } from "pg";
 import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, keccak256, toBytes, verifyMessage, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import sharp from "sharp";
-import { LOG_EVENTS, SQUEEZ_NETWORKS, WEB_LOG_EVENTS, type LogEvent } from "@squeez/shared";
+import {
+  LOG_EVENTS, SQUEEZ_NETWORKS, WEB_LOG_EVENTS, deploymentSchema, operationalSchema,
+  type DeploymentTarget, type LogEvent,
+} from "@squeez/shared";
 import { backendConfig as config } from "./config.js";
 import { writeSystemLog } from "./logger.js";
 import { pinLaunchMetadata } from "./pinata.js";
@@ -187,20 +190,52 @@ function hammingDistance64(left: string, right: string): number {
   return distance;
 }
 
-async function activeImageConflict(imageHash: string, perceptualHash: string): Promise<string | null> {
-  const tables = await pool.query("select to_regclass($1) is not null as evidence, to_regclass($2) is not null as identity", [
-    `${config.systemLogSchema}.identity_image_evidence`, `${config.databaseSchema}.identity`,
-  ]);
-  if (!tables.rows[0]?.evidence || !tables.rows[0]?.identity) return null;
-  const candidates = await pool.query(
-    `select i.token, e.image_hash as "imageHash", e.perceptual_hash as "perceptualHash"
-      from "${config.systemLogSchema}"."identity_image_evidence" e
-      join "${config.databaseSchema}"."identity" i on lower(i.metadata_hash) = lower(e.metadata_uri_hash)
-      where i.permanently_locked = true or i.locked_until > extract(epoch from now())::bigint`,
-  );
-  const conflict = candidates.rows.find((candidate) => candidate.imageHash === imageHash
-    || hammingDistance64(candidate.perceptualHash, perceptualHash) <= 5);
-  return conflict?.token ?? null;
+const protectedTargets = Object.values(SQUEEZ_NETWORKS)
+  .filter((network) => network.stage === config.network)
+  .map((network) => ({ chain: network.chain, stage: network.stage } satisfies DeploymentTarget));
+
+async function tableExists(schema: string, table: string): Promise<boolean> {
+  const result = await pool.query("select to_regclass($1) is not null as available", [`${schema}.${table}`]);
+  return Boolean(result.rows[0]?.available);
+}
+
+async function activeIdentityConflict(nameCommitment: string, symbolCommitment: string) {
+  const now = Math.floor(Date.now() / 1000);
+  for (const target of protectedTargets) {
+    const schema = deploymentSchema(target);
+    if (!await tableExists(schema, "identity")) continue;
+    const result = await pool.query(
+      `select token, locked_until::text as "lockedUntil", permanently_locked as "permanentlyLocked"
+        from "${schema}"."identity"
+        where (name_commitment = $1 or symbol_commitment = $2)
+          and (permanently_locked = true or locked_until > $3)
+        order by registered_at asc limit 1`,
+      [nameCommitment, symbolCommitment, now],
+    );
+    if (result.rows[0]) return { ...result.rows[0], chain: target.chain } as {
+      token: string; lockedUntil: string | null; permanentlyLocked: boolean; chain: string;
+    };
+  }
+  return null;
+}
+
+async function activeImageConflict(imageHash: string, perceptualHash?: string): Promise<string | null> {
+  for (const target of protectedTargets) {
+    const dataSchema = deploymentSchema(target);
+    const systemSchema = operationalSchema(target);
+    if (!await tableExists(systemSchema, "identity_image_evidence")
+      || !await tableExists(dataSchema, "identity")) continue;
+    const candidates = await pool.query(
+      `select i.token, e.image_hash as "imageHash", e.perceptual_hash as "perceptualHash"
+        from "${systemSchema}"."identity_image_evidence" e
+        join "${dataSchema}"."identity" i on lower(i.metadata_hash) = lower(e.metadata_uri_hash)
+        where i.permanently_locked = true or i.locked_until > extract(epoch from now())::bigint`,
+    );
+    const conflict = candidates.rows.find((candidate) => candidate.imageHash === imageHash
+      || (perceptualHash && hammingDistance64(candidate.perceptualHash, perceptualHash) <= 5));
+    if (conflict) return conflict.token;
+  }
+  return null;
 }
 
 const baseTokenColumns = `address, curve, creator, quote,
@@ -541,15 +576,18 @@ const server = createServer(async (req, res) => {
           chain: "cross-chain",
         }] : []),
       ];
+      const globalConflict = await activeIdentityConflict(nameCommitment, symbolCommitment);
       return json(res, 200, {
         chainId: config.chainId,
         configured: true,
-        available: !locked,
+        available: !locked && !globalConflict,
         duplicate: Boolean(exact),
         lockedUntil: exact?.lockedUntil ?? null,
         permanentlyLocked: Boolean(exact?.permanentlyLocked),
-        originalToken: exact?.token ?? null,
-        warnings,
+        originalToken: exact?.token ?? globalConflict?.token ?? null,
+        warnings: globalConflict && globalConflict.chain !== config.chain
+          ? [...warnings, { type: "cross-chain-lock", originalToken: globalConflict.token, chain: globalConflict.chain }]
+          : warnings,
       });
     }
     if (req.method === "GET" && url.pathname === "/v1/auth/x/nonce") {
@@ -652,7 +690,7 @@ const server = createServer(async (req, res) => {
           values ($1, $2, $3, $4, now() + interval '2 hours')`,
         [sha256(session), pending.wallet, xUserIdHash, userPayload.data.username],
       );
-      res.setHeader("set-cookie", `squeez_x_session=${encodeURIComponent(session)}; HttpOnly; Secure; SameSite=Lax; Path=/v1/auth/x; Max-Age=7200`);
+      res.setHeader("set-cookie", `squeez_x_session=${encodeURIComponent(session)}; HttpOnly; Secure; SameSite=Lax; Path=/v1; Max-Age=7200`);
       res.writeHead(302, { location: pending.returnTo }).end();
       return;
     }
@@ -677,7 +715,7 @@ const server = createServer(async (req, res) => {
           [sha256(session)],
         );
       }
-      res.setHeader("set-cookie", "squeez_x_session=; HttpOnly; Secure; SameSite=Lax; Path=/v1/auth/x; Max-Age=0");
+      res.setHeader("set-cookie", "squeez_x_session=; HttpOnly; Secure; SameSite=Lax; Path=/v1; Max-Age=0");
       return json(res, 200, { verified: false });
     }
     if (req.method === "POST" && url.pathname === "/v1/auth/x/attestation") {
@@ -698,6 +736,18 @@ const server = createServer(async (req, res) => {
       if (!/^0x[a-fA-F0-9]{64}$/.test(imageHash)) return json(res, 400, { error: "Invalid image hash" });
       const nameCommitment = keccak256(toBytes(normalizeOnchainIdentity(cleanString(payload.name, 64, true), 64)));
       const symbolCommitment = keccak256(toBytes(normalizeOnchainIdentity(cleanString(payload.symbol, 16, true), 16)));
+      const identityConflict = await activeIdentityConflict(nameCommitment, symbolCommitment);
+      if (identityConflict) {
+        return json(res, 409, {
+          error: "This identity is locked by an existing token on another Squeez deployment.",
+          originalToken: identityConflict.token,
+          chain: identityConflict.chain,
+        });
+      }
+      const imageConflict = await activeImageConflict(imageHash);
+      if (imageConflict) {
+        return json(res, 409, { error: "This image is locked by an existing token.", originalToken: imageConflict });
+      }
 
       const verified = await pool.query(
         `select wallet, x_user_id_hash as "socialHash" from "${config.systemLogSchema}"."x_creator_session"
@@ -911,7 +961,8 @@ const server = createServer(async (req, res) => {
           enabled: config.xAttestation.enabled,
           configured: Boolean(config.xAttestation.clientId && config.xAttestation.clientSecret
             && config.xAttestation.redirectUri && config.xAttestation.attesterPrivateKey),
-          optional: true,
+          required: config.xAttestation.required,
+          optional: !config.xAttestation.required,
           maxLaunchesPer24h: config.xAttestation.maxLaunchesPer24h,
         },
         chain: {

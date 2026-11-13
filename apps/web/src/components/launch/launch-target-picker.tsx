@@ -4,7 +4,7 @@ import { CHAINS, STAGES, SQUEEZ_NETWORKS, deploymentTargetId, type SqueezChain, 
 import clsx from "clsx";
 import { ChainLogo, chainLabel } from "@/components/chain-logo";
 import { useDeploymentRegistry, type DeploymentCapability } from "@/lib/deployments";
-import { useSelectedTarget } from "@/lib/use-selected-target";
+import { selectDeploymentTarget, useSelectedTarget } from "@/lib/use-selected-target";
 
 const capabilityLabel = (capability: DeploymentCapability) => capability === "enabled"
   ? "Launch live"
@@ -12,11 +12,7 @@ const capabilityLabel = (capability: DeploymentCapability) => capability === "en
     : capability === "maintenance" ? "Maintenance" : "Coming soon";
 
 function navigate(chain: SqueezChain, stage: Stage) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("chain", chain);
-  url.searchParams.set("network", stage);
-  window.localStorage.setItem("squeez.deploymentTarget", `${chain}:${stage}`);
-  window.location.assign(url.toString());
+  selectDeploymentTarget({ chain, stage });
 }
 
 export function LaunchTargetPicker() {

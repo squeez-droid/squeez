@@ -142,6 +142,8 @@
     "write:launch-config-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-launch-config-governance-batches.mjs --write",
     "generate:token-proxy-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-token-proxy-governance-batches.mjs",
     "write:token-proxy-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-token-proxy-governance-batches.mjs --write",
+    "generate:attestation-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-attestation-governance-batches.mjs",
+    "write:attestation-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-attestation-governance-batches.mjs --write",
     "check:protected-launch:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/check-protected-launch-mainnet.mjs",
     "check:protected-launch-operation:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/check-protected-launch-operation.mjs",
     "record:protected-launch-activation:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/record-protected-launch-activation.mjs",

@@ -62,6 +62,7 @@ export const backendConfig = {
   },
   xAttestation: {
     enabled: process.env.X_OAUTH_ENABLED === "true",
+    required: process.env.X_ATTESTATION_REQUIRED === "true",
     clientId: optional("X_CLIENT_ID"),
     clientSecret: optional("X_CLIENT_SECRET"),
     redirectUri: optional("X_REDIRECT_URI"),
@@ -125,6 +126,10 @@ if (!Number.isSafeInteger(backendConfig.xAttestation.maxLaunchesPer24h)
 if (backendConfig.xAttestation.enabled && (!backendConfig.xAttestation.clientId
   || !backendConfig.xAttestation.clientSecret || !backendConfig.xAttestation.redirectUri)) {
   throw new Error("X OAuth is enabled but its backend-only credentials are incomplete");
+}
+if (backendConfig.xAttestation.required && (!backendConfig.xAttestation.enabled
+  || !backendConfig.xAttestation.attesterPrivateKey)) {
+  throw new Error("Required creator attestation needs X OAuth and an attester key");
 }
 if (backendConfig.xAttestation.attesterPrivateKey
   && !/^0x[a-fA-F0-9]{64}$/.test(backendConfig.xAttestation.attesterPrivateKey)) {

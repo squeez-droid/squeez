@@ -224,7 +224,7 @@ export function useLaunchForm() {
       body: JSON.stringify({ wallet: wallet.address, metadataURI, imageHash, name: form.name, symbol: form.ticker }),
     });
     const result = await response.json() as CreatorAttestationResponse & { error?: string };
-    if (response.status === 503) return null;
+    if (response.status === 503 && !protocol.data?.creatorAttestation.required) return null;
     if (!response.ok || !result.attestation || !result.signature) {
       throw new Error(result.error ?? "Could not create the verified creator attestation.");
     }
@@ -233,13 +233,16 @@ export function useLaunchForm() {
 
   const identityErrors = useMemo(() => {
     const errors = validateIdentity(form);
+    if (protocol.data?.creatorAttestation.required && !xVerification.verified) {
+      errors.xVerification = "Connect and verify your X account to protect this identity across chains.";
+    }
     if (identityCheck && !identityCheck.available) {
       errors.ticker = identityCheck.permanentlyLocked
         ? "This ticker is permanently locked by its original token."
         : "This identity is temporarily locked by its original token.";
     }
     return errors;
-  }, [form, identityCheck]);
+  }, [form, identityCheck, protocol.data?.creatorAttestation.required, xVerification.verified]);
 
   const economicsErrors = useMemo(() => {
     const e: FormErrors = {};

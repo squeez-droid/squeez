@@ -11,7 +11,7 @@ export function ChainLogo({ chain, size = 24, className }: { chain: SqueezChain;
   return (
     // The three brand marks are bundled locally so token cards never depend on a third-party CDN.
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/chains/${chain}.svg`} alt={`${LABELS[chain]} logo`} width={size} height={size}
+    <img src={`/chains/${chain}.png`} alt={`${LABELS[chain]} logo`} width={size} height={size}
       className={clsx("shrink-0 rounded-full object-cover", className)} style={{ width: size, height: size }} />
   );
 }
