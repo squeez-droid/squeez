@@ -51,8 +51,9 @@ function socialLabel(kind: "website" | "x" | "telegram", value: string): string 
   }
 }
 
-export default function TokenPage({ params }: { params: Promise<{ address: string }> }) {
-  const { address } = use(params);
+export default function TokenPage({ params }: { params: Promise<{ slug: string[] }> }) {
+  const { slug } = use(params);
+  const address = slug.at(-1) ?? "";
   const selected = useSelectedTarget();
   const nativeSymbol = selected.info.nativeCurrency.symbol;
   const [token, setToken] = useState<IndexedToken | null>(null);
