@@ -117,6 +117,7 @@ const selectedChainEnv = {
   INDEXER_LOG_BLOCK_RANGE: chainSource[`${chainPrefix}_INDEXER_LOG_BLOCK_RANGE`]
     ?? chainSource.INDEXER_LOG_BLOCK_RANGE,
   INDEXER_RPC: chainSource[`${chainPrefix}_INDEXER_RPC`] ?? chainSource.INDEXER_RPC,
+  INDEXER_START_BLOCK: chainSource[`${chainPrefix}_INDEXER_START_BLOCK`] ?? chainSource.INDEXER_START_BLOCK,
   DATABASE_SCHEMA: chainSource[`${chainPrefix}_DATABASE_SCHEMA`] ?? chainSource.DATABASE_SCHEMA,
   CROSS_CHAIN_DATABASE_SCHEMA: chain === "robinhood"
     ? (chainSource.ELYSIUM_DATABASE_SCHEMA ?? chainSource.DATABASE_SCHEMA)
