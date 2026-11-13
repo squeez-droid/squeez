@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const network = process.env.SQUEEZ_NETWORK;
 const chain = process.env.SQUEEZ_CHAIN ?? "elysium";
 if (!network) throw new Error("SQUEEZ_NETWORK is required");
-const deploymentPath = chain === "elysium"
-  ? resolve("packages/contracts/deployments", `${network}.json`)
-  : resolve("packages/contracts/deployments", chain, `${network}.json`);
+const targetPath = resolve("packages/contracts/deployments", chain, `${network}.json`);
+const legacyElysiumPath = resolve("packages/contracts/deployments", `${network}.json`);
+const deploymentPath = existsSync(targetPath) ? targetPath : legacyElysiumPath;
 const deployment = JSON.parse(readFileSync(deploymentPath, "utf8"));
 const checks = {
   FACTORY_ADDRESS: deployment.factory,

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import pg from "pg";
+import { operationalDatabaseUrl } from "./lib/database-url.mjs";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const schema = process.env.DATABASE_SCHEMA?.trim();
@@ -20,7 +21,11 @@ try {
   throw new Error("DATABASE_URL is malformed. URL-encode special characters in the username or password.");
 }
 
-const pool = new pg.Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 10_000 });
+const pool = new pg.Pool({
+  connectionString: operationalDatabaseUrl(databaseUrl),
+  max: 1,
+  connectionTimeoutMillis: 10_000,
+});
 
 try {
   const connection = await pool.query("select current_database() as database, current_user as username, version() as version");

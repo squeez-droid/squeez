@@ -3,6 +3,7 @@
 import pg from "pg";
 import { createPublicClient, getAddress, http, isAddress } from "viem";
 import { deploymentSchema, parseDeploymentTarget } from "../packages/shared/src/network.ts";
+import { operationalDatabaseUrl } from "./lib/database-url.mjs";
 
 const required = (name) => {
   const value = process.env[name]?.trim();
@@ -24,16 +25,23 @@ if (!isAddress(factory)) throw new Error("FACTORY_ADDRESS is invalid");
 
 const indexerRpc = process.env.INDEXER_RPC?.trim() || required("SQUEEZ_RPC");
 const client = createPublicClient({ transport: http(indexerRpc, { timeout: 15_000 }) });
-const pool = new pg.Pool({ connectionString: required("DATABASE_URL"), max: 1, connectionTimeoutMillis: 10_000 });
+const pool = new pg.Pool({
+  connectionString: operationalDatabaseUrl(required("DATABASE_URL")),
+  max: 1,
+  connectionTimeoutMillis: 10_000,
+});
 
 try {
-  const [chainId, head, code, startBlockData, schemaResult] = await Promise.all([
-    client.getChainId(),
-    client.getBlockNumber(),
-    client.getBytecode({ address: getAddress(factory) }),
-    client.getBlock({ blockNumber: BigInt(startBlock) }),
-    pool.query("select exists(select 1 from information_schema.schemata where schema_name=$1) as exists", [schema]),
-  ]);
+  // Keep RPC probes sequential. Entry-level/public providers commonly reject the four-request burst that
+  // Promise.all creates, even when each individual request is valid.
+  const chainId = await client.getChainId();
+  const head = await client.getBlockNumber();
+  const code = await client.getBytecode({ address: getAddress(factory) });
+  const startBlockData = await client.getBlock({ blockNumber: BigInt(startBlock) });
+  const schemaResult = await pool.query(
+    "select exists(select 1 from information_schema.schemata where schema_name=$1) as exists",
+    [schema],
+  );
   if (chainId !== expectedChainId) throw new Error(`RPC chain mismatch: expected ${expectedChainId}, received ${chainId}`);
   if (BigInt(startBlock) > head) throw new Error(`Start block ${startBlock} is ahead of RPC head ${head}`);
   if (!code || code === "0x") throw new Error("Factory has no bytecode at the current RPC head");
@@ -55,7 +63,9 @@ try {
     ok: false,
     target: `${target.chain}:${target.stage}`,
     provider: new URL(indexerRpc).hostname,
-    error: error instanceof Error && "details" in error ? String(error.details) : "Indexer preflight failed",
+    error: error instanceof Error
+      ? ("details" in error && error.details ? String(error.details) : error.message)
+      : "Indexer preflight failed",
   }, null, 2));
   process.exitCode = 1;
 } finally {

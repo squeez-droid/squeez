@@ -118,6 +118,8 @@ const selectedChainEnv = {
     ?? chainSource.INDEXER_MAX_REQUESTS_PER_SECOND,
   INDEXER_LOG_BLOCK_RANGE: chainSource[`${chainPrefix}_INDEXER_LOG_BLOCK_RANGE`]
     ?? chainSource.INDEXER_LOG_BLOCK_RANGE,
+  INDEXER_MAX_LAG_BLOCKS: chainSource[`${chainPrefix}_INDEXER_MAX_LAG_BLOCKS`]
+    ?? chainSource.INDEXER_MAX_LAG_BLOCKS,
   INDEXER_RPC: chainSource[`${chainPrefix}_INDEXER_RPC`] ?? chainSource.INDEXER_RPC,
   INDEXER_START_BLOCK: chainSource[`${chainPrefix}_INDEXER_START_BLOCK`] ?? chainSource.INDEXER_START_BLOCK,
   SWAP_ROUTER_START_BLOCK: chainSource[`${chainPrefix}_SWAP_ROUTER_START_BLOCK`] ?? chainSource.SWAP_ROUTER_START_BLOCK,

@@ -4,17 +4,27 @@ import { readFileSync } from "node:fs";
 import pg from "pg";
 import { operationalDatabaseUrl } from "./lib/database-url.mjs";
 
-if (process.env.SQUEEZ_CHAIN !== "robinhood" || process.env.SQUEEZ_NETWORK !== "mainnet") {
-  throw new Error("Public activation is restricted to Robinhood mainnet");
+const chain = process.env.SQUEEZ_CHAIN;
+const expectedChainIds = { elysium: 99901, hyperevm: 999, robinhood: 4663 };
+if (!(chain in expectedChainIds) || process.env.SQUEEZ_NETWORK !== "mainnet") {
+  throw new Error("Public activation requires a supported mainnet target");
 }
+if (Number(process.env.SQUEEZ_CHAIN_ID) !== expectedChainIds[chain]) throw new Error(`Unexpected ${chain} chain ID`);
 
 const apply = process.argv.includes("--apply");
-const apiUuid = process.env.ROBINHOOD_MAINNET_API_COOLIFY_UUID || "smjkwvu1w5af3pl8cnvclqnk";
+const apiUuids = {
+  elysium: "vaj0rbbgisos620yuwt3x2zb",
+  robinhood: "smjkwvu1w5af3pl8cnvclqnk",
+};
+const apiUuid = process.env[`${chain.toUpperCase()}_MAINNET_API_COOLIFY_UUID`] || apiUuids[chain];
+if (!apiUuid) throw new Error(`${chain} mainnet API Coolify UUID is required`);
 const gatewayUuid = process.env.SQUEEZ_GATEWAY_COOLIFY_UUID || "6gbp4luvz1trfylqqkwrpcmt";
 const maxLagBlocks = Number(process.env.INDEXER_MAX_LAG_BLOCKS || "2000");
 const staleSeconds = Number(process.env.INDEXER_STALE_SECONDS || "300");
 const maxOpeningBuyWei = process.env.SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI || "1000000000000000";
-const acknowledgementVersion = process.env.SQUEEZ_RISK_ACK_VERSION || "robinhood-mainnet-canary-v1";
+const acknowledgementVersion = process.env.SQUEEZ_RISK_ACK_VERSION || `${chain}-mainnet-canary-v1`;
+const schema = process.env.DATABASE_SCHEMA;
+if (!schema || !/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error("DATABASE_SCHEMA is invalid");
 
 const rpcResponse = await fetch(process.env.SQUEEZ_RPC, {
   method: "POST",
@@ -32,15 +42,15 @@ let state;
 try {
   const result = await database.query(`select
       substring(latest_checkpoint from 27 for 16)::bigint as "blockNumber",
-      (select (value->>'heartbeat_at')::bigint / 1000 from "robinhood_mainnet"._ponder_meta
+      (select (value->>'heartbeat_at')::bigint / 1000 from "${schema}"._ponder_meta
         where key = 'app' limit 1) as "heartbeatAt"
-    from "robinhood_mainnet"._ponder_checkpoint
+    from "${schema}"._ponder_checkpoint
     order by latest_checkpoint desc limit 1`);
   state = result.rows[0];
 } finally {
   await database.end();
 }
-if (!state) throw new Error("Robinhood mainnet indexer checkpoint is missing");
+if (!state) throw new Error(`${chain} mainnet indexer checkpoint is missing`);
 const checkpoint = BigInt(state.blockNumber);
 const lagBlocks = Number(rpcHead - checkpoint);
 const heartbeatAgeSeconds = Math.max(0, Math.floor(Date.now() / 1_000) - Number(state.heartbeatAt));
@@ -50,7 +60,7 @@ const blockers = [
 ];
 
 const result = {
-  target: "robinhood:mainnet",
+  target: `${chain}:mainnet`,
   applyRequested: apply,
   eligible: blockers.length === 0,
   rpcHead: rpcHead.toString(),
@@ -99,6 +109,6 @@ if (!apply || blockers.length > 0) {
     variable("SQUEEZ_COMMUNITY_MAX_OPENING_BUY_WEI", maxOpeningBuyWei),
     variable("SQUEEZ_RISK_ACK_VERSION", acknowledgementVersion),
   ]);
-  await update(gatewayUuid, [variable("ROBINHOOD_MAINNET_CAPABILITY", "enabled")]);
+  await update(gatewayUuid, [variable(`${chain.toUpperCase()}_MAINNET_CAPABILITY`, "enabled")]);
   console.log(JSON.stringify({ ...result, applied: true, resources: { apiUuid, gatewayUuid } }, null, 2));
 }
