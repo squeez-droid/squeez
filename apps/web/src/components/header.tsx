@@ -18,7 +18,6 @@ export function Header() {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [menu, setMenu] = useState(false);
-  const selected = useSelectedTarget();
   const results = q.length > 0 ? tokens.filter((t) => (t.name + t.ticker + t.address).toLowerCase().includes(q.toLowerCase())).slice(0, 6) : [];
 
   return (
@@ -27,7 +26,7 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2" aria-label={content.brand.name}>
           <BrandLogo size={36} priority className="shrink-0" />
           <span className="font-display text-[17px] font-bold uppercase tracking-tight text-white">{content.brand.name}</span>
-          <span className="num hidden border-l border-line pl-2 text-[11px] uppercase text-muted sm:inline">{selected.info.shortName}</span>
+          <span className="num hidden border-l border-line pl-2 text-[11px] uppercase text-muted sm:inline">Multichain</span>
         </Link>
         <nav className="ml-4 hidden items-center gap-1 md:flex">
           {content.nav.map((n) => {
