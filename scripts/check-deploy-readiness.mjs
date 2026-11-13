@@ -16,13 +16,19 @@ if (missing.length) throw new Error(`Missing deployment variables: ${missing.joi
 if (!isAddress(process.env.ADMIN_MULTISIG)) throw new Error("ADMIN_MULTISIG is invalid");
 if (!isAddress(process.env.TREASURY)) throw new Error("TREASURY is invalid");
 if (process.env.SQUEEZ_NETWORK === "mainnet") {
-  if (process.env.SQUEEZ_CHAIN !== "robinhood") throw new Error("Current mainnet release target must be robinhood");
+  const chain = process.env.SQUEEZ_CHAIN;
+  if (!["elysium", "hyperevm", "robinhood"].includes(chain)) throw new Error("Unsupported mainnet release target");
   if (!rpcUrl.startsWith("https://")) throw new Error("Mainnet RPC must use HTTPS");
-  if (new URL(rpcUrl).hostname === "rpc.mainnet.chain.robinhood.com") {
-    throw new Error("Robinhood public RPC is not production-grade; configure a dedicated archive-capable provider RPC");
+  const publicRpcHosts = {
+    elysium: "rpc.elysium.kinetiq.xyz",
+    hyperevm: "rpc.hyperliquid.xyz",
+    robinhood: "rpc.mainnet.chain.robinhood.com",
+  };
+  if (new URL(rpcUrl).hostname === publicRpcHosts[chain]) {
+    throw new Error(`${chain} public RPC is not production-grade; configure a dedicated archive-capable provider RPC`);
   }
   const fallbackRpc = process.env.SQUEEZ_RPC_FALLBACK?.trim();
-  if (!fallbackRpc) throw new Error("Robinhood mainnet requires SQUEEZ_RPC_FALLBACK from an independent provider");
+  if (!fallbackRpc) throw new Error(`${chain} mainnet requires SQUEEZ_RPC_FALLBACK from an independent provider`);
   if (!fallbackRpc.startsWith("https://")) throw new Error("Mainnet fallback RPC must use HTTPS");
   if (new URL(fallbackRpc).hostname === new URL(rpcUrl).hostname) {
     throw new Error("Mainnet primary and fallback RPC must use independent provider hosts");

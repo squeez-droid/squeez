@@ -23,7 +23,12 @@ contract SimulateMainnetV4 is Script {
         string memory chain = vm.envString("SQUEEZ_CHAIN");
         bool robinhood = keccak256(bytes(chain)) == keccak256("robinhood");
         bool hyperevm = keccak256(bytes(chain)) == keccak256("hyperevm");
-        require((robinhood && block.chainid == 4663) || (hyperevm && block.chainid == 999), "unsupported mainnet");
+        bool elysium = keccak256(bytes(chain)) == keccak256("elysium");
+        require(
+            (robinhood && block.chainid == 4663) || (hyperevm && block.chainid == 999)
+                || (elysium && block.chainid == 99901),
+            "unsupported mainnet"
+        );
         require(keccak256(bytes(vm.envString("SQUEEZ_NETWORK"))) == keccak256("mainnet"), "wrong network");
 
         address poolManager = vm.envAddress("POOL_MANAGER");

@@ -43,6 +43,7 @@
     "summarize:contracts:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/summarize-deployment-simulation.mjs",
     "summarize:contracts:hyperevm:mainnet": "node tools/with-env.mjs hyperevm mainnet node scripts/summarize-deployment-simulation.mjs",
     "predeploy:manifest:hyperevm:mainnet": "node tools/with-env.mjs hyperevm mainnet node scripts/build-predeploy-manifest.mjs",
+    "predeploy:manifest:elysium:mainnet": "node tools/with-env.mjs elysium mainnet node scripts/build-predeploy-manifest.mjs",
     "check:deployer:hyperevm:mainnet": "node tools/with-env.mjs hyperevm mainnet node scripts/check-hyperevm-deployer-readiness.mjs",
     "transfer:contracts:admin:initiate:robinhood:mainnet": "npm run transfer-admin:initiate:robinhood:mainnet -w @squeez/contracts",
     "transfer:contracts:admin:beacon:robinhood:mainnet": "npm run transfer-admin:beacon:robinhood:mainnet -w @squeez/contracts",

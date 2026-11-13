@@ -23,7 +23,7 @@ const forbiddenPatterns = [
 ];
 const roots = ["apps", "packages", "tools"];
 const extensions = new Set([".ts", ".tsx", ".js", ".mjs", ".json"]);
-const ignored = new Set(["node_modules", ".next", "out", "dist", "cache", "generated"]);
+const ignored = new Set(["node_modules", ".next", ".open-next", "out", "dist", "cache", "generated"]);
 const failures = [];
 
 for (const file of forbiddenFiles) {

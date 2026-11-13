@@ -33,9 +33,11 @@ const git = (args) => execFileSync("git", args, { encoding: "utf8" }).trim();
 const sourceCommit = run.commit ?? git(["rev-parse", "--short", "HEAD"]);
 const dirty = git(["status", "--porcelain"]).length > 0;
 const totalGasLimit = transactions.reduce((sum, tx) => sum + BigInt(tx.gasLimit), 0n);
-const fastBlockGasLimit = 2_000_000n;
+// HyperEVM's public RPC uses a 2M fast-block transaction cap and exposes a separate
+// big-block queue. That concept is chain-specific and must not gate Elysium or Robinhood.
+const fastBlockGasLimit = chain === "hyperevm" ? 2_000_000n : null;
 const oversizedTransactions = transactions
-  .filter((tx) => BigInt(tx.gasLimit) > fastBlockGasLimit)
+  .filter((tx) => fastBlockGasLimit !== null && BigInt(tx.gasLimit) > fastBlockGasLimit)
   .map((tx) => ({ index: tx.index, contractName: tx.contractName, gasLimit: tx.gasLimit }));
 const role = (name) => process.env[name]?.trim() || null;
 const manifest = {
@@ -70,7 +72,7 @@ const manifest = {
   },
   simulation: {
     usingBigBlocksRpcFlag: false,
-    fastBlockGasLimit: fastBlockGasLimit.toString(),
+    fastBlockGasLimit: fastBlockGasLimit?.toString() ?? null,
     bigBlocksRequiredForBroadcast: oversizedTransactions.length > 0,
     oversizedTransactions,
     transactionCount: transactions.length,

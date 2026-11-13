@@ -3,7 +3,13 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
 const webRoot = resolve("apps/web");
-const allowedPublicEnv = new Set(["NEXT_PUBLIC_API_URL", "NEXT_PUBLIC_SQUEEZ_CHAIN", "NEXT_PUBLIC_SQUEEZ_NETWORK"]);
+const allowedPublicEnv = new Set([
+  "NEXT_PUBLIC_API_URL",
+  "NEXT_PUBLIC_SQUEEZ_CHAIN",
+  "NEXT_PUBLIC_SQUEEZ_NETWORK",
+  // Optional public CA shown on the landing page. A token address is public chain data, not a credential.
+  "NEXT_PUBLIC_SQUEEZ_TOKEN_ADDRESS",
+]);
 const forbiddenClientTerms = ["DATABASE_URL", "KEEPER_PRIVATE_KEY", "DEPLOYER_PRIVATE_KEY", "NEXT_PUBLIC_ELYSIUM_RPC", "NEXT_PUBLIC_SUPABASE", "NEXT_PUBLIC_FACTORY_ADDRESS", "NEXT_PUBLIC_FEE_VAULT_ADDRESS", "NEXT_PUBLIC_QUOTE_REGISTRY_ADDRESS"];
 
 function files(directory) {
