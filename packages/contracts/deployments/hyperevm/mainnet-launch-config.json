@@ -1,0 +1,25 @@
+{
+  "chainId": 999,
+  "factory": "0xE04bb5B9421254D4636610618cb06fCa4E1B77e1",
+  "graduationThresholdHype": "114000000000000000000",
+  "launchConfigId": 1,
+  "launchFeeHype": "10000000000000000",
+  "maxWalletBps": 500,
+  "maxWalletWindowSeconds": 300,
+  "network": "mainnet",
+  "sniperTaxDecaySeconds": 5,
+  "sniperTaxStartBps": 9900,
+  "virtualHypeReserve": "45600000000000000000",
+  "virtualTokenReserve": "1000000000000000000000000000",
+  "transactionHash": "0xf5018eaa578de49192329f058c162cd56ae4466e2c7749f58a07a5efc667b124",
+  "blockNumber": 51132465,
+  "gasUsed": 173656,
+  "pricingBasis": {
+    "capturedAt": "2026-11-13T13:24:00+07:00",
+    "referenceEth": "4.2",
+    "ethUsd": "1927.22",
+    "hypeUsd": "71.26",
+    "calculatedHype": "113.588605108055",
+    "configuredHype": "114"
+  }
+}

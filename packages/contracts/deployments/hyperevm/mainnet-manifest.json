@@ -3,14 +3,15 @@
   "chain": "hyperevm",
   "network": "mainnet",
   "chainId": 999,
-  "generatedAt": "2026-11-13T05:45:38.355Z",
+  "generatedAt": "2026-11-13T06:26:13.004Z",
   "authoritativeFragments": [
     "packages/contracts/deployments/hyperevm/mainnet.json",
     "packages/contracts/deployments/hyperevm/mainnet-graduation-infra.json",
     "packages/contracts/deployments/hyperevm/mainnet-hook.json",
     "packages/contracts/deployments/hyperevm/mainnet-hook-config.json",
     "packages/contracts/deployments/hyperevm/mainnet-graduation.json",
-    "packages/contracts/deployments/hyperevm/mainnet-swap-router.json"
+    "packages/contracts/deployments/hyperevm/mainnet-swap-router.json",
+    "packages/contracts/deployments/hyperevm/mainnet-launch-config.json"
   ],
   "deployment": {
     "chain": "hyperevm",
@@ -48,7 +49,27 @@
     "poolManager": "0x12D4Fd9C5DeDd00ab8a0bCe2CF0167bbf94b6B1F",
     "salt": "0x00000000000000000000000000000000000000000000000000000000000014fb",
     "swapRouter": "0x3f457EB07107711aF2a303881551160e6b745F2b",
-    "swapRouterStartBlock": 51127559
+    "swapRouterStartBlock": 51127559,
+    "graduationThresholdHype": "114000000000000000000",
+    "launchConfigId": 1,
+    "launchFeeHype": "10000000000000000",
+    "maxWalletBps": 500,
+    "maxWalletWindowSeconds": 300,
+    "sniperTaxDecaySeconds": 5,
+    "sniperTaxStartBps": 9900,
+    "virtualHypeReserve": "45600000000000000000",
+    "virtualTokenReserve": "1000000000000000000000000000",
+    "transactionHash": "0xf5018eaa578de49192329f058c162cd56ae4466e2c7749f58a07a5efc667b124",
+    "blockNumber": 51132465,
+    "gasUsed": 173656,
+    "pricingBasis": {
+      "capturedAt": "2026-11-13T13:24:00+07:00",
+      "referenceEth": "4.2",
+      "ethUsd": "1927.22",
+      "hypeUsd": "71.26",
+      "calculatedHype": "113.588605108055",
+      "configuredHype": "114"
+    }
   },
   "resolvedAddresses": {
     "CHAIN_CONFIG_START_BLOCK": "51121909",
@@ -80,13 +101,21 @@
     "SWAP_ROUTER_ADDRESS": "0x3f457EB07107711aF2a303881551160e6b745F2b",
     "SWAP_ROUTER_START_BLOCK": "51127559",
     "V4_LP_FEE_BPS": "0",
-    "V4_TICK_SPACING": "60"
+    "V4_TICK_SPACING": "60",
+    "GRADUATION_THRESHOLD_HYPE": "114000000000000000000",
+    "VIRTUAL_HYPE_RESERVE": "45600000000000000000",
+    "VIRTUAL_TOKEN_RESERVE": "1000000000000000000000000000",
+    "SNIPER_TAX_START_BPS": "9900",
+    "SNIPER_TAX_DECAY_SECONDS": "5",
+    "MAX_WALLET_BPS": "500",
+    "MAX_WALLET_WINDOW_SECONDS": "300",
+    "LAUNCH_FEE_HYPE": "10000000000000000"
   },
   "summary": {
-    "broadcastRuns": 6,
-    "transactionCount": 27,
-    "totalGasUsed": "19974411",
-    "totalTransactionFeeWei": "2007293168361337"
+    "broadcastRuns": 7,
+    "transactionCount": 28,
+    "totalGasUsed": "20148067",
+    "totalTransactionFeeWei": "2205742736009641"
   },
   "directDeploymentTransactions": [],
   "broadcastHistory": [
@@ -121,6 +150,42 @@
           "blockNumber": "51129993",
           "blockHash": "0x4f8ded63c6aac57cc2fc5211b326a9b1f1f7d505d191b28933ff372c26b7691b",
           "transactionIndex": "3",
+          "logCount": 1,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "ConfigureLaunchConfig.s.sol",
+      "file": "packages/contracts/broadcast/ConfigureLaunchConfig.s.sol/999/run-1794551124552.json",
+      "timestamp": 1794551127897,
+      "commit": "9f9d4f1",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "173656",
+      "totalTransactionFeeWei": "198449567648304",
+      "transactions": [
+        {
+          "hash": "0xf5018eaa578de49192329f058c162cd56ae4466e2c7749f58a07a5efc667b124",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0xe04bb5b9421254d4636610618cb06fca4e1b77e1",
+          "function": "setLaunchConfig((uint256,uint256,uint256,uint16,uint32,uint16,uint32,uint256))",
+          "arguments": [
+            "(114000000000000000000, 45600000000000000000, 1000000000000000000000000000, 9900, 5, 500, 300, 10000000000000000)"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0xe04bb5b9421254d4636610618cb06fca4e1b77e1",
+          "nonce": "2",
+          "valueWei": "0",
+          "gasLimit": "239861",
+          "gasUsed": "173656",
+          "effectiveGasPriceWei": "1142774034",
+          "transactionFeeWei": "198449567648304",
+          "status": "1",
+          "blockNumber": "51132465",
+          "blockHash": "0x22830f3aa50775e1292ebc156fda5ecd7b8b661ddd7476a99be0e8079aeb85a0",
+          "transactionIndex": "1",
           "logCount": 1,
           "additionalContracts": []
         }

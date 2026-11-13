@@ -58,7 +58,7 @@ const dataFor = (service) => [
   }] : []),
   { key: "VIRTUAL_HYPE_RESERVE", value: (BigInt(process.env.GRADUATION_THRESHOLD_HYPE) * 2n / 5n).toString(), is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   { key: "X_OAUTH_ENABLED", value: "false", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
-  ...(service === "api" ? [{ key: "SQUEEZ_API_CAPABILITY", value: "read-only", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false }] : []),
+  ...(service === "api" ? [{ key: "SQUEEZ_API_CAPABILITY", value: process.env.SQUEEZ_API_CAPABILITY ?? "read-only", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false }] : []),
 ];
 
 const update = async (uuid, service) => {
