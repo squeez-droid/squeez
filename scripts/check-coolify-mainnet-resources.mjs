@@ -3,8 +3,9 @@
 import { readFileSync } from "node:fs";
 import { setTimeout as wait } from "node:timers/promises";
 
-if (process.env.SQUEEZ_CHAIN !== "robinhood" || process.env.SQUEEZ_NETWORK !== "mainnet") {
-  throw new Error("Coolify mainnet check must run through the Robinhood mainnet env loader");
+const chain = process.env.SQUEEZ_CHAIN;
+if (!["elysium", "hyperevm", "robinhood"].includes(chain) || process.env.SQUEEZ_NETWORK !== "mainnet") {
+  throw new Error("Coolify mainnet check must run through a supported mainnet env loader");
 }
 
 const parseEnv = (text) => Object.fromEntries(text.split(/\r?\n/).flatMap((raw) => {
@@ -36,28 +37,28 @@ const request = async (path) => {
 const applicationsPayload = await request("/api/v1/applications");
 const applications = Array.isArray(applicationsPayload) ? applicationsPayload : applicationsPayload.data ?? [];
 const byName = (name) => applications.find((application) => application.name === name);
-const api = byName("squeez-api-robinhood-mainnet");
-const indexer = byName("squeez-indexer-robinhood-mainnet");
-if (!api || !indexer) throw new Error("Robinhood mainnet API/indexer resources are missing");
+const api = byName(`squeez-api-${chain}-mainnet`);
+const indexer = byName(`squeez-indexer-${chain}-mainnet`);
+if (!api || !indexer) throw new Error(`${chain} mainnet API/indexer resources are missing`);
 
 const envPayload = await request(`/api/v1/applications/${indexer.uuid}/envs`);
 const rows = Array.isArray(envPayload) ? envPayload : envPayload.data ?? [];
 const expected = {
   SQUEEZ_SERVICE: "indexer",
-  SQUEEZ_CHAIN: "robinhood",
+  SQUEEZ_CHAIN: chain,
   SQUEEZ_NETWORK: "mainnet",
   SQUEEZ_CHAIN_ID: process.env.SQUEEZ_CHAIN_ID,
   SQUEEZ_RPC: process.env.SQUEEZ_RPC,
   SQUEEZ_RPC_FALLBACK: process.env.SQUEEZ_RPC_FALLBACK,
   DATABASE_URL: process.env.DATABASE_URL,
-  DATABASE_SCHEMA: "robinhood_mainnet",
+  DATABASE_SCHEMA: process.env.DATABASE_SCHEMA,
   FACTORY_ADDRESS: process.env.FACTORY_ADDRESS,
   FACTORY_START_BLOCK: process.env.FACTORY_START_BLOCK,
   SWAP_ROUTER_ADDRESS: process.env.SWAP_ROUTER_ADDRESS,
   SWAP_ROUTER_START_BLOCK: process.env.SWAP_ROUTER_START_BLOCK,
 };
 const secretKeys = new Set(["SQUEEZ_RPC", "SQUEEZ_RPC_FALLBACK", "DATABASE_URL"]);
-const configuration = Object.entries(expected).map(([key, value]) => {
+const configuration = Object.entries(expected).filter(([, value]) => value).map(([key, value]) => {
   const production = rows.filter((row) => row.key === key && !row.is_preview);
   const hiddenSecret = secretKeys.has(key) && production.length === 1 && production[0].is_shown_once;
   return {
