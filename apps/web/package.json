@@ -12,8 +12,8 @@
     "build:worker:testnet": "NEXT_PUBLIC_API_URL=https://api.squeez.tech node ../../tools/with-env.mjs testnet opennextjs-cloudflare build",
     "build:worker:mainnet": "NEXT_PUBLIC_API_URL=https://api.squeez.tech node ../../tools/with-env.mjs robinhood mainnet opennextjs-cloudflare build",
     "preview:worker": "node ../../tools/with-env.mjs testnet opennextjs-cloudflare preview",
-    "deploy:worker:testnet": "npm run build:worker:testnet && NEXT_PUBLIC_API_URL=https://api.squeez.tech node ../../tools/with-env.mjs testnet opennextjs-cloudflare deploy --env=\"\"",
-    "deploy:worker:mainnet": "npm run build:worker:mainnet && NEXT_PUBLIC_API_URL=https://api.squeez.tech node ../../tools/with-env.mjs robinhood mainnet opennextjs-cloudflare deploy --env mainnet",
+    "deploy:worker:testnet": "npm run build:worker:testnet && NEXT_PUBLIC_API_URL=https://api.squeez.tech node ../../tools/with-env.mjs testnet opennextjs-cloudflare deploy --env testnet",
+    "deploy:worker:mainnet": "npm run build:worker:mainnet && NEXT_PUBLIC_API_URL=https://api.squeez.tech node ../../tools/with-env.mjs robinhood mainnet opennextjs-cloudflare deploy --env=\"\"",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next .open-next out"

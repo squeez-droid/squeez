@@ -9,6 +9,9 @@
     "binding": "ASSETS"
   },
   "env": {
+    "testnet": {
+      "name": "squeez-web-testnet"
+    },
     "mainnet": {
       "name": "squeez-web-mainnet"
     }
