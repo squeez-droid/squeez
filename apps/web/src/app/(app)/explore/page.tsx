@@ -9,16 +9,17 @@ import { AnimatedProgressValue, Badge, Button, Empty, Progress, Spinner, Stat } 
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
 import { IndexedTokenArtwork, NetworkTokenAvatar } from "@/components/token-bits";
-import { CHAINS, type SqueezChain, type Stage } from "@squeez/shared";
+import { CHAINS, type SqueezChain } from "@squeez/shared";
 import { apiUrl } from "@/lib/chain";
 import { ChainLogo, chainLabel } from "@/components/chain-logo";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
 const PAGE_SIZE = 12;
 
 export default function ExplorePage() {
-  const [stage, setStage] = useState<Stage>("mainnet");
+  const stage = useSelectedTarget().target.stage;
   const [chainFilter, setChainFilter] = useState<SqueezChain | "all">("all");
   const [tokens, setTokens] = useState<GlobalIndexedToken[]>([]);
   const [targets, setTargets] = useState<ExploreTarget[]>([]);
@@ -34,7 +35,6 @@ export default function ExplorePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setStage(params.get("network") === "testnet" ? "testnet" : "mainnet");
     const chain = params.get("chain");
     setChainFilter(CHAINS.includes(chain as SqueezChain) ? chain as SqueezChain : "all");
   }, []);
@@ -78,11 +78,9 @@ export default function ExplorePage() {
 
   useEffect(() => setPage(1), [status, query, sort, stage, chainFilter]);
 
-  const selectTarget = (nextStage: Stage, nextChain: SqueezChain | "all") => {
-    setStage(nextStage);
+  const selectChain = (nextChain: SqueezChain | "all") => {
     setChainFilter(nextChain);
     const url = new URL(window.location.href);
-    url.searchParams.set("network", nextStage);
     if (nextChain === "all") url.searchParams.delete("chain");
     else url.searchParams.set("chain", nextChain);
     window.history.replaceState(null, "", url.toString());
@@ -109,31 +107,32 @@ export default function ExplorePage() {
         <Stat className="bg-bg p-4" label="Native volume · 24h" value={targets.length ? targets.map((target) => `${fmtNum(Number(formatEther(BigInt(target.stats.volume24hHype))), 3)} ${target.nativeSymbol}`).join(" · ") : "—"} sub="Kept separate by network" />
       </div>
 
-      <div className="my-5 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {(["mainnet", "testnet"] as const).map((value) => (
-            <button key={value} onClick={() => selectTarget(value, chainFilter)} className={`rounded-md border px-3 py-2 text-sm capitalize ${stage === value ? "border-white bg-white text-bg" : "border-line text-muted hover:text-white"}`}>{value}</button>
-          ))}
-          <span className="mx-1 h-6 w-px bg-line" />
-          <button onClick={() => selectTarget(stage, "all")} className={`rounded-md border px-3 py-2 text-sm ${chainFilter === "all" ? "border-primary text-primary" : "border-line text-muted hover:text-white"}`}>All chains</button>
+      <div className="my-5 flex flex-col gap-3 border border-line bg-surface/40 p-3 xl:flex-row xl:items-center">
+        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-1 xl:pb-0" aria-label="Filter by chain">
+          <span className="num mr-1 shrink-0 text-[10px] uppercase tracking-wider text-muted">Chain</span>
+          <button onClick={() => selectChain("all")} className={`shrink-0 rounded-md border px-3 py-2 text-xs ${chainFilter === "all" ? "border-primary bg-primary/10 text-primary" : "border-line text-muted hover:text-white"}`}>All</button>
           {CHAINS.map((chain) => (
-            <button key={chain} onClick={() => selectTarget(stage, chain)} className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${chainFilter === chain ? "border-primary text-primary" : "border-line text-muted hover:text-white"}`}>
-              <ChainLogo chain={chain} size={18} />{chainLabel(chain)}
+            <button key={chain} onClick={() => selectChain(chain)} className={`inline-flex shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-xs ${chainFilter === chain ? "border-primary bg-primary/10 text-primary" : "border-line text-muted hover:text-white"}`}>
+              <ChainLogo chain={chain} size={16} />{chainLabel(chain)}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {(["trending", "new", "graduating", "graduated"] as const).map((value) => (
-            <button key={value} onClick={() => setSort(value)} className={`rounded-md border px-3 py-2 text-sm capitalize ${sort === value ? "border-white bg-white text-bg" : "border-line text-muted hover:text-white"}`}>{value === "graduating" ? "About to graduate" : value}</button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-        {(["all", "curve", "graduating", "graduated"] as const).map((value) => (
-          <button key={value} onClick={() => setStatus(value)} className={`rounded-md border px-3 py-2 text-sm ${status === value ? "border-white bg-white text-bg" : "border-line text-muted hover:text-white"}`}>
-            {value === "all" ? "All" : value === "curve" ? "Bonding curve" : "Graduated"}
-          </button>
-        ))}
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, symbol, or address" className="ml-auto h-10 min-w-64 rounded-md border border-line bg-bg px-3 text-sm text-white outline-none placeholder:text-muted focus:border-white" />
+        <div className="flex flex-1 flex-wrap items-center gap-2 xl:justify-end">
+          <label className="sr-only" htmlFor="explore-status">Token status</label>
+          <select id="explore-status" value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)} className="h-9 rounded-md border border-line bg-bg px-3 text-xs text-white outline-none focus:border-white">
+            <option value="all">All statuses</option>
+            <option value="curve">Bonding curve</option>
+            <option value="graduating">Graduating</option>
+            <option value="graduated">Graduated</option>
+          </select>
+          <label className="sr-only" htmlFor="explore-sort">Sort tokens</label>
+          <select id="explore-sort" value={sort} onChange={(event) => setSort(event.target.value as SortMode)} className="h-9 rounded-md border border-line bg-bg px-3 text-xs text-white outline-none focus:border-white">
+            <option value="trending">Trending</option>
+            <option value="new">Newest</option>
+            <option value="graduating">About to graduate</option>
+            <option value="graduated">Graduated first</option>
+          </select>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, ticker, address" aria-label="Search tokens" className="h-9 min-w-52 flex-1 rounded-md border border-line bg-bg px-3 text-xs text-white outline-none placeholder:text-muted focus:border-white xl:max-w-64" />
         </div>
       </div>
 
