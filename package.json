@@ -145,6 +145,7 @@
     "record:protected-launch-activation:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/record-protected-launch-activation.mjs",
     "verify:deployment:testnet": "node tools/with-env.mjs testnet node scripts/verify-deployment.mjs",
     "verify:deployment:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/verify-deployment.mjs",
+    "verify:deployment:hyperevm:mainnet": "node tools/with-env.mjs hyperevm mainnet node scripts/verify-deployment.mjs",
     "verify:attester:robinhood:testnet": "node tools/with-env.mjs robinhood testnet node scripts/verify-attester.mjs",
     "verify:curve-proxy:testnet": "node tools/with-env.mjs testnet node scripts/verify-curve-proxy.mjs",
     "e2e:launch:testnet": "node tools/with-env.mjs testnet node scripts/e2e-launch-testnet.mjs",
