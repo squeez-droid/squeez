@@ -15,13 +15,15 @@ import {SqueezLiquidityLocker, ILockerFeeVault} from "../src/SqueezLiquidityLock
 import {SqueezSwapRouter} from "../src/SqueezSwapRouter.sol";
 import {SqueezV4GraduationAdapter, IGraduationVault, IGraduationLocker} from "../src/SqueezV4GraduationAdapter.sol";
 
-/// @notice Simulates the complete Squeez-owned v4 layer against Robinhood mainnet without writing deployment files.
+/// @notice Simulates the complete Squeez-owned v4 layer against a supported mainnet without writing deployment files.
 contract SimulateMainnetV4 is Script {
     address internal constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     function run() external {
-        require(block.chainid == 4663, "Robinhood mainnet only");
-        require(keccak256(bytes(vm.envString("SQUEEZ_CHAIN"))) == keccak256("robinhood"), "wrong chain");
+        string memory chain = vm.envString("SQUEEZ_CHAIN");
+        bool robinhood = keccak256(bytes(chain)) == keccak256("robinhood");
+        bool hyperevm = keccak256(bytes(chain)) == keccak256("hyperevm");
+        require((robinhood && block.chainid == 4663) || (hyperevm && block.chainid == 999), "unsupported mainnet");
         require(keccak256(bytes(vm.envString("SQUEEZ_NETWORK"))) == keccak256("mainnet"), "wrong network");
 
         address poolManager = vm.envAddress("POOL_MANAGER");
@@ -35,10 +37,9 @@ contract SimulateMainnetV4 is Script {
         require(permit2.code.length > 0, "Permit2 has no code");
         require(feeVault.code.length > 0, "FeeVault has no code");
         require(CREATE2_DEPLOYER.code.length > 0, "CREATE2 deployer unavailable");
-        require(
-            SqueezFeeVault(payable(feeVault)).owner() == vm.envAddress("GOVERNANCE_TIMELOCK_ADDRESS"),
-            "vault not timelocked"
-        );
+        address expectedOwner =
+            robinhood ? vm.envAddress("GOVERNANCE_TIMELOCK_ADDRESS") : vm.envAddress("ADMIN_MULTISIG");
+        require(SqueezFeeVault(payable(feeVault)).owner() == expectedOwner, "unexpected vault owner");
 
         bytes memory constructorArgs = abi.encode(IPoolManager(poolManager), ISqueezHookVault(feeVault));
         uint160 flags = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG

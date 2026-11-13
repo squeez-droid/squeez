@@ -38,6 +38,7 @@
     "deploy:contracts:mainnet": "npm run deploy:robinhood:mainnet -w @squeez/contracts",
     "simulate:contracts:robinhood:mainnet": "npm run simulate:robinhood:mainnet -w @squeez/contracts",
     "simulate:contracts:hyperevm:mainnet": "npm run simulate:hyperevm:mainnet -w @squeez/contracts",
+    "simulate:v4:hyperevm:mainnet": "npm run simulate:v4:hyperevm:mainnet -w @squeez/contracts",
     "simulate:contracts:v4:robinhood:mainnet": "npm run simulate:v4:robinhood:mainnet -w @squeez/contracts",
     "summarize:contracts:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/summarize-deployment-simulation.mjs",
     "summarize:contracts:hyperevm:mainnet": "node tools/with-env.mjs hyperevm mainnet node scripts/summarize-deployment-simulation.mjs",
