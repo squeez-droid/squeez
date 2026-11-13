@@ -3,8 +3,8 @@
 import { readFileSync } from "node:fs";
 
 const target = `${process.env.SQUEEZ_CHAIN}:${process.env.SQUEEZ_NETWORK}`;
-if (!['hyperevm:mainnet', 'robinhood:mainnet'].includes(target)) {
-  throw new Error("Run through tools/with-env.mjs <hyperevm|robinhood> mainnet");
+if (!['elysium:mainnet', 'hyperevm:mainnet', 'robinhood:mainnet'].includes(target)) {
+  throw new Error("Run through tools/with-env.mjs <elysium|hyperevm|robinhood> mainnet");
 }
 
 const parseEnv = (text) => Object.fromEntries(text.split(/\r?\n/).flatMap((raw) => {

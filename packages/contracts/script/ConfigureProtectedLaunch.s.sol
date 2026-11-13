@@ -16,7 +16,7 @@ contract ConfigureProtectedLaunch is Script {
         SqueezIdentityRegistry identities = SqueezIdentityRegistry(vm.envAddress("IDENTITY_REGISTRY_ADDRESS"));
         address admin = vm.envAddress("ADMIN_MULTISIG");
         address attester = vm.envOr("SQUEEZ_ATTESTER_ADDRESS", address(0));
-        uint32 lockSeconds = uint32(vm.envUint("ROBINHOOD_TICKER_LOCK_SECONDS"));
+        uint32 lockSeconds = uint32(vm.envUint("TICKER_LOCK_SECONDS"));
 
         require(factory.owner() == admin && policies.owner() == admin && identities.owner() == admin, "admin mismatch");
         uint256 adminKey = vm.envUint("UPGRADE_ADMIN_PRIVATE_KEY");
@@ -34,7 +34,7 @@ contract ConfigureProtectedLaunch is Script {
                 version: policyVersion,
                 protectionWindowSeconds: uint32(vm.envUint("SNIPER_TAX_DECAY_SECONDS")),
                 initialFeeBps: uint16(vm.envUint("SNIPER_TAX_START_BPS")),
-                maxBuyBpsPerTransaction: uint16(vm.envUint("ROBINHOOD_MAX_BUY_BPS_PER_TRANSACTION")),
+                maxBuyBpsPerTransaction: uint16(vm.envUint("MAX_BUY_BPS_PER_TRANSACTION")),
                 maxBuyBpsPerAddress: uint16(vm.envUint("MAX_WALLET_BPS"))
             })
         );

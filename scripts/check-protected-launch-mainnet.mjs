@@ -7,8 +7,11 @@ const required = (name) => {
   if (!value) throw new Error(`${name} is required`);
   return value;
 };
-if (required("SQUEEZ_CHAIN") !== "robinhood" || required("SQUEEZ_NETWORK") !== "mainnet"
-  || Number(required("SQUEEZ_CHAIN_ID")) !== 4663) throw new Error("Target must be Robinhood mainnet");
+const chain = required("SQUEEZ_CHAIN");
+const expectedChainIds = { elysium: 99901, hyperevm: 999, robinhood: 4663 };
+if (required("SQUEEZ_NETWORK") !== "mainnet" || Number(required("SQUEEZ_CHAIN_ID")) !== expectedChainIds[chain]) {
+  throw new Error("Target must be a supported mainnet");
+}
 const factory = getAddress(required("FACTORY_ADDRESS"));
 const policies = getAddress(required("PROTECTION_POLICY_REGISTRY_ADDRESS"));
 const identities = getAddress(required("IDENTITY_REGISTRY_ADDRESS"));
@@ -49,7 +52,7 @@ const checks = {
   maxBuyBpsPerAddress: Number(policy?.maxBuyBpsPerAddress ?? 0) === Number(required("MAX_WALLET_BPS")),
   identityRegistry: getAddress(activeIdentities) === identities,
   identityFactory: getAddress(identityFactory) === factory,
-  tickerLockSeconds: Number(tickerLockSeconds) === 300,
+  tickerLockSeconds: Number(tickerLockSeconds) === Number(required("TICKER_LOCK_SECONDS")),
 };
 const ready = Object.values(checks).every(Boolean);
 console.log(JSON.stringify({ ready, factory, policies, identities, activePolicyId: activePolicyId.toString(), checks }, null, 2));

@@ -3,9 +3,15 @@
   "chain": "elysium",
   "network": "mainnet",
   "chainId": 99901,
-  "generatedAt": "2026-11-13T09:30:02.443Z",
+  "generatedAt": "2026-11-13T09:36:07.703Z",
   "authoritativeFragments": [
-    "packages/contracts/deployments/elysium/mainnet.json"
+    "packages/contracts/deployments/elysium/mainnet.json",
+    "packages/contracts/deployments/elysium/mainnet-graduation-infra.json",
+    "packages/contracts/deployments/elysium/mainnet-hook.json",
+    "packages/contracts/deployments/elysium/mainnet-hook-config.json",
+    "packages/contracts/deployments/elysium/mainnet-graduation.json",
+    "packages/contracts/deployments/elysium/mainnet-swap-router.json",
+    "packages/contracts/deployments/elysium/mainnet-protected-launch.json"
   ],
   "deployment": {
     "chain": "elysium",
@@ -30,7 +36,24 @@
     "startBlock": 5870369,
     "tokenBeacon": "0xCB331f29163CEB7afECc5cB82083B988483992C7",
     "tokenDeployer": "0xF06276C3C6900268B3d6940b05ee75c9320B46c2",
-    "tokenImplementation": "0xD3E491a0B9c9cfED288EA4d7a0827c0B248EfF50"
+    "tokenImplementation": "0xD3E491a0B9c9cfED288EA4d7a0827c0B248EfF50",
+    "deployer": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+    "graduationAdapter": "0xceE36b69A287Ccaaf64d0297DcfeA9b9f472300f",
+    "liquidityLocker": "0x64c302ea4A8F8ba4c6C9D8910Df2657840e0a2D1",
+    "lpFeeBps": 0,
+    "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "positionManager": "0x1d1C51b9d07fD27d36412A2b66CC23D19Eb3E518",
+    "squeezHook": "0xc40CD62D98631C36201674d765AA55dA14f860cc",
+    "tickSpacing": 60,
+    "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "poolManager": "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1",
+    "salt": "0x0000000000000000000000000000000000000000000000000000000000007c74",
+    "swapRouter": "0x28Cc16A2dd4E6656Ee5181990502202d90AF0888",
+    "attester": "0x0000000000000000000000000000000000000000",
+    "protectionPolicyHash": "0xbe7b40696ac27542ae705248606d557161608a8db9114a15fbecf984f99812a7",
+    "protectionPolicyId": 1,
+    "protectionPolicyVersion": 1,
+    "tickerLockSeconds": 300
   },
   "resolvedAddresses": {
     "CHAIN_CONFIG_START_BLOCK": "5870369",
@@ -52,16 +75,207 @@
     "FEE_VAULT_ADDRESS": "0x07C76c1597D47981350Af10E3E74D831d595756d",
     "FEE_VAULT_IMPLEMENTATION_ADDRESS": "0x6ba114EbBC04A0b774B366CeDD4BE90506122e5c",
     "CURVE_BEACON_ADDRESS": "0x5568BA402fDeFD33b8bA02dc816eBCa5b736cF13",
-    "CURVE_IMPLEMENTATION_ADDRESS": "0xB7905AE5Cd4bC93D826eC9a809673C7391571015"
+    "CURVE_IMPLEMENTATION_ADDRESS": "0xB7905AE5Cd4bC93D826eC9a809673C7391571015",
+    "LIQUIDITY_LOCKER_ADDRESS": "0x64c302ea4A8F8ba4c6C9D8910Df2657840e0a2D1",
+    "GRADUATION_ADAPTER_ADDRESS": "0xceE36b69A287Ccaaf64d0297DcfeA9b9f472300f",
+    "SQUEEZ_HOOK_ADDRESS": "0xc40CD62D98631C36201674d765AA55dA14f860cc",
+    "POOL_MANAGER": "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1",
+    "POSITION_MANAGER": "0x1d1C51b9d07fD27d36412A2b66CC23D19Eb3E518",
+    "PERMIT2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+    "SWAP_ROUTER_ADDRESS": "0x28Cc16A2dd4E6656Ee5181990502202d90AF0888",
+    "V4_LP_FEE_BPS": "0",
+    "V4_TICK_SPACING": "60"
   },
   "summary": {
-    "broadcastRuns": 1,
-    "transactionCount": 21,
-    "totalGasUsed": "15953173",
-    "totalTransactionFeeWei": "7980527027103173"
+    "broadcastRuns": 7,
+    "transactionCount": 31,
+    "totalGasUsed": "20324626",
+    "totalTransactionFeeWei": "10166542831924626"
   },
   "directDeploymentTransactions": [],
   "broadcastHistory": [
+    {
+      "script": "ConfigureGraduation.s.sol",
+      "file": "packages/contracts/broadcast/ConfigureGraduation.s.sol/99901/run-1794562460373.json",
+      "timestamp": 1794562461137,
+      "commit": "2d3f115",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "55128",
+      "totalTransactionFeeWei": "27564000055128",
+      "transactions": [
+        {
+          "hash": "0xeaf8fe80f8e581c983838afb9b92156d448e6a394d6650e42531a346c4968f5b",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x6d89d199d2a2a253caeb322ba5b2cd8a558408cd",
+          "function": "setGraduationAdapter(address)",
+          "arguments": [
+            "0xceE36b69A287Ccaaf64d0297DcfeA9b9f472300f"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x6d89d199d2a2a253caeb322ba5b2cd8a558408cd",
+          "nonce": "1",
+          "valueWei": "0",
+          "gasLimit": "76144",
+          "gasUsed": "55128",
+          "effectiveGasPriceWei": "500000001",
+          "transactionFeeWei": "27564000055128",
+          "status": "1",
+          "blockNumber": "5872879",
+          "blockHash": "0x8e30c6af0ab7ecd2f3063f130b3f8b12126db8d193233e317de08c79df7ae523",
+          "transactionIndex": "1",
+          "logCount": 1,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "ConfigureProtectedLaunch.s.sol",
+      "file": "packages/contracts/broadcast/ConfigureProtectedLaunch.s.sol/99901/run-1794562558692.json",
+      "timestamp": 1794562560642,
+      "commit": "2d3f115",
+      "pending": 0,
+      "transactionCount": 4,
+      "totalGasUsed": "350179",
+      "totalTransactionFeeWei": "175099579100179",
+      "transactions": [
+        {
+          "hash": "0x5517ac6ae370843902fa951e7a3f83586b40a119cc33ed7ba8f1969e846a5c5c",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x36d5a7f4fd8d9607206d0b1aaace10e617cd2584",
+          "function": "createPolicy((bytes32,uint32,uint32,uint16,uint16,uint16))",
+          "arguments": [
+            "(0xf4cf1e663f09ed21e2059f17198bc018e1f19f38d4c32c1292f47a28277d7873, 1, 5, 9900, 100, 500)"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x36d5a7f4fd8d9607206d0b1aaace10e617cd2584",
+          "nonce": "2",
+          "valueWei": "0",
+          "gasLimit": "214709",
+          "gasUsed": "146810",
+          "effectiveGasPriceWei": "500050001",
+          "transactionFeeWei": "73412340646810",
+          "status": "1",
+          "blockNumber": "5873678",
+          "blockHash": "0xb9522f766fae87b503858ae83091ba47f8bc228aad642023e7571c6285026450",
+          "transactionIndex": "1",
+          "logCount": 1,
+          "additionalContracts": []
+        },
+        {
+          "hash": "0x4474bed88a0f0d9134e5dd3109a1af47c5476cb9dae2fe6ce8f85534cba21d18",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x347c1b5ea6963c68911acf91dbe1593835dc21b3",
+          "function": "setFactory(address)",
+          "arguments": [
+            "0x6d89D199D2a2A253CaeB322BA5b2Cd8A558408cD"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x347c1b5ea6963c68911acf91dbe1593835dc21b3",
+          "nonce": "3",
+          "valueWei": "0",
+          "gasLimit": "75643",
+          "gasUsed": "54765",
+          "effectiveGasPriceWei": "500050001",
+          "transactionFeeWei": "27385238304765",
+          "status": "1",
+          "blockNumber": "5873678",
+          "blockHash": "0xb9522f766fae87b503858ae83091ba47f8bc228aad642023e7571c6285026450",
+          "transactionIndex": "2",
+          "logCount": 1,
+          "additionalContracts": []
+        },
+        {
+          "hash": "0x55dbf0c5f665f9af199cc240da94ca3f2eaa8b1e419219113b9b26d5ce1e426e",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x6d89d199d2a2a253caeb322ba5b2cd8a558408cd",
+          "function": "setIdentityRegistry(address,uint32)",
+          "arguments": [
+            "0x347C1b5Ea6963C68911aCF91DbE1593835Dc21b3",
+            "300"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x6d89d199d2a2a253caeb322ba5b2cd8a558408cd",
+          "nonce": "4",
+          "valueWei": "0",
+          "gasLimit": "81257",
+          "gasUsed": "55561",
+          "effectiveGasPriceWei": "500000001",
+          "transactionFeeWei": "27780500055561",
+          "status": "1",
+          "blockNumber": "5873684",
+          "blockHash": "0xa6efdaac85e18e98470c74ea12b94a17e48aa9b6345ad11102312c6d088077c3",
+          "transactionIndex": "2",
+          "logCount": 1,
+          "additionalContracts": []
+        },
+        {
+          "hash": "0xe3c10a38dcc37d2c459d237ff79a73edcb0bdc286e155d827f6a263dbf98d57e",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x6d89d199d2a2a253caeb322ba5b2cd8a558408cd",
+          "function": "setProtectionPolicy(address,uint256)",
+          "arguments": [
+            "0x36D5A7F4fD8D9607206d0B1AaacE10E617CD2584",
+            "1"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x6d89d199d2a2a253caeb322ba5b2cd8a558408cd",
+          "nonce": "5",
+          "valueWei": "0",
+          "gasLimit": "136074",
+          "gasUsed": "93043",
+          "effectiveGasPriceWei": "500000001",
+          "transactionFeeWei": "46521500093043",
+          "status": "1",
+          "blockNumber": "5873684",
+          "blockHash": "0xa6efdaac85e18e98470c74ea12b94a17e48aa9b6345ad11102312c6d088077c3",
+          "transactionIndex": "3",
+          "logCount": 1,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "ConfigureSqueezHook.s.sol",
+      "file": "packages/contracts/broadcast/ConfigureSqueezHook.s.sol/99901/run-1794562454522.json",
+      "timestamp": 1794562455455,
+      "commit": "2d3f115",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "52007",
+      "totalTransactionFeeWei": "26008700752007",
+      "transactions": [
+        {
+          "hash": "0x0deb07061020268a2ec8dd165761b498adeaad687978f772ede1a8fc59dd06ba",
+          "transactionType": "CALL",
+          "contractName": null,
+          "contractAddress": "0x07c76c1597d47981350af10e3e74d831d595756d",
+          "function": "setHook(address)",
+          "arguments": [
+            "0xc40CD62D98631C36201674d765AA55dA14f860cc"
+          ],
+          "from": "0x2e8ca95e429f34e6e876e078dcd8e51eb31645b9",
+          "to": "0x07c76c1597d47981350af10e3e74d831d595756d",
+          "nonce": "0",
+          "valueWei": "0",
+          "gasLimit": "71834",
+          "gasUsed": "52007",
+          "effectiveGasPriceWei": "500100001",
+          "transactionFeeWei": "26008700752007",
+          "status": "1",
+          "blockNumber": "5872826",
+          "blockHash": "0x2c0cb8c43faf42f8036fef0681afa69960b4e04ad69cb2d5e1c82602136adff8",
+          "transactionIndex": "2",
+          "logCount": 1,
+          "additionalContracts": []
+        }
+      ]
+    },
     {
       "script": "Deploy.s.sol",
       "file": "packages/contracts/broadcast/Deploy.s.sol/99901/run-1794562183627.json",
@@ -566,6 +780,147 @@
           "blockHash": "0xc7293c4c27bb6718e684e2352e85fd8d4e46e3168ae0215e1db75eea7424515a",
           "transactionIndex": "7",
           "logCount": 3,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "DeployGraduationInfra.s.sol",
+      "file": "packages/contracts/broadcast/DeployGraduationInfra.s.sol/99901/run-1794562382704.json",
+      "timestamp": 1794562383550,
+      "commit": "2d3f115",
+      "pending": 0,
+      "transactionCount": 2,
+      "totalGasUsed": "2023813",
+      "totalTransactionFeeWei": "1011906502023813",
+      "transactions": [
+        {
+          "hash": "0x9c1e6e373ea208b5e40793db298c6b9841a13e8ca67a34ff52260c8cfc2a00af",
+          "transactionType": "CREATE",
+          "contractName": "SqueezLiquidityLocker",
+          "contractAddress": "0x64c302ea4a8f8ba4c6c9d8910df2657840e0a2d1",
+          "function": null,
+          "arguments": [
+            "0x07C76c1597D47981350Af10E3E74D831d595756d",
+            "0x1d1C51b9d07fD27d36412A2b66CC23D19Eb3E518"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": null,
+          "nonce": "22",
+          "valueWei": "0",
+          "gasLimit": "590868",
+          "gasUsed": "454514",
+          "effectiveGasPriceWei": "500000001",
+          "transactionFeeWei": "227257000454514",
+          "status": "1",
+          "blockNumber": "5872190",
+          "blockHash": "0x725ec452f818337212248d5e5bef5b20ff05a4c9b5702c7a9c1eece4eac12c97",
+          "transactionIndex": "1",
+          "logCount": 0,
+          "additionalContracts": []
+        },
+        {
+          "hash": "0x443976c8dc50b7b6ec39585de9973da3c7998d6c970e1c89b61b51766fd67122",
+          "transactionType": "CREATE",
+          "contractName": "SqueezV4GraduationAdapter",
+          "contractAddress": "0xcee36b69a287ccaaf64d0297dcfea9b9f472300f",
+          "function": null,
+          "arguments": [
+            "0x07C76c1597D47981350Af10E3E74D831d595756d",
+            "0x1d1C51b9d07fD27d36412A2b66CC23D19Eb3E518",
+            "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+            "0x64c302ea4A8F8ba4c6C9D8910Df2657840e0a2D1",
+            "0xc40CD62D98631C36201674d765AA55dA14f860cc",
+            "0",
+            "60"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": null,
+          "nonce": "23",
+          "valueWei": "0",
+          "gasLimit": "2040088",
+          "gasUsed": "1569299",
+          "effectiveGasPriceWei": "500000001",
+          "transactionFeeWei": "784649501569299",
+          "status": "1",
+          "blockNumber": "5872190",
+          "blockHash": "0x725ec452f818337212248d5e5bef5b20ff05a4c9b5702c7a9c1eece4eac12c97",
+          "transactionIndex": "2",
+          "logCount": 0,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "DeploySqueezHook.s.sol",
+      "file": "packages/contracts/broadcast/DeploySqueezHook.s.sol/99901/run-1794562369115.json",
+      "timestamp": 1794562369959,
+      "commit": "2d3f115",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "1096084",
+      "totalTransactionFeeWei": "548316022096084",
+      "transactions": [
+        {
+          "hash": "0xad0c09a7cc845cec3c6719253af08e0fcb948934fe728041a88120cfa073a792",
+          "transactionType": "CREATE2",
+          "contractName": "SqueezHook",
+          "contractAddress": "0xc40cd62d98631c36201674d765aa55da14f860cc",
+          "function": null,
+          "arguments": [
+            "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1",
+            "0x07C76c1597D47981350Af10E3E74D831d595756d"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": "0x4e59b44847b379578588920ca78fbf26c0b4956c",
+          "nonce": "21",
+          "valueWei": "0",
+          "gasLimit": "1513965",
+          "gasUsed": "1096084",
+          "effectiveGasPriceWei": "500250001",
+          "transactionFeeWei": "548316022096084",
+          "status": "1",
+          "blockNumber": "5872066",
+          "blockHash": "0x74479cdffe33209451cd2732773c752786942083852a18e69388ce03173fd25b",
+          "transactionIndex": "1",
+          "logCount": 0,
+          "additionalContracts": []
+        }
+      ]
+    },
+    {
+      "script": "DeploySwapRouter.s.sol",
+      "file": "packages/contracts/broadcast/DeploySwapRouter.s.sol/99901/run-1794562393790.json",
+      "timestamp": 1794562394683,
+      "commit": "2d3f115",
+      "pending": 0,
+      "transactionCount": 1,
+      "totalGasUsed": "794242",
+      "totalTransactionFeeWei": "397121000794242",
+      "transactions": [
+        {
+          "hash": "0x7b0259f204b1e553e0d465990004e8e6aaf2e64844a399891649c4677d62976a",
+          "transactionType": "CREATE",
+          "contractName": "SqueezSwapRouter",
+          "contractAddress": "0x28cc16a2dd4e6656ee5181990502202d90af0888",
+          "function": null,
+          "arguments": [
+            "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1",
+            "0xc40CD62D98631C36201674d765AA55dA14f860cc"
+          ],
+          "from": "0xb5c0ed0252d1906fca50664eb2198aea0679920b",
+          "to": null,
+          "nonce": "24",
+          "valueWei": "0",
+          "gasLimit": "1032514",
+          "gasUsed": "794242",
+          "effectiveGasPriceWei": "500000001",
+          "transactionFeeWei": "397121000794242",
+          "status": "1",
+          "blockNumber": "5872288",
+          "blockHash": "0xa8ba1dabe2503c8f8b9e32d4042f9422cb79cc3e16ec62f822670b570eeeec92",
+          "transactionIndex": "1",
+          "logCount": 0,
           "additionalContracts": []
         }
       ]

@@ -8,16 +8,20 @@ const required = (name) => {
   if (!value) throw new Error(`${name} is required`);
   return value;
 };
-if (required("SQUEEZ_CHAIN") !== "robinhood" || required("SQUEEZ_NETWORK") !== "mainnet") {
-  throw new Error("runtime bytecode verification is restricted to Robinhood mainnet");
+const chain = required("SQUEEZ_CHAIN");
+if (!new Set(["elysium", "hyperevm", "robinhood"]).has(chain) || required("SQUEEZ_NETWORK") !== "mainnet") {
+  throw new Error("runtime bytecode verification requires a supported mainnet target");
 }
 const expectedChainId = Number(required("SQUEEZ_CHAIN_ID"));
-if (expectedChainId !== 4663) throw new Error("unexpected Robinhood mainnet chain ID");
+const expectedChainIds = { elysium: 99901, hyperevm: 999, robinhood: 4663 };
+if (expectedChainId !== expectedChainIds[chain]) throw new Error(`unexpected ${chain} mainnet chain ID`);
 
-execFileSync("forge", ["build", "--root", "packages/contracts", "--profile", "robinhood_mainnet"], {
+const buildArguments = ["build", "--root", "packages/contracts"];
+if (chain === "robinhood") buildArguments.push("--profile", "robinhood_mainnet");
+execFileSync("forge", buildArguments, {
   stdio: "inherit",
 });
-const artifactRoot = "packages/contracts/out-robinhood-mainnet";
+const artifactRoot = chain === "robinhood" ? "packages/contracts/out-robinhood-mainnet" : "packages/contracts/out";
 
 const contracts = [
   { name: "SqueezHook", address: required("SQUEEZ_HOOK_ADDRESS"), artifact: "SqueezHook.sol/SqueezHook.json" },
