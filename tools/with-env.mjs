@@ -104,10 +104,12 @@ for (const key of [
   if (value?.trim()) prefixedOverrides[key] = value;
 }
 const selectedChainEnv = {
-  SQUEEZ_CHAIN_ID: chainSource[`${chainPrefix}_CHAIN_ID`],
-  SQUEEZ_RPC: chainSource[`${chainPrefix}_RPC`],
-  SQUEEZ_RPC_FALLBACK: chainSource[`${chainPrefix}_RPC_FALLBACK`],
-  SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`],
+  // Hosted single-target containers commonly inject the canonical unprefixed keys. Prefer a chain-qualified
+  // value when present, but never erase an explicit runtime value merely because the root dotenv file is absent.
+  SQUEEZ_CHAIN_ID: chainSource[`${chainPrefix}_CHAIN_ID`] ?? chainSource.SQUEEZ_CHAIN_ID,
+  SQUEEZ_RPC: chainSource[`${chainPrefix}_RPC`] ?? chainSource.SQUEEZ_RPC,
+  SQUEEZ_RPC_FALLBACK: chainSource[`${chainPrefix}_RPC_FALLBACK`] ?? chainSource.SQUEEZ_RPC_FALLBACK,
+  SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`] ?? chainSource.SQUEEZ_EXPLORER,
   // Keep provider limits target-specific. A conservative public testnet RPC must not throttle
   // a production provider (or another chain), while the legacy unprefixed keys remain fallbacks.
   INDEXER_MAX_REQUESTS_PER_SECOND: chainSource[`${chainPrefix}_INDEXER_MAX_REQUESTS_PER_SECOND`]
