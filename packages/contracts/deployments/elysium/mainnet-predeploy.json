@@ -4,10 +4,10 @@
   "chain": "elysium",
   "network": "mainnet",
   "chainId": 99901,
-  "generatedAt": "2026-11-13T09:18:55.748Z",
+  "generatedAt": "2026-11-13T09:29:15.969Z",
   "source": {
-    "commit": "b506552",
-    "dirty": true,
+    "commit": "7e150d1",
+    "dirty": false,
     "compiler": "solc-0.8.26",
     "evmVersion": "cancun",
     "optimizer": {
