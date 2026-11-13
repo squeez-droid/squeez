@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { parseEther, zeroAddress, zeroHash, type Address } from "viem";
+import { getAddress, keccak256, parseEther, toBytes, zeroAddress, zeroHash, type Address } from "viem";
 import { usePublicClient, useWriteContract } from "wagmi";
 import { content } from "@/lib/data";
 import { launchFactoryAbi } from "@/lib/abis";
@@ -11,11 +11,22 @@ import { Empty } from "@/components/ui";
 import { EconomicsStep, HoldersConfirm, IdentityStep, LaunchSidebar, LaunchTargetPicker, ReviewModal, Stepper, useLaunchForm } from "@/components/launch";
 import { useCommunityCanary } from "@/lib/community-canary";
 import { useDataSourceStatus } from "@/lib/indexer";
+import { useSelectedTarget } from "@/lib/use-selected-target";
 
 const T = content.launch.review;
+const TOKEN_LAUNCHED_TOPIC = keccak256(toBytes(
+  "TokenLaunched(address,address,address,address,uint16,uint256,address,uint8,uint16)",
+));
+
+function topicAddress(topic?: string): Address | null {
+  return topic && /^0x[0-9a-fA-F]{64}$/.test(topic)
+    ? getAddress(`0x${topic.slice(-40)}`)
+    : null;
+}
 
 export default function LaunchPage() {
   const tx = useTx();
+  const selected = useSelectedTarget();
   const publicClient = usePublicClient();
   const contractWrite = useWriteContract();
   const api = useLaunchForm();
@@ -127,7 +138,26 @@ export default function LaunchPage() {
       });
       return {
         hash,
-        wait: async () => { await publicClient.waitForTransactionReceipt({ hash }); },
+        wait: async () => {
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          await api.clearDraft();
+          const launchEvent = receipt.logs.find((log) =>
+            log.address.toLowerCase() === factory.toLowerCase()
+              && log.topics[0]?.toLowerCase() === TOKEN_LAUNCHED_TOPIC.toLowerCase());
+          const token = topicAddress(launchEvent?.topics[1]);
+          const curve = topicAddress(launchEvent?.topics[2]);
+          if (!token) return;
+          return {
+            addresses: [
+              { label: "Token contract (CA)", address: token },
+              ...(curve ? [{ label: "Bonding curve", address: curve }] : []),
+            ],
+            successHref: {
+              href: `/token/${selected.target.chain}/${selected.target.stage}/${token}`,
+              label: T.openToken,
+            },
+          };
+        },
       };
     });
   };

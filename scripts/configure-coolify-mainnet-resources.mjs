@@ -6,7 +6,10 @@ const [apiUuid, indexerUuid] = process.argv.slice(2);
 if (!apiUuid || !indexerUuid) throw new Error("Usage: configure-coolify-mainnet-resources.mjs <api-uuid> <indexer-uuid>");
 const indexerOnly = process.argv.includes("--indexer-only");
 const apiDatabaseOnly = process.argv.includes("--api-database-only");
-if (indexerOnly && apiDatabaseOnly) throw new Error("Choose only one scoped update mode");
+const apiOAuthOnly = process.argv.includes("--api-oauth-only");
+if ([indexerOnly, apiDatabaseOnly, apiOAuthOnly].filter(Boolean).length > 1) {
+  throw new Error("Choose only one scoped update mode");
+}
 if (!["elysium", "robinhood", "hyperevm"].includes(process.env.SQUEEZ_CHAIN) || process.env.SQUEEZ_NETWORK !== "mainnet") {
   throw new Error("Run through tools/with-env.mjs <elysium|robinhood|hyperevm> mainnet");
 }
@@ -73,10 +76,21 @@ const dataFor = (service) => [
 ];
 
 const update = async (uuid, service) => {
-  const data = apiDatabaseOnly && service === "api"
-    ? [{ key: "DATABASE_URL", value: databaseUrlFor("api"), is_preview: false, is_literal: true,
-        is_multiline: false, is_shown_once: true }]
-    : dataFor(service);
+  const data = apiOAuthOnly && service === "api"
+    ? [
+        ...apiOnlyKeys.flatMap((key) => process.env[key] ? [{
+          key, value: process.env[key], is_preview: false, is_literal: true,
+          is_multiline: false, is_shown_once: false,
+        }] : []),
+        ...apiOnlySecretKeys.flatMap((key) => process.env[key] ? [{
+          key, value: process.env[key], is_preview: false, is_literal: true,
+          is_multiline: false, is_shown_once: true,
+        }] : []),
+      ]
+    : apiDatabaseOnly && service === "api"
+      ? [{ key: "DATABASE_URL", value: databaseUrlFor("api"), is_preview: false, is_literal: true,
+          is_multiline: false, is_shown_once: true }]
+      : dataFor(service);
   const response = await fetch(`${base}/api/v1/applications/${uuid}/envs/bulk`, {
     method: "PATCH",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -88,6 +102,6 @@ const update = async (uuid, service) => {
 
 console.log(JSON.stringify(await Promise.all(indexerOnly
   ? [update(indexerUuid, "indexer")]
-  : apiDatabaseOnly
+  : apiDatabaseOnly || apiOAuthOnly
     ? [update(apiUuid, "api")]
     : [update(apiUuid, "api"), update(indexerUuid, "indexer")]), null, 2));

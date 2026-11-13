@@ -28,6 +28,7 @@ const selectedApplications = await Promise.all(selectedSummaries.map(async (summ
 }));
 const applicationIds = new Set(selectedApplications.map((row) => String(row.id)));
 const applicationNames = new Set(selectedApplications.map((row) => row.name));
+const applicationById = new Map(selectedApplications.map((row) => [String(row.id), row]));
 const response = await fetch(`${base}/api/v1/deployments?per_page=50`, {
   headers,
 });
@@ -40,7 +41,9 @@ const rows = Array.isArray(payload)
 const matches = rows.filter((row) => applicationIds.has(String(row.application_id)) || applicationNames.has(row.application_name));
 console.log(JSON.stringify(matches.map((row) => ({
   uuid: row.deployment_uuid ?? row.uuid,
-  applicationUuid: row.application_id ?? row.application_uuid,
+  applicationId: row.application_id ?? null,
+  applicationUuid: applicationById.get(String(row.application_id))?.uuid ?? row.application_uuid,
+  applicationName: applicationById.get(String(row.application_id))?.name ?? row.application_name,
   status: row.status,
   commit: row.commit,
   createdAt: row.created_at,

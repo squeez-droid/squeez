@@ -8,7 +8,7 @@ import { useDataSourceStatus } from "@/lib/indexer";
 import { useCommunityCanary } from "@/lib/community-canary";
 import { fmtNum, shortAddr } from "@/lib/format";
 import { Button, Modal, Spinner } from "./ui";
-import { IconBrowser } from "./icons";
+import { IconBrowser, IconWalletConnect } from "./icons";
 
 export function WalletButton() {
   const selected = useSelectedTarget();
@@ -39,7 +39,7 @@ export function WalletButton() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <div className="num text-sm text-white">{shortAddr(w.address, 6)}</div>
-              <div className="text-xs text-muted">Browser wallet · {selected.chain.name}</div>
+              <div className="text-xs text-muted">{w.mode === "walletconnect" ? "WalletConnect" : "Browser wallet"} · {selected.chain.name}</div>
             </div>
             <span className="num text-[10px] uppercase text-muted">online</span>
           </div>
@@ -72,6 +72,7 @@ export function WalletModal() {
     <Modal open={w.modalOpen} onClose={w.closeModal} title="Connect wallet">
       <div className="space-y-2">
         <WalletOption icon={<IconBrowser width={22} height={22} />} title="Browser wallet" sub={w.hasInjected ? "MetaMask, Rabby, etc." : "Not detected in this browser"} disabled={!w.hasInjected || connecting} loading={connecting && w.mode === "injected"} onClick={w.connectInjected} />
+        <WalletOption icon={<IconWalletConnect width={22} height={22} />} title="WalletConnect" sub={w.hasWalletConnect ? "Scan QR or open a mobile wallet" : "Project ID is not configured"} disabled={!w.hasWalletConnect || connecting} loading={connecting && w.mode === "walletconnect"} onClick={w.connectWalletConnect} />
       </div>
       {w.error && <p className="mt-3 rounded-lg bg-down/10 px-3 py-2 text-xs text-down">{w.error}</p>}
       <p className="mt-4 text-xs leading-relaxed text-muted">

@@ -10,6 +10,7 @@ import { fill, isAddress } from "@/lib/format";
 import { useProtocolConfig } from "@/lib/protocol-config";
 import type { QuotePair } from "@/lib/types";
 import { useWallet } from "@/providers/wallet";
+import { deleteLaunchDraft, readLaunchDraft, saveLaunchDraft } from "@/lib/launch-draft";
 
 export type PairGroup = "hype" | "crypto" | "stock";
 export type Destination = "wallet" | "buyback" | "holders";
@@ -100,6 +101,7 @@ export function useLaunchForm() {
   const signer = useSignMessage();
   const protocol = useProtocolConfig();
   const [form, setForm] = useState<LaunchForm>(INITIAL);
+  const [draftReady, setDraftReady] = useState(false);
   const [metadataUploading, setMetadataUploading] = useState(false);
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const [evidenceImageHash, setEvidenceImageHash] = useState<`0x${string}` | null>(null);
@@ -107,6 +109,25 @@ export function useLaunchForm() {
   const [identityChecking, setIdentityChecking] = useState(false);
   const [xVerification, setXVerification] = useState<XVerification>({ verified: false });
   const [xVerificationLoading, setXVerificationLoading] = useState(false);
+  const [xVerificationError, setXVerificationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDraftReady(false);
+    void readLaunchDraft<LaunchForm>(selected.id)
+      .then((draft) => {
+        if (!cancelled) setForm(draft ? { ...INITIAL, ...draft, metadataURI: null } : INITIAL);
+      })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) setDraftReady(true); });
+    return () => { cancelled = true; };
+  }, [selected.id]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const timeout = window.setTimeout(() => { void saveLaunchDraft(selected.id, form); }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [draftReady, form, selected.id]);
 
   useEffect(() => {
     setForm((current) => current.group === "hype" && current.quote !== nativeSymbol
@@ -185,12 +206,14 @@ export function useLaunchForm() {
   const connectX = async () => {
     if (!wallet.address) throw new Error("Connect your wallet before verifying X.");
     setXVerificationLoading(true);
+    setXVerificationError(null);
     try {
       const nonceResponse = await fetch(`${targetApiUrl}/auth/x/nonce?address=${wallet.address}`, {
         credentials: "include",
       });
       if (!nonceResponse.ok) throw new Error("Could not create X verification authorization.");
       const authorization = await nonceResponse.json() as { message: string };
+      await wallet.authorizeSigning();
       const signature = await signer.signMessageAsync({ message: authorization.message });
       const startResponse = await fetch(`${targetApiUrl}/auth/x/start`, {
         method: "POST",
@@ -204,7 +227,14 @@ export function useLaunchForm() {
       });
       const result = await startResponse.json() as { authorizeUrl?: string; error?: string };
       if (!startResponse.ok || !result.authorizeUrl) throw new Error(result.error ?? "X verification failed.");
+      // Persist immediately: the OAuth navigation can happen before the debounced draft save runs.
+      await saveLaunchDraft(selected.id, form);
       window.location.assign(result.authorizeUrl);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message.split("\n")[0] : "X verification failed.";
+      setXVerificationError(message.includes("not been authorized")
+        ? "This account is not authorized in the browser wallet. Disconnect, reconnect the selected account, and try again."
+        : message);
     } finally {
       setXVerificationLoading(false);
     }
@@ -213,6 +243,10 @@ export function useLaunchForm() {
   const disconnectX = async () => {
     await fetch(`${targetApiUrl}/auth/x/session`, { method: "DELETE", credentials: "include" });
     setXVerification({ verified: false });
+  };
+
+  const clearDraft = async () => {
+    await deleteLaunchDraft(selected.id);
   };
 
   const requestXAttestation = async (metadataURI: string, imageHash: `0x${string}`) => {
@@ -338,7 +372,7 @@ export function useLaunchForm() {
     opening, openingWei, openingTokensOut: tokensOut, openingQuote, openingPct, openingQuoteLoading: openingRead.isLoading,
     launchFeeHype, maxWalletPct, communityMaxOpeningBuy, protocol, destinationLabel, walletAddress: wallet.address, nativeSymbol,
     uploadMetadata, metadataUploading, metadataError, identityCheck, identityChecking,
-    xVerification, xVerificationLoading, connectX, disconnectX, requestXAttestation,
+    xVerification, xVerificationLoading, xVerificationError, connectX, disconnectX, requestXAttestation, clearDraft,
   };
 }
 

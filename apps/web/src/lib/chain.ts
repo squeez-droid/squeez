@@ -5,7 +5,7 @@ import {
   parseDeploymentTarget,
 } from "@squeez/shared";
 import { createConfig, http } from "wagmi";
-import { injected } from "wagmi/connectors";
+import { injected, walletConnect } from "wagmi/connectors";
 
 // All services load the selected root .env.testnet / .env.mainnet file.
 export const deploymentTarget = parseDeploymentTarget(
@@ -26,9 +26,24 @@ export const supportedChains = Object.values(SQUEEZ_NETWORKS).map((info) => {
   return makeSqueezChain(info, `${url}/rpc`);
 }) as [ReturnType<typeof makeSqueezChain>, ...ReturnType<typeof makeSqueezChain>[]];
 
+export const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim() ?? "";
+const walletConnectConnector = walletConnectProjectId
+  && typeof window !== "undefined"
+  ? walletConnect({
+      projectId: walletConnectProjectId,
+      showQrModal: true,
+      metadata: {
+        name: "Squeez",
+        description: "Multichain on-chain token launchpad",
+        url: "https://squeez.tech",
+        icons: ["https://squeez.tech/icon.png"],
+      },
+    })
+  : null;
+
 export const wagmiConfig = createConfig({
   chains: supportedChains,
-  connectors: [injected()],
+  connectors: [injected(), ...(walletConnectConnector ? [walletConnectConnector] : [])],
   transports: Object.fromEntries(Object.values(SQUEEZ_NETWORKS).map((info) => [
     info.chainId,
     http(`${apiUrl}/v1/${info.chain}/${info.stage}/rpc`),

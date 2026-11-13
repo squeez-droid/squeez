@@ -96,6 +96,9 @@ export function IdentityStep({ api, showErrors, onContinue }: IdentityStepProps)
                 {showErrors && api.identityErrors.xVerification && (
                   <p className="mt-1 text-xs text-warn">{api.identityErrors.xVerification}</p>
                 )}
+                {api.xVerificationError && (
+                  <p className="mt-1 text-xs text-down">{api.xVerificationError}</p>
+                )}
               </div>
               {api.xVerification.verified ? (
                 <Button variant="secondary" onClick={() => void api.disconnectX()}>Disconnect X</Button>

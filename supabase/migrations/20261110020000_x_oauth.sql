@@ -3,7 +3,16 @@ do $$
 declare
   target text;
 begin
-  foreach target in array array['testnet_system', 'mainnet_system', 'robinhood_testnet_system', 'robinhood_mainnet_system'] loop
+  foreach target in array array[
+    'testnet_system',
+    'mainnet_system',
+    'robinhood_testnet_system',
+    'robinhood_mainnet_system',
+    'hyperevm_testnet_system',
+    'hyperevm_mainnet_system'
+  ] loop
+    execute format('create schema if not exists %I', target);
+    execute format('grant usage on schema %I to service_role', target);
     execute format($sql$
       create table if not exists %I.x_oauth_request (
         state_hash text primary key,

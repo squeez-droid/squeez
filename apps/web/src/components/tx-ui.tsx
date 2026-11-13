@@ -3,7 +3,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { useTx } from "@/providers/tx";
 import { useSelectedTarget } from "@/lib/use-selected-target";
-import { Button, Modal, Row, Spinner } from "./ui";
+import { Button, CopyButton, Modal, Row, Spinner } from "./ui";
 import { IconCheck, IconClose } from "./icons";
 
 export function TxModal() {
@@ -40,17 +40,40 @@ export function TxModal() {
           );
         })}
       </ol>
-      {state.hash && explorer && (
-        <a href={`${explorer}/tx/${state.hash}`} target="_blank" rel="noreferrer" className="num mt-4 block truncate text-xs text-white underline underline-offset-2">
-          {state.hash} ↗
-        </a>
+      {state.hash && (
+        <div className="mt-4 rounded-lg border border-line bg-bg px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted">Transaction hash</div>
+          <div className="mt-1 flex items-center gap-1">
+            {explorer ? (
+              <a href={`${explorer}/tx/${state.hash}`} target="_blank" rel="noreferrer" className="num min-w-0 flex-1 truncate text-xs text-white underline underline-offset-2">
+                {state.hash}
+              </a>
+            ) : <span className="num min-w-0 flex-1 truncate text-xs text-white">{state.hash}</span>}
+            <CopyButton text={state.hash} />
+          </div>
+        </div>
       )}
+      {state.phase === "success" && state.completion?.addresses?.map((item) => (
+        <div key={`${item.label}:${item.address}`} className="mt-2 rounded-lg border border-line bg-bg px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted">{item.label}</div>
+          <div className="mt-1 flex items-center gap-1">
+            {explorer ? (
+              <a href={`${explorer}/address/${item.address}`} target="_blank" rel="noreferrer" className="num min-w-0 flex-1 break-all text-xs text-white underline underline-offset-2">
+                {item.address}
+              </a>
+            ) : <span className="num min-w-0 flex-1 break-all text-xs text-white">{item.address}</span>}
+            <CopyButton text={item.address} />
+          </div>
+        </div>
+      ))}
       {state.phase === "error" && <p className="mt-4 rounded-lg bg-down/10 px-3 py-2 text-sm text-down">{state.error}</p>}
       {state.phase === "success" && state.successBody && <p className="mt-4 text-sm text-muted">{state.successBody}</p>}
       <div className="mt-5 flex gap-2">
         {state.phase === "signing" && <Button variant="secondary" className="flex-1" onClick={reject}>Simulate: reject in wallet</Button>}
-        {state.phase === "success" && state.successHref && (
-          <Link href={state.successHref.href} onClick={close} className="flex-1"><Button className="w-full">{state.successHref.label}</Button></Link>
+        {state.phase === "success" && (state.completion?.successHref ?? state.successHref) && (
+          <Link href={(state.completion?.successHref ?? state.successHref)!.href} onClick={close} className="flex-1">
+            <Button className="w-full">{(state.completion?.successHref ?? state.successHref)!.label}</Button>
+          </Link>
         )}
         {(state.phase === "success" || state.phase === "error") && <Button variant="secondary" className="flex-1" onClick={close}>Close</Button>}
       </div>

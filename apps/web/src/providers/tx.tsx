@@ -16,11 +16,17 @@ export interface TxRequest {
   wallet?: string;
 }
 
+export interface TxCompletion {
+  addresses?: { label: string; address: string }[];
+  successHref?: { href: string; label: string };
+}
+
 export interface TxState extends TxRequest {
   phase: TxPhase;
   hash?: string;
   error?: string;
   requestId: string;
+  completion?: TxCompletion;
 }
 
 export interface Toast {
@@ -33,7 +39,10 @@ export interface Toast {
 interface TxCtx {
   state: TxState | null;
   /** Runs a real wallet transaction and records its request/submission/receipt lifecycle. */
-  run: (request: TxRequest, execute?: (requestId: string) => Promise<{ hash: string; wait: () => Promise<void> }>) => Promise<void>;
+  run: (request: TxRequest, execute?: (requestId: string) => Promise<{
+    hash: string;
+    wait: () => Promise<TxCompletion | void>;
+  }>) => Promise<void>;
   reject: () => void;
   close: () => void;
   toasts: Toast[];
@@ -58,7 +67,10 @@ export function TxProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ event, requestId, wallet: request.wallet, ...extra }) }).catch(() => undefined);
   }, [targetApiUrl]);
 
-  const run = useCallback(async (request: TxRequest, execute?: (requestId: string) => Promise<{ hash: string; wait: () => Promise<void> }>) => {
+  const run = useCallback(async (request: TxRequest, execute?: (requestId: string) => Promise<{
+    hash: string;
+    wait: () => Promise<TxCompletion | void>;
+  }>) => {
     const requestId = crypto.randomUUID();
     if (!execute) {
       setState({ ...request, requestId, phase: "error", error: "This action is not connected to an on-chain transaction." });
@@ -70,9 +82,9 @@ export function TxProvider({ children }: { children: ReactNode }) {
       const pending = await execute(requestId);
       log(LOG_EVENTS.txSubmitted, requestId, request, { txHash: pending.hash });
       setState({ ...request, requestId, phase: "pending", hash: pending.hash });
-      await pending.wait();
+      const completion = await pending.wait();
       log(LOG_EVENTS.txConfirmed, requestId, request, { txHash: pending.hash });
-      setState({ ...request, requestId, phase: "success", hash: pending.hash });
+      setState({ ...request, requestId, phase: "success", hash: pending.hash, completion: completion ?? undefined });
       request.onSuccess?.();
       toast({ title: request.successTitle ?? "Transaction confirmed", body: request.successBody, kind: "success" });
     } catch (cause) {

@@ -31,8 +31,12 @@ function cors(req: IncomingMessage, res: ServerResponse): boolean {
   const publicDiscoveryRoute = req.method === "GET" && (
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/integrations\/launchpad\.json$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote)$/.test(pathname)
     || /^\/v1\/token-?list\.json$/.test(pathname)
     || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+    || /^\/v1\/integrations\/launchpad\.json$/.test(pathname)
+    || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote)$/.test(pathname)
   );
   if (publicDiscoveryRoute) {
     res.setHeader("access-control-allow-origin", "*");
@@ -90,6 +94,42 @@ const quoteRegistryAbi = [{
     { name: "asset", type: "address" }, { name: "decimals", type: "uint8" },
     { name: "routerPath", type: "bytes" }, { name: "active", type: "bool" },
   ] }],
+}] as const;
+const externalCurveAbi = [
+  {
+    type: "function", name: "quoteBuy", stateMutability: "view",
+    inputs: [{ name: "hypeIn", type: "uint256" }],
+    outputs: [
+      { name: "tokensOut", type: "uint256" }, { name: "protocolFee", type: "uint256" },
+      { name: "creatorFee", type: "uint256" }, { name: "sniperTax", type: "uint256" },
+    ],
+  },
+  {
+    type: "function", name: "quoteSell", stateMutability: "view",
+    inputs: [{ name: "tokenAmount", type: "uint256" }],
+    outputs: [
+      { name: "hypeOut", type: "uint256" }, { name: "protocolFee", type: "uint256" },
+      { name: "creatorFee", type: "uint256" },
+    ],
+  },
+  {
+    type: "function", name: "buy", stateMutability: "payable",
+    inputs: [{ name: "minTokensOut", type: "uint256" }, { name: "deadline", type: "uint256" }],
+    outputs: [{ name: "tokensOut", type: "uint256" }],
+  },
+  {
+    type: "function", name: "sell", stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenAmount", type: "uint256" }, { name: "minHypeOut", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [{ name: "hypeOut", type: "uint256" }],
+  },
+] as const;
+const externalErc20Abi = [{
+  type: "function", name: "approve", stateMutability: "nonpayable",
+  inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }],
+  outputs: [{ name: "success", type: "bool" }],
 }] as const;
 const tokenMetadataAbi = [
   { type: "function", name: "tokenURI", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
@@ -1061,6 +1101,170 @@ const server = createServer(async (req, res) => {
           tags: ["squeez"],
         })),
       }, 300);
+    }
+    if (req.method === "GET" && url.pathname === "/v1/integrations/launchpad.json") {
+      const base = `${config.publicApiUrl.replace(/\/$/, "")}/v1/${config.chain}/${config.network}`;
+      return publicJson(res, 200, {
+        schema: "squeez.external-launchpad.v1",
+        name: "Squeez",
+        chain: config.chain,
+        network: config.network,
+        chainId: config.chainId,
+        nativeCurrency: config.networkInfo.nativeCurrency,
+        explorer: config.explorer,
+        contracts: {
+          factory: config.contracts.factory,
+          quoteRegistry: config.contracts.quoteRegistry,
+          feeVault: config.contracts.feeVault,
+          swapRouter: config.contracts.swapRouter,
+          v4Quoter: config.contracts.v4Quoter,
+          hook: config.contracts.squeezHook,
+        },
+        discovery: {
+          tokenList: `${base}/token-list.json`,
+          tokens: `${base}/tokens`,
+          token: `${base}/tokens/{address}`,
+          metadata: `${base}/tokens/{address}/metadata`,
+          logo: `${base}/tokens/{address}/logo`,
+          route: `${base}/tokens/{address}/route`,
+          quoteAndBuild: `${base}/tokens/{address}/quote?side={buy|sell}&amountWei={integer}`,
+        },
+        venues: {
+          preGraduation: {
+            id: "squeez-curve",
+            executable: true,
+            quoteFunctions: ["quoteBuy(uint256)", "quoteSell(uint256)"],
+            executionFunctions: ["buy(uint256,uint256)", "sell(uint256,uint256,uint256)"],
+          },
+          postGraduation: {
+            id: "uniswap-v4",
+            executable: false,
+            note: "Partner router support for the Squeez v4 hook and PoolKey is required.",
+          },
+        },
+        compatibility: {
+          evmAggregators: "integration-ready",
+          solanaLaunchpads: "not-compatible-without-bridge-and-wrapped-asset",
+        },
+      }, 300);
+    }
+    const routeMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/route$/);
+    if (req.method === "GET" && routeMatch) {
+      const result = await pool.query(
+        `select address, curve, pool, status, name, symbol, quote, creator_fee_bps as "creatorFeeBps"
+         from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`,
+        [routeMatch[1]],
+      );
+      const token = result.rows[0];
+      if (!token) return json(res, 404, { error: "Token not found" });
+      const base = `${config.publicApiUrl.replace(/\/$/, "")}/v1/${config.chain}/${config.network}`;
+      const venue = token.status === "graduated" ? "uniswap-v4" : "squeez-curve";
+      return publicJson(res, 200, {
+        schema: "squeez.execution-route.v1",
+        chainId: config.chainId,
+        chain: config.chain,
+        network: config.network,
+        token: getAddress(token.address),
+        name: token.name,
+        symbol: token.symbol,
+        status: token.status,
+        venue,
+        quoteAsset: getAddress(token.quote),
+        curve: token.curve ? getAddress(token.curve) : null,
+        pool: token.pool ? getAddress(token.pool) : null,
+        creatorFeeBps: Number(token.creatorFeeBps),
+        executable: venue === "squeez-curve",
+        quoteAndBuildUrl: venue === "squeez-curve"
+          ? `${base}/tokens/${getAddress(token.address)}/quote`
+          : null,
+        integration: venue === "squeez-curve"
+          ? { kind: "custom-bonding-curve", approvalRequiredForSell: true }
+          : { kind: "uniswap-v4", partnerRouterSupportRequired: true },
+      }, 15);
+    }
+    const externalQuoteMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/quote$/);
+    if (req.method === "GET" && externalQuoteMatch) {
+      const side = url.searchParams.get("side");
+      const amountRaw = url.searchParams.get("amountWei") ?? "";
+      const slippageBps = Number(url.searchParams.get("slippageBps") ?? "100");
+      const deadlineSeconds = Number(url.searchParams.get("deadlineSeconds") ?? "600");
+      if (side !== "buy" && side !== "sell") return json(res, 400, { error: "side must be buy or sell" });
+      if (!/^\d+$/.test(amountRaw) || BigInt(amountRaw) <= 0n) {
+        return json(res, 400, { error: "amountWei must be a positive base-unit integer" });
+      }
+      if (!Number.isSafeInteger(slippageBps) || slippageBps < 0 || slippageBps > 5_000) {
+        return json(res, 400, { error: "slippageBps must be an integer between 0 and 5000" });
+      }
+      if (!Number.isSafeInteger(deadlineSeconds) || deadlineSeconds < 60 || deadlineSeconds > 3_600) {
+        return json(res, 400, { error: "deadlineSeconds must be an integer between 60 and 3600" });
+      }
+      const result = await pool.query(
+        `select address, curve, pool, status from "${config.databaseSchema}"."token"
+         where lower(address) = lower($1) limit 1`,
+        [externalQuoteMatch[1]],
+      );
+      const token = result.rows[0];
+      if (!token) return json(res, 404, { error: "Token not found" });
+      if (token.status === "graduated") {
+        return json(res, 409, {
+          error: "Token has graduated; use its Uniswap v4 pool through a compatible router",
+          venue: "uniswap-v4",
+          pool: token.pool ? getAddress(token.pool) : null,
+          swapRouter: config.contracts.swapRouter,
+        });
+      }
+      const amount = BigInt(amountRaw);
+      const curve = getAddress(token.curve);
+      const tokenAddress = getAddress(token.address);
+      const deadline = BigInt(Math.floor(Date.now() / 1_000) + deadlineSeconds);
+      if (side === "buy") {
+        const call = encodeFunctionData({ abi: externalCurveAbi, functionName: "quoteBuy", args: [amount] });
+        const raw = await rpc("eth_call", [{ to: curve, data: call }, "latest"]);
+        const [expected, protocolFee, creatorFee, sniperTax] = decodeFunctionResult({
+          abi: externalCurveAbi, functionName: "quoteBuy", data: raw as Hex,
+        });
+        const minimum = expected * BigInt(10_000 - slippageBps) / 10_000n;
+        return publicJson(res, 200, {
+          schema: "squeez.execution-quote.v1", chainId: config.chainId, venue: "squeez-curve",
+          token: tokenAddress, curve, side, input: { asset: "native", amount: amount.toString() },
+          expectedOutput: { asset: tokenAddress, amount: expected.toString() },
+          minimumOutput: minimum.toString(),
+          fees: { protocol: protocolFee.toString(), creator: creatorFee.toString(), sniperTax: sniperTax.toString() },
+          slippageBps, deadline: deadline.toString(),
+          approval: null,
+          transaction: {
+            to: curve,
+            data: encodeFunctionData({ abi: externalCurveAbi, functionName: "buy", args: [minimum, deadline] }),
+            value: amount.toString(),
+          },
+        }, 5);
+      }
+      const call = encodeFunctionData({ abi: externalCurveAbi, functionName: "quoteSell", args: [amount] });
+      const raw = await rpc("eth_call", [{ to: curve, data: call }, "latest"]);
+      const [expected, protocolFee, creatorFee] = decodeFunctionResult({
+        abi: externalCurveAbi, functionName: "quoteSell", data: raw as Hex,
+      });
+      const minimum = expected * BigInt(10_000 - slippageBps) / 10_000n;
+      return publicJson(res, 200, {
+        schema: "squeez.execution-quote.v1", chainId: config.chainId, venue: "squeez-curve",
+        token: tokenAddress, curve, side, input: { asset: tokenAddress, amount: amount.toString() },
+        expectedOutput: { asset: "native", amount: expected.toString() },
+        minimumOutput: minimum.toString(),
+        fees: { protocol: protocolFee.toString(), creator: creatorFee.toString(), sniperTax: "0" },
+        slippageBps, deadline: deadline.toString(),
+        approval: {
+          to: tokenAddress,
+          data: encodeFunctionData({ abi: externalErc20Abi, functionName: "approve", args: [curve, amount] }),
+          value: "0",
+          spender: curve,
+          amount: amount.toString(),
+        },
+        transaction: {
+          to: curve,
+          data: encodeFunctionData({ abi: externalCurveAbi, functionName: "sell", args: [amount, minimum, deadline] }),
+          value: "0",
+        },
+      }, 5);
     }
     const holdersMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/holders$/);
     if (req.method === "GET" && holdersMatch) {

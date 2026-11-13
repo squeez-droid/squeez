@@ -18,6 +18,12 @@ export const IconGrid = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path 
 export const IconList = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M4 6h16M4 12h16M4 18h16" /></svg>;
 export const IconWallet = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M3 6h16v14H3zM3 6l12-3v3M15 13h2" /></svg>;
 export const IconBrowser = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M3 4h18v16H3zM3 9h18" /></svg>;
+export const IconWalletConnect = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...p} width={p.width ?? 16} height={p.height ?? 16} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <path d="M5.1 8.7c3.8-3.7 10-3.7 13.8 0l.5.5a.7.7 0 0 1 0 1l-1.7 1.7a.4.4 0 0 1-.6 0l-.7-.7a6.3 6.3 0 0 0-8.8 0l-.8.7a.4.4 0 0 1-.5 0l-1.7-1.7a.7.7 0 0 1 0-1l.5-.5Z" fill="currentColor" />
+    <path d="m20.9 12.2 1.5 1.5a.7.7 0 0 1 0 1l-6.8 6.7a.7.7 0 0 1-1 0l-2.4-2.4a.3.3 0 0 0-.4 0l-2.4 2.4a.7.7 0 0 1-1 0l-6.8-6.7a.7.7 0 0 1 0-1l1.5-1.5a.7.7 0 0 1 1 0l4.8 4.7a.3.3 0 0 0 .4 0l2.4-2.3a.4.4 0 0 1 .6 0l2.4 2.3a.3.3 0 0 0 .4 0l4.8-4.7a.7.7 0 0 1 1 0Z" fill="currentColor" />
+  </svg>
+);
 export const IconSearch = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15zM16 16l5 5" /></svg>;
 export const IconUpload = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></svg>;
 export const IconWebsite = (p: SVGProps<SVGSVGElement>) => <svg {...base(p)}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21M12 3C9.6 5.5 8.4 8.5 8.4 12s1.2 6.5 3.6 9" /></svg>;
