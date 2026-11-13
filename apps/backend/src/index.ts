@@ -436,11 +436,18 @@ const server = createServer(async (req, res) => {
     const readOnlyAllowed = ["GET", "HEAD", "OPTIONS"].includes(req.method ?? "GET")
       || (req.method === "POST" && (url.pathname === "/rpc" || url.pathname === "/v1/rpc"));
     const readOnlyCredentialPath = url.pathname === "/v1/auth/x/nonce" || url.pathname === "/v1/metadata/nonce";
-    const writeIntent = !readOnlyAllowed || readOnlyCredentialPath;
-    if (config.capability === "read-only" && writeIntent) {
+    const capabilityWriteIntent = !readOnlyAllowed || readOnlyCredentialPath;
+    // OAuth authorization only creates short-lived, wallet-bound session state. It does not rely on indexed
+    // token data, so an indexer lag must not prevent a creator from connecting or disconnecting X. Attestation
+    // and metadata writes remain protected below because their anti-vamp conflict checks do depend on the indexer.
+    const indexerIndependentOAuthPath = url.pathname === "/v1/auth/x/nonce"
+      || url.pathname === "/v1/auth/x/start"
+      || url.pathname === "/v1/auth/x/session";
+    const healthSensitiveWriteIntent = capabilityWriteIntent && !indexerIndependentOAuthPath;
+    if (config.capability === "read-only" && capabilityWriteIntent) {
       return json(res, 403, { error: "Deployment target is read-only", target: `${config.chain}:${config.network}` });
     }
-    if (config.capability === "enabled" && writeIntent) {
+    if (config.capability === "enabled" && healthSensitiveWriteIntent) {
       const safety = await writeSafety();
       if (!safety.safe) {
         return json(res, 503, {
