@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 
 const [apiUuid, indexerUuid] = process.argv.slice(2);
 if (!apiUuid || !indexerUuid) throw new Error("Usage: configure-coolify-mainnet-resources.mjs <api-uuid> <indexer-uuid>");
-if (process.env.SQUEEZ_CHAIN !== "robinhood" || process.env.SQUEEZ_NETWORK !== "mainnet") {
-  throw new Error("Run through tools/with-env.mjs robinhood mainnet");
+if (!["robinhood", "hyperevm"].includes(process.env.SQUEEZ_CHAIN) || process.env.SQUEEZ_NETWORK !== "mainnet") {
+  throw new Error("Run through tools/with-env.mjs <robinhood|hyperevm> mainnet");
 }
 
 const parseEnv = (text) => Object.fromEntries(text.split(/\r?\n/).flatMap((raw) => {

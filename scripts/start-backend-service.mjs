@@ -15,7 +15,10 @@ if (!workspace) {
   process.exit(64);
 }
 
-const script = service === "gateway" ? "start" : `start:${network}`;
+const chain = process.env.SQUEEZ_CHAIN ?? "elysium";
+const script = service === "gateway"
+  ? "start"
+  : (chain === "hyperevm" && network === "mainnet" ? "start:hyperevm:mainnet" : `start:${network}`);
 const child = spawn("npm", ["run", script, "-w", workspace], {
   env: process.env,
   stdio: "inherit",
