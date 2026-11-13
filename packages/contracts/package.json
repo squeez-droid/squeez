@@ -45,12 +45,15 @@
     "configure:graduation:testnet": "node ../../tools/with-env.mjs testnet forge script script/ConfigureGraduation.s.sol --rpc-url elysium --broadcast"
     ,"deploy:hook:robinhood:testnet": "node ../../tools/with-env.mjs robinhood testnet forge script script/DeploySqueezHook.s.sol --rpc-url squeez --broadcast"
     ,"deploy:hook:robinhood:mainnet": "node ../../tools/with-env.mjs robinhood mainnet forge script script/DeploySqueezHook.s.sol --rpc-url squeez --broadcast"
+    ,"deploy:hook:elysium:mainnet": "node ../../tools/with-env.mjs elysium mainnet forge script script/DeploySqueezHook.s.sol --rpc-url squeez --broadcast"
     ,"configure:hook:robinhood:testnet": "node ../../tools/with-env.mjs robinhood testnet forge script script/ConfigureSqueezHook.s.sol --rpc-url squeez --broadcast"
     ,"deploy:graduation-infra:robinhood:testnet": "node ../../tools/with-env.mjs robinhood testnet forge script script/DeployGraduationInfra.s.sol --rpc-url squeez --broadcast"
     ,"deploy:graduation-infra:robinhood:mainnet": "node ../../tools/with-env.mjs robinhood mainnet forge script script/DeployGraduationInfra.s.sol --rpc-url squeez --broadcast"
+    ,"deploy:graduation-infra:elysium:mainnet": "node ../../tools/with-env.mjs elysium mainnet forge script script/DeployGraduationInfra.s.sol --rpc-url squeez --broadcast"
     ,"configure:graduation:robinhood:testnet": "node ../../tools/with-env.mjs robinhood testnet forge script script/ConfigureGraduation.s.sol --rpc-url squeez --broadcast"
     ,"deploy:swap-router:robinhood:testnet": "node ../../tools/with-env.mjs robinhood testnet forge script script/DeploySwapRouter.s.sol --rpc-url squeez --broadcast"
     ,"deploy:swap-router:robinhood:mainnet": "node ../../tools/with-env.mjs robinhood mainnet forge script script/DeploySwapRouter.s.sol --rpc-url squeez --broadcast"
+    ,"deploy:swap-router:elysium:mainnet": "node ../../tools/with-env.mjs elysium mainnet forge script script/DeploySwapRouter.s.sol --rpc-url squeez --broadcast"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.1.0",

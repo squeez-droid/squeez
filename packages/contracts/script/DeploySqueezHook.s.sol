@@ -51,7 +51,9 @@ contract DeploySqueezHook is Script {
 
     function _deploymentFile(string memory suffix) private view returns (string memory) {
         string memory chain = vm.envString("SQUEEZ_CHAIN");
-        string memory prefix = keccak256(bytes(chain)) == keccak256("elysium") ? "" : string.concat(chain, "/");
-        return string.concat(vm.projectRoot(), "/deployments/", prefix, vm.envString("SQUEEZ_NETWORK"), suffix);
+        string memory stage = vm.envString("SQUEEZ_NETWORK");
+        bool legacy = keccak256(bytes(chain)) == keccak256("elysium") && keccak256(bytes(stage)) == keccak256("testnet");
+        string memory prefix = legacy ? "" : string.concat(chain, "/");
+        return string.concat(vm.projectRoot(), "/deployments/", prefix, stage, suffix);
     }
 }
