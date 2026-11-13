@@ -1,0 +1,13 @@
+{
+  "chainId": 999,
+  "deployer": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+  "feeVault": "0x6405d6786d7F53726C27b9890a15cB66d2e46f13",
+  "graduationAdapter": "0x5470289A5FeA54f979aC07a1b1822B23cC00727A",
+  "liquidityLocker": "0xe496888447bBB58f0A4B8973DAD4DD00AdB0C6B1",
+  "lpFeeBps": 0,
+  "network": "mainnet",
+  "permit2": "0x000000000022D473030F116dDEE9F6B43aC78BA3",
+  "positionManager": "0x0d7Ab5B3db668128Aff6F70C4eBC71D7d4DA9bf9",
+  "squeezHook": "0xeD974dd380BE08451d96653004d5c222EDe4e0cc",
+  "tickSpacing": 60
+}
