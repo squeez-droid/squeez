@@ -212,6 +212,19 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         return _buy(recipient, minTokensOut, deadline);
     }
 
+    /// @notice Buy on behalf of `recipient`. Intended for routers and aggregators: protection limits, max wallet,
+    /// token delivery, refund and the CurveTrade event all apply to `recipient`, not to the calling router.
+    function buyTo(address recipient, uint256 minTokensOut, uint256 deadline)
+        external
+        payable
+        nonReentrant
+        returns (uint256 tokensOut)
+    {
+        if (recipient == address(0)) revert InvalidAmount();
+        if (block.number == launchedAtBlock && msg.sender != creator) revert Unauthorized();
+        return _buy(recipient, minTokensOut, deadline);
+    }
+
     function _buy(address recipient, uint256 minTokensOut, uint256 deadline) private returns (uint256 tokensOut) {
         if (graduated) revert CurveClosed();
         if (block.timestamp > deadline) revert Expired();
@@ -279,6 +292,23 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         nonReentrant
         returns (uint256 hypeOut)
     {
+        return _sell(msg.sender, tokenAmount, minHypeOut, deadline);
+    }
+
+    /// @notice Sell tokens pulled from the caller (needs allowance) and pay the native proceeds to `recipient`.
+    function sellTo(uint256 tokenAmount, uint256 minHypeOut, uint256 deadline, address recipient)
+        external
+        nonReentrant
+        returns (uint256 hypeOut)
+    {
+        if (recipient == address(0)) revert InvalidAmount();
+        return _sell(recipient, tokenAmount, minHypeOut, deadline);
+    }
+
+    function _sell(address recipient, uint256 tokenAmount, uint256 minHypeOut, uint256 deadline)
+        private
+        returns (uint256 hypeOut)
+    {
         if (graduated) revert CurveClosed();
         if (block.timestamp > deadline) revert Expired();
         if (tokenAmount == 0) revert InvalidAmount();
@@ -293,9 +323,9 @@ contract SqueezCurve is ISqueezEvents, Initializable, ReentrancyGuard {
         if (protocolFee + creatorFee > 0) {
             feeVault.depositFees{value: protocolFee + creatorFee}(token, address(0), protocolFee, creatorFee);
         }
-        (bool sent,) = payable(msg.sender).call{value: hypeOut}("");
+        (bool sent,) = payable(recipient).call{value: hypeOut}("");
         if (!sent) revert TransferFailed();
-        emit CurveTrade(token, msg.sender, false, grossHype, tokenAmount, hypeRaised);
+        emit CurveTrade(token, recipient, false, grossHype, tokenAmount, hypeRaised);
     }
 
     /// @notice Permissionless, idempotent graduation. A failed adapter call reverts all state and can be retried.

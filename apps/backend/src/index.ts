@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { decodeFunctionResult, encodeFunctionData, formatEther, getAddress, keccak256, toBytes, verifyMessage, type Address, type Hex } from "viem";
+import { decodeFunctionResult, encodeAbiParameters, encodeFunctionData, formatEther, getAddress, keccak256, toBytes, verifyMessage, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import sharp from "sharp";
 import {
@@ -32,11 +32,11 @@ function cors(req: IncomingMessage, res: ServerResponse): boolean {
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/integrations\/launchpad\.json$/.test(pathname)
-    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote)$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote|pool)$/.test(pathname)
     || /^\/v1\/token-?list\.json$/.test(pathname)
     || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
     || /^\/v1\/integrations\/launchpad\.json$/.test(pathname)
-    || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote)$/.test(pathname)
+    || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote|pool)$/.test(pathname)
   );
   if (publicDiscoveryRoute) {
     res.setHeader("access-control-allow-origin", "*");
@@ -125,7 +125,103 @@ const externalCurveAbi = [
     ],
     outputs: [{ name: "hypeOut", type: "uint256" }],
   },
+  {
+    type: "function", name: "buyTo", stateMutability: "payable",
+    inputs: [
+      { name: "recipient", type: "address" }, { name: "minTokensOut", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+    ],
+    outputs: [{ name: "tokensOut", type: "uint256" }],
+  },
+  {
+    type: "function", name: "sellTo", stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenAmount", type: "uint256" }, { name: "minHypeOut", type: "uint256" },
+      { name: "deadline", type: "uint256" }, { name: "recipient", type: "address" },
+    ],
+    outputs: [{ name: "hypeOut", type: "uint256" }],
+  },
 ] as const;
+const curveLimitsAbi = [
+  { type: "function", name: "launchedAt", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "protectionPolicyId", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "protectionWindowSeconds", stateMutability: "view", inputs: [], outputs: [{ type: "uint32" }] },
+  { type: "function", name: "maxBuyBpsPerTransaction", stateMutability: "view", inputs: [], outputs: [{ type: "uint16" }] },
+  { type: "function", name: "maxBuyBpsPerAddress", stateMutability: "view", inputs: [], outputs: [{ type: "uint16" }] },
+  {
+    type: "function", name: "purchasedDuringProtection", stateMutability: "view",
+    inputs: [{ name: "buyer", type: "address" }], outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function", name: "config", stateMutability: "view", inputs: [],
+    outputs: [
+      { name: "graduationThresholdHype", type: "uint256" }, { name: "virtualHypeReserve", type: "uint256" },
+      { name: "virtualTokenReserve", type: "uint256" }, { name: "sniperTaxStartBps", type: "uint16" },
+      { name: "sniperTaxDecaySeconds", type: "uint32" }, { name: "maxWalletBps", type: "uint16" },
+      { name: "maxWalletWindowSeconds", type: "uint32" }, { name: "launchFeeHype", type: "uint256" },
+    ],
+  },
+] as const;
+const TOTAL_SUPPLY_WEI = 1_000_000_000n * 10n ** 18n;
+const curveRevertReasons: Record<string, string> = Object.fromEntries([
+  "CurveClosed", "Unauthorized", "Expired", "SlippageExceeded", "MaxWalletExceeded", "BuyLimitExceeded",
+  "InvalidAmount", "TransferFailed",
+].map((name) => [keccak256(toBytes(`${name}()`)).slice(0, 10), name]));
+
+async function ethCall(to: Address, data: Hex) {
+  return await rpc("eth_call", [{ to, data }, "latest"]) as Hex;
+}
+
+/// Dry-runs a call and reports a decoded Curve revert instead of throwing. `unknown` means the node could not tell
+/// (for example the Curve Beacon does not expose the called function yet), never "will succeed".
+async function simulateCurveCall(tx: { from: Address; to: Address; data: Hex; value: bigint }) {
+  const providers = [config.rpcUrl, config.rpcFallbackUrl].filter(Boolean) as string[];
+  for (const provider of providers) {
+    try {
+      const response = await fetch(provider, {
+        method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(10_000),
+        body: JSON.stringify({
+          jsonrpc: "2.0", id: 1, method: "eth_call",
+          params: [
+            { from: tx.from, to: tx.to, data: tx.data, value: `0x${tx.value.toString(16)}` }, "latest",
+            { [tx.from]: { balance: `0x${(tx.value * 2n + 10n ** 18n).toString(16)}` } },
+          ],
+        }),
+      });
+      if (!response.ok) continue;
+      const payload = await response.json() as { result?: string; error?: { data?: string } };
+      if (payload.result !== undefined) return { outcome: "success" as const };
+      const selector = typeof payload.error?.data === "string" ? payload.error.data.slice(0, 10) : "";
+      const reason = curveRevertReasons[selector];
+      if (reason) return { outcome: "revert" as const, reason };
+      return { outcome: "unknown" as const };
+    } catch { /* try the next provider */ }
+  }
+  return { outcome: "unknown" as const };
+}
+
+/// The standard Uniswap Universal Router is verified against the Squeez hook on Robinhood mainnet (fork test
+/// `SqueezUniversalRouterFork.t.sol`). Other chains keep the Squeez swap router as the only official route.
+function standardRouterSupported() {
+  return config.chain === "robinhood" && config.network === "mainnet"
+    && Boolean(config.v4Execution.universalRouter && config.contracts.v4Quoter && config.contracts.squeezHook
+      && config.v4Pool.lpFeeBps !== null && config.v4Pool.tickSpacing !== null);
+}
+
+function squeezPoolKey(tokenAddress: Address, quote: Address) {
+  const [currency0, currency1] = BigInt(tokenAddress) < BigInt(quote) ? [tokenAddress, quote] : [quote, tokenAddress];
+  const poolKey = {
+    currency0: getAddress(currency0), currency1: getAddress(currency1),
+    fee: Number(config.v4Pool.lpFeeBps), tickSpacing: Number(config.v4Pool.tickSpacing),
+    hooks: getAddress(config.contracts.squeezHook!),
+  };
+  const poolId = keccak256(encodeAbiParameters(
+    [{ type: "address" }, { type: "address" }, { type: "uint24" }, { type: "int24" }, { type: "address" }],
+    [poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing, poolKey.hooks],
+  ));
+  return { poolKey, poolId };
+}
+
 const externalErc20Abi = [{
   type: "function", name: "approve", stateMutability: "nonpayable",
   inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }],
@@ -1119,6 +1215,8 @@ const server = createServer(async (req, res) => {
           swapRouter: config.contracts.swapRouter,
           v4Quoter: config.contracts.v4Quoter,
           hook: config.contracts.squeezHook,
+          universalRouter: standardRouterSupported() ? config.v4Execution.universalRouter : null,
+          permit2: standardRouterSupported() ? config.v4Execution.permit2 : null,
         },
         discovery: {
           tokenList: `${base}/token-list.json`,
@@ -1127,20 +1225,36 @@ const server = createServer(async (req, res) => {
           metadata: `${base}/tokens/{address}/metadata`,
           logo: `${base}/tokens/{address}/logo`,
           route: `${base}/tokens/{address}/route`,
-          quoteAndBuild: `${base}/tokens/{address}/quote?side={buy|sell}&amountWei={integer}`,
+          pool: `${base}/tokens/{address}/pool`,
+          quoteAndBuild: `${base}/tokens/{address}/quote?side={buy|sell}&amountWei={integer}&recipient={address, optional: builds buyTo/sellTo for routers}`,
         },
         venues: {
           preGraduation: {
             id: "squeez-curve",
             executable: true,
             quoteFunctions: ["quoteBuy(uint256)", "quoteSell(uint256)"],
-            executionFunctions: ["buy(uint256,uint256)", "sell(uint256,uint256,uint256)"],
+            executionFunctions: [
+              "buy(uint256,uint256)", "sell(uint256,uint256,uint256)",
+              "buyTo(address,uint256,uint256)", "sellTo(uint256,uint256,uint256,address)",
+            ],
           },
-          postGraduation: {
-            id: "uniswap-v4",
-            executable: false,
-            note: "Partner router support for the Squeez v4 hook and PoolKey is required.",
-          },
+          postGraduation: standardRouterSupported()
+            ? {
+              id: "uniswap-v4",
+              executable: true,
+              router: "uniswap-v4-universal",
+              fallbackRouter: "squeez-swap-router",
+              poolKeyUrl: `${base}/tokens/{address}/pool`,
+              note: "Swap with the standard Uniswap Universal Router (V4_SWAP, exact-input single) using the PoolKey "
+                + "from poolKeyUrl; quote with the v4 Quoter. Token input needs a Permit2 allowance for the router.",
+            }
+            : {
+              id: "uniswap-v4",
+              executable: true,
+              router: "squeez-swap-router",
+              poolKeyUrl: `${base}/tokens/{address}/pool`,
+              note: "Use SqueezSwapRouter.swapExactInput with the PoolKey from poolKeyUrl.",
+            },
         },
         compatibility: {
           evmAggregators: "integration-ready",
@@ -1173,13 +1287,53 @@ const server = createServer(async (req, res) => {
         curve: token.curve ? getAddress(token.curve) : null,
         pool: token.pool ? getAddress(token.pool) : null,
         creatorFeeBps: Number(token.creatorFeeBps),
-        executable: venue === "squeez-curve",
+        executable: true,
         quoteAndBuildUrl: venue === "squeez-curve"
           ? `${base}/tokens/${getAddress(token.address)}/quote`
           : null,
         integration: venue === "squeez-curve"
           ? { kind: "custom-bonding-curve", approvalRequiredForSell: true }
-          : { kind: "uniswap-v4", partnerRouterSupportRequired: true },
+          : {
+            kind: "uniswap-v4",
+            router: standardRouterSupported() ? "uniswap-v4-universal" : "squeez-swap-router",
+            poolKeyUrl: `${base}/tokens/${getAddress(token.address)}/pool`,
+          },
+      }, 15);
+    }
+    const poolMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/pool$/);
+    if (req.method === "GET" && poolMatch) {
+      const result = await pool.query(
+        `select address, pool, status, quote from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`,
+        [poolMatch[1]],
+      );
+      const token = result.rows[0];
+      if (!token) return json(res, 404, { error: "Token not found" });
+      if (token.status !== "graduated" || !token.pool) {
+        return json(res, 409, { error: "Token has not graduated; it trades on its bonding curve", venue: "squeez-curve" });
+      }
+      if (!config.contracts.squeezHook || config.v4Pool.lpFeeBps === null || config.v4Pool.tickSpacing === null) {
+        return json(res, 503, { error: "Uniswap v4 pool parameters are not configured" });
+      }
+      const { poolKey, poolId } = squeezPoolKey(getAddress(token.address), getAddress(token.quote));
+      // The curve stores the low 160 bits of the PoolId; refuse to serve a PoolKey that does not match it.
+      if (getAddress(`0x${poolId.slice(-40)}`) !== getAddress(token.pool)) {
+        return json(res, 502, { error: "Derived PoolKey does not match the graduated pool" });
+      }
+      const standard = standardRouterSupported();
+      return publicJson(res, 200, {
+        schema: "squeez.v4-pool.v1",
+        chainId: config.chainId,
+        token: getAddress(token.address),
+        poolKey,
+        poolId,
+        pool: getAddress(token.pool),
+        v4Quoter: config.contracts.v4Quoter,
+        router: standard ? "uniswap-v4-universal" : "squeez-swap-router",
+        universalRouter: standard ? config.v4Execution.universalRouter : null,
+        permit2: standard ? config.v4Execution.permit2 : null,
+        swapRouter: config.contracts.swapRouter,
+        nativeInputIsCurrency0: BigInt(poolKey.currency0) === 0n,
+        hookData: "0x",
       }, 15);
     }
     const externalQuoteMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/quote$/);
@@ -1198,6 +1352,14 @@ const server = createServer(async (req, res) => {
       if (!Number.isSafeInteger(deadlineSeconds) || deadlineSeconds < 60 || deadlineSeconds > 3_600) {
         return json(res, 400, { error: "deadlineSeconds must be an integer between 60 and 3600" });
       }
+      const recipientRaw = url.searchParams.get("recipient");
+      if (recipientRaw !== null && !/^0x[a-fA-F0-9]{40}$/.test(recipientRaw)) {
+        return json(res, 400, { error: "recipient must be an EVM address" });
+      }
+      const recipient = recipientRaw ? getAddress(recipientRaw) : null;
+      if (recipient === "0x0000000000000000000000000000000000000000") {
+        return json(res, 400, { error: "recipient must not be the zero address" });
+      }
       const result = await pool.query(
         `select address, curve, pool, status from "${config.databaseSchema}"."token"
          where lower(address) = lower($1) limit 1`,
@@ -1210,7 +1372,9 @@ const server = createServer(async (req, res) => {
           error: "Token has graduated; use its Uniswap v4 pool through a compatible router",
           venue: "uniswap-v4",
           pool: token.pool ? getAddress(token.pool) : null,
+          poolKeyUrl: `${config.publicApiUrl.replace(/\/$/, "")}/v1/${config.chain}/${config.network}/tokens/${getAddress(token.address)}/pool`,
           swapRouter: config.contracts.swapRouter,
+          universalRouter: standardRouterSupported() ? config.v4Execution.universalRouter : null,
         });
       }
       const amount = BigInt(amountRaw);
@@ -1224,17 +1388,69 @@ const server = createServer(async (req, res) => {
           abi: externalCurveAbi, functionName: "quoteBuy", data: raw as Hex,
         });
         const minimum = expected * BigInt(10_000 - slippageBps) / 10_000n;
+        const readUint = async (functionName: "launchedAt" | "protectionPolicyId" | "protectionWindowSeconds"
+          | "maxBuyBpsPerTransaction" | "maxBuyBpsPerAddress") => BigInt(await ethCall(
+            curve, encodeFunctionData({ abi: curveLimitsAbi, functionName }),
+          ));
+        const [launchedAt, policyId, windowSeconds, bpsPerTx, bpsPerAddress, rawConfig, rawPurchased] =
+          await Promise.all([
+            readUint("launchedAt"), readUint("protectionPolicyId"), readUint("protectionWindowSeconds"),
+            readUint("maxBuyBpsPerTransaction"), readUint("maxBuyBpsPerAddress"),
+            ethCall(curve, encodeFunctionData({ abi: curveLimitsAbi, functionName: "config" })),
+            recipient
+              ? ethCall(curve, encodeFunctionData({ abi: curveLimitsAbi, functionName: "purchasedDuringProtection", args: [recipient] }))
+              : Promise.resolve(null),
+          ]);
+        const curveConfig = decodeFunctionResult({ abi: curveLimitsAbi, functionName: "config", data: rawConfig });
+        const now = BigInt(Math.floor(Date.now() / 1_000));
+        const protectionUntil = policyId > 0n ? launchedAt + windowSeconds : null;
+        const protectionActive = protectionUntil !== null && now < protectionUntil;
+        const maxWalletUntil = launchedAt + BigInt(curveConfig[6]);
+        const maxWalletActive = now < maxWalletUntil;
+        const maxBuyPerTx = protectionActive ? TOTAL_SUPPLY_WEI * bpsPerTx / 10_000n : null;
+        const maxBuyPerAddress = protectionActive ? TOTAL_SUPPLY_WEI * bpsPerAddress / 10_000n : null;
+        const purchased = rawPurchased ? BigInt(rawPurchased) : null;
+        const remainingForRecipient = maxBuyPerAddress !== null && purchased !== null
+          ? (maxBuyPerAddress > purchased ? maxBuyPerAddress - purchased : 0n) : null;
+        let willRevert: boolean | null = null;
+        let revertReason: string | null = null;
+        if (recipient) {
+          const simulation = await simulateCurveCall({
+            from: recipient, to: curve, value: amount,
+            data: encodeFunctionData({ abi: externalCurveAbi, functionName: "buyTo", args: [recipient, minimum, deadline] }),
+          });
+          if (simulation.outcome === "success") willRevert = false;
+          else if (simulation.outcome === "revert") { willRevert = true; revertReason = simulation.reason; }
+        }
+        // Static fallback so integrators still get a warning when the node cannot simulate.
+        if (willRevert === null) {
+          if (maxBuyPerTx !== null && expected > maxBuyPerTx) { willRevert = true; revertReason = "BuyLimitExceeded"; }
+          else if (remainingForRecipient !== null && expected > remainingForRecipient) {
+            willRevert = true; revertReason = "BuyLimitExceeded";
+          }
+        }
         return publicJson(res, 200, {
           schema: "squeez.execution-quote.v1", chainId: config.chainId, venue: "squeez-curve",
           token: tokenAddress, curve, side, input: { asset: "native", amount: amount.toString() },
           expectedOutput: { asset: tokenAddress, amount: expected.toString() },
           minimumOutput: minimum.toString(),
           fees: { protocol: protocolFee.toString(), creator: creatorFee.toString(), sniperTax: sniperTax.toString() },
+          limits: {
+            protectionActiveUntil: protectionActive ? protectionUntil!.toString() : null,
+            maxBuyPerTx: maxBuyPerTx?.toString() ?? null,
+            maxBuyPerAddress: maxBuyPerAddress?.toString() ?? null,
+            remainingForRecipient: remainingForRecipient?.toString() ?? null,
+            maxWalletActiveUntil: maxWalletActive ? maxWalletUntil.toString() : null,
+            maxWallet: maxWalletActive ? (TOTAL_SUPPLY_WEI * BigInt(curveConfig[5]) / 10_000n).toString() : null,
+          },
+          willRevert, revertReason,
           slippageBps, deadline: deadline.toString(),
           approval: null,
           transaction: {
             to: curve,
-            data: encodeFunctionData({ abi: externalCurveAbi, functionName: "buy", args: [minimum, deadline] }),
+            data: recipient
+              ? encodeFunctionData({ abi: externalCurveAbi, functionName: "buyTo", args: [recipient, minimum, deadline] })
+              : encodeFunctionData({ abi: externalCurveAbi, functionName: "buy", args: [minimum, deadline] }),
             value: amount.toString(),
           },
         }, 5);
@@ -1261,7 +1477,9 @@ const server = createServer(async (req, res) => {
         },
         transaction: {
           to: curve,
-          data: encodeFunctionData({ abi: externalCurveAbi, functionName: "sell", args: [amount, minimum, deadline] }),
+          data: recipient
+            ? encodeFunctionData({ abi: externalCurveAbi, functionName: "sellTo", args: [amount, minimum, deadline, recipient] })
+            : encodeFunctionData({ abi: externalCurveAbi, functionName: "sell", args: [amount, minimum, deadline] }),
           value: "0",
         },
       }, 5);

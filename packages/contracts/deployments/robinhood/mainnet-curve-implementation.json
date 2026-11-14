@@ -1,0 +1,13 @@
+{
+  "chainId": 4663,
+  "network": "mainnet",
+  "purpose": "Curve implementation adding buyTo/sellTo. Not live until the governance timelock upgrades the Curve Beacon.",
+  "buildProfile": "robinhood_mainnet",
+  "deployer": "0xB5C0eD0252d1906Fca50664Eb2198Aea0679920B",
+  "curveBeacon": "0x0E5D8da8a23Dc5C9a755C194a25A5074Fb65e66F",
+  "previousCurveImplementation": "0x4681a99B64940B242a9BF30F2d9c81E256680461",
+  "curveImplementation": "0xf4665762a61f18A7d1efedFD09e22AFa7962DbFC",
+  "transactionHash": "0x26520cbd422e57502acf9acd9e1e4d37a35334f6d0411a22b2ff6a1e9dd121c0",
+  "blockNumber": 114134969,
+  "gasUsed": 2463460
+}

@@ -86,6 +86,11 @@ export const backendConfig = {
     lpFeeBps: optional("V4_LP_FEE_BPS"),
     tickSpacing: optional("V4_TICK_SPACING"),
   },
+  // Standard Uniswap v4 execution infrastructure, kept apart from `contracts` so it never gates `configured`.
+  v4Execution: {
+    universalRouter: address("UNIVERSAL_ROUTER"),
+    permit2: address("PERMIT2"),
+  },
   launchConfig: {
     graduationThresholdHype: optional("GRADUATION_THRESHOLD_HYPE"),
     virtualHypeReserve: optional("VIRTUAL_HYPE_RESERVE")

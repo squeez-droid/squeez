@@ -15,6 +15,12 @@ import {SqueezQuoteRegistry} from "../src/SqueezQuoteRegistry.sol";
 import {FeeDestination, FeeDestinationType, LaunchConfig, LaunchParams} from "../src/libraries/SqueezTypes.sol";
 import {ProxyTestBase} from "./ProxyTestBase.sol";
 
+contract MockProtectionRouter {
+    function buy(SqueezCurve curve, address recipient) external payable {
+        curve.buyTo{value: msg.value}(recipient, 0, block.timestamp);
+    }
+}
+
 contract SqueezProtectedLaunchTest is Test, ProxyTestBase {
     address internal creator = makeAddr("creator");
     address internal buyer = makeAddr("buyer");
@@ -271,6 +277,33 @@ contract SqueezProtectedLaunchTest is Test, ProxyTestBase {
             }
         }
         fail("cumulative protection limit was not enforced");
+    }
+
+    function test_RouterBuyGivesEachRecipientItsOwnProtectionQuota() public {
+        SqueezCurve curve = _launch();
+        MockProtectionRouter router = new MockProtectionRouter();
+        address[3] memory users = [makeAddr("u1"), makeAddr("u2"), makeAddr("u3")];
+        vm.deal(address(this), 10 ether);
+
+        // Exhaust the first user's per-address quota through the shared router.
+        uint256 firstUserBuys;
+        while (firstUserBuys < 50) {
+            try router.buy{value: 0.0003 ether}(curve, users[0]) {
+                firstUserBuys++;
+            } catch (bytes memory reason) {
+                assertEq(bytes4(reason), SqueezCurve.BuyLimitExceeded.selector);
+                break;
+            }
+        }
+        assertGt(firstUserBuys, 1);
+        assertLt(firstUserBuys, 50);
+
+        // The other users are unaffected and each get their own full quota.
+        for (uint256 i = 1; i < users.length; i++) {
+            router.buy{value: 0.0003 ether}(curve, users[i]);
+            assertEq(curve.purchasedDuringProtection(address(router)), 0);
+            assertGt(curve.purchasedDuringProtection(users[i]), 0);
+        }
     }
 
     function test_BuyLimitExpiresAfterFiveMinutes() public {

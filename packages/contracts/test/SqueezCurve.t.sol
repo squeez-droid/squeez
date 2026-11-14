@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
+import {ISqueezEvents} from "../src/interfaces/ISqueezEvents.sol";
 import {SqueezCurve} from "../src/SqueezCurve.sol";
 import {LaunchConfig, FeeDestination, FeeDestinationType} from "../src/libraries/SqueezTypes.sol";
 import {SqueezFeeVault} from "../src/SqueezFeeVault.sol";
@@ -18,6 +19,20 @@ contract RejectingRefundBuyer {
     receive() external payable {
         revert("reject refund");
     }
+}
+
+contract MockTradeRouter {
+    function buy(SqueezCurve curve, address recipient, uint256 minTokensOut) external payable returns (uint256) {
+        return curve.buyTo{value: msg.value}(recipient, minTokensOut, block.timestamp);
+    }
+
+    function sell(SqueezCurve curve, SqueezToken token, uint256 amount, address recipient) external returns (uint256) {
+        token.transferFrom(msg.sender, address(this), amount);
+        token.approve(address(curve), amount);
+        return curve.sellTo(amount, 0, block.timestamp, recipient);
+    }
+
+    receive() external payable {}
 }
 
 contract SqueezCurveTest is Test, ProxyTestBase {
@@ -182,6 +197,65 @@ contract SqueezCurveTest is Test, ProxyTestBase {
         assertEq(balanceBefore - buyer.balance, acceptedGross);
         assertEq(curve.hypeRaised(), threshold);
         assertTrue(curve.graduated());
+        assertEq(address(curve).balance, curve.hypeRaised());
+    }
+
+    function test_BuyToDeliversTokensAndRecordsRecipientAsTrader() public {
+        MockTradeRouter router = new MockTradeRouter();
+        vm.warp(curve.launchedAt() + 301);
+        vm.roll(curve.launchedAtBlock() + 1);
+        (uint256 expected, uint256 protocolFee, uint256 creatorFee,) = curve.quoteBuy(1 ether);
+
+        vm.expectEmit(true, true, false, true, address(curve));
+        emit ISqueezEvents.CurveTrade(address(token), buyer, true, 1 ether, expected, curve.hypeRaised() + 1 ether - protocolFee - creatorFee);
+        router.buy{value: 1 ether}(curve, buyer, expected);
+
+        assertEq(token.balanceOf(buyer), expected);
+        assertEq(token.balanceOf(address(router)), 0);
+    }
+
+    function test_BuyToRefundsClosingOvershootToRecipientNotRouter() public {
+        MockTradeRouter router = new MockTradeRouter();
+        vm.warp(curve.launchedAt() + 301);
+        vm.roll(curve.launchedAtBlock() + 1);
+        vm.deal(address(this), 1_000 ether);
+        uint256 buyerBefore = buyer.balance;
+        uint256 routerBefore = address(router).balance;
+
+        router.buy{value: 1_000 ether}(curve, buyer, 0);
+
+        assertTrue(curve.graduated());
+        assertGt(buyer.balance, buyerBefore);
+        assertEq(address(router).balance, routerBefore);
+    }
+
+    function test_BuyToRejectsZeroRecipientAndNonCreatorInLaunchBlock() public {
+        MockTradeRouter router = new MockTradeRouter();
+        vm.warp(curve.launchedAt() + 301);
+        vm.roll(curve.launchedAtBlock() + 1);
+        vm.expectRevert(SqueezCurve.InvalidAmount.selector);
+        router.buy{value: 1 ether}(curve, address(0), 0);
+
+        vm.roll(curve.launchedAtBlock());
+        vm.expectRevert(SqueezCurve.Unauthorized.selector);
+        router.buy{value: 1 ether}(curve, buyer, 0);
+    }
+
+    function test_SellToPullsFromCallerAndPaysRecipient() public {
+        MockTradeRouter router = new MockTradeRouter();
+        vm.warp(curve.launchedAt() + 301);
+        vm.roll(curve.launchedAtBlock() + 1);
+        vm.prank(buyer);
+        uint256 tokensOut = curve.buy{value: 1 ether}(0, block.timestamp);
+        address payee = makeAddr("payee");
+
+        vm.startPrank(buyer);
+        token.approve(address(router), tokensOut);
+        uint256 hypeOut = router.sell(curve, token, tokensOut, payee);
+        vm.stopPrank();
+
+        assertEq(payee.balance, hypeOut);
+        assertEq(token.balanceOf(buyer), 0);
         assertEq(address(curve).balance, curve.hypeRaised());
     }
 
