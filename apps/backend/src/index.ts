@@ -28,7 +28,8 @@ const safeRpcMethods = new Set([
 function cors(req: IncomingMessage, res: ServerResponse): boolean {
   const origin = req.headers.origin;
   const pathname = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`).pathname;
-  const publicDiscoveryRoute = req.method === "GET" && (
+  // Browsers preflight non-simple requests (for example a JSON content-type) with OPTIONS before the GET.
+  const publicDiscoveryRoute = (req.method === "GET" || req.method === "OPTIONS") && (
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/integrations\/launchpad\.json$/.test(pathname)
@@ -41,6 +42,8 @@ function cors(req: IncomingMessage, res: ServerResponse): boolean {
   if (publicDiscoveryRoute) {
     res.setHeader("access-control-allow-origin", "*");
     res.setHeader("access-control-allow-methods", "GET,OPTIONS");
+    res.setHeader("access-control-allow-headers", "content-type,x-request-id");
+    res.setHeader("access-control-max-age", "86400");
     return true;
   }
   if (origin && !config.allowedOrigins.has(origin)) {

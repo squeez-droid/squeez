@@ -21,7 +21,8 @@ function json(res, status, value) {
 function cors(req, res) {
   const origin = req.headers.origin;
   const pathname = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`).pathname;
-  const publicDiscoveryRoute = req.method === "GET" && (
+  // Browsers preflight non-simple requests (for example a JSON content-type) with OPTIONS before the GET.
+  const publicDiscoveryRoute = (req.method === "GET" || req.method === "OPTIONS") && (
     pathname === "/v1/explore"
     ||
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
@@ -32,6 +33,8 @@ function cors(req, res) {
   if (publicDiscoveryRoute) {
     res.setHeader("access-control-allow-origin", "*");
     res.setHeader("access-control-allow-methods", "GET,OPTIONS");
+    res.setHeader("access-control-allow-headers", "content-type,x-request-id");
+    res.setHeader("access-control-max-age", "86400");
     return true;
   }
   if (origin && !allowedOrigins.has(origin)) {
