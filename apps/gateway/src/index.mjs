@@ -26,6 +26,8 @@ function cors(req, res) {
     ||
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/integrations\/launchpad\.json$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote|pool)$/.test(pathname)
   );
   if (publicDiscoveryRoute) {
     res.setHeader("access-control-allow-origin", "*");
