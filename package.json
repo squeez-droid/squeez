@@ -83,6 +83,8 @@
     "check:target-routing": "node --experimental-strip-types scripts/check-target-routing.mjs",
     "check:gateway-routing": "node scripts/check-gateway-routing.mjs",
     "check:gateway-readiness": "node scripts/check-gateway-readiness.mjs",
+    "coolify:watch-paths:plan": "node scripts/configure-coolify-watch-paths.mjs",
+    "coolify:watch-paths:apply": "node scripts/configure-coolify-watch-paths.mjs --apply",
     "check:mainnet-read-only-compose": "node scripts/check-mainnet-read-only-compose.mjs",
     "check:target-schemas": "node --experimental-strip-types scripts/check-target-schemas.mjs",
     "check:addresses:testnet": "node tools/with-env.mjs testnet node scripts/check-loaded-deployment-addresses.mjs",
