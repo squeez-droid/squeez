@@ -40,6 +40,10 @@ function desiredWatchPaths(name) {
   if (name === "squeez-indexer") {
     return paths(common, "apps/indexer/**", "packages/shared/**", "packages/contracts/deployments/elysium/**");
   }
+  // Legacy Elysium testnet API created before deterministic resource names were introduced.
+  if (name.startsWith("squeez:main-")) {
+    return paths(common, "apps/backend/**", "packages/shared/**", "packages/contracts/deployments/elysium/**");
+  }
   if (name === "squeez-keeper") {
     return paths(common, "apps/keeper/**", "packages/shared/**", "packages/contracts/deployments/**");
   }
