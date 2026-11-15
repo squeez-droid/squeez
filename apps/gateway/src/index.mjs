@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { isReadOnlyRequestAllowed, readTargets, resolveUpstream } from "./routing.mjs";
+import { selectReadinessTargets, summarizeReadiness } from "./readiness.mjs";
 
 const port = Number(process.env.PORT || 8080);
 const targets = readTargets(process.env);
@@ -159,7 +160,8 @@ const server = createServer(async (req, res) => {
       return json(res, 200, await aggregateExplore(url));
     }
     if (req.method === "GET" && url.pathname === "/health/ready") {
-      const served = targets.filter((target) => target.upstream && target.capability !== "coming-soon");
+      const network = url.searchParams.get("network") || "mainnet";
+      const served = selectReadinessTargets(targets, network);
       const checks = await Promise.all(served.map(async (target) => {
         try {
           const [healthResponse, readinessResponse] = await Promise.all([
@@ -173,8 +175,8 @@ const server = createServer(async (req, res) => {
           return { target: target.id, ready: healthResponse.ok, dataReady: readinessResponse.ok };
         } catch { return { target: target.id, ready: false, dataReady: false }; }
       }));
-      const ready = checks.every((check) => check.ready);
-      return json(res, ready ? 200 : 503, { ready, targets: checks });
+      const readiness = summarizeReadiness(network, checks);
+      return json(res, readiness.ready ? 200 : 503, readiness);
     }
 
     const resolved = resolveUpstream(url.pathname, targets);

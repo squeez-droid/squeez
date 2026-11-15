@@ -100,7 +100,7 @@ for (const key of [
   ...walletKeys,
   "MAX_BUY_BPS_PER_TRANSACTION", "MAX_WALLET_BPS", "MAX_WALLET_WINDOW_SECONDS",
   "SNIPER_TAX_START_BPS", "SNIPER_TAX_DECAY_SECONDS", "TICKER_LOCK_SECONDS",
-  "LAUNCH_FEE_HYPE", "GRADUATION_THRESHOLD_HYPE",
+  "LAUNCH_FEE_HYPE", "GRADUATION_THRESHOLD_HYPE", "VIRTUAL_HYPE_RESERVE",
   "USDC_ADDRESS", "UNIT_ASSET_ADDRESS", "ONDO_ASSET_ADDRESS",
   "QUOTE_ORACLE_ADDRESS", "QUOTE_ORACLE_MAX_AGE_SECONDS",
   "GOVERNANCE_TIMELOCK_DELAY_SECONDS", "GOVERNANCE_TIMELOCK_ADDRESS",
@@ -121,15 +121,29 @@ const selectedChainEnv = {
   SQUEEZ_EXPLORER: chainSource[`${chainPrefix}_EXPLORER`] ?? chainSource.SQUEEZ_EXPLORER,
   // Keep provider limits target-specific. A conservative public testnet RPC must not throttle
   // a production provider (or another chain), while the legacy unprefixed keys remain fallbacks.
-  INDEXER_MAX_REQUESTS_PER_SECOND: chainSource[`${chainPrefix}_INDEXER_MAX_REQUESTS_PER_SECOND`]
-    ?? chainSource.INDEXER_MAX_REQUESTS_PER_SECOND,
-  INDEXER_LOG_BLOCK_RANGE: chainSource[`${chainPrefix}_INDEXER_LOG_BLOCK_RANGE`]
-    ?? chainSource.INDEXER_LOG_BLOCK_RANGE,
+  INDEXER_MAX_REQUESTS_PER_SECOND: runtimeEnv.SQUEEZ_MIGRATION_FULL_HISTORY === "true"
+    ? runtimeEnv.INDEXER_MAX_REQUESTS_PER_SECOND
+    : (chainSource[`${chainPrefix}_INDEXER_MAX_REQUESTS_PER_SECOND`]
+      ?? chainSource.INDEXER_MAX_REQUESTS_PER_SECOND),
+  INDEXER_LOG_BLOCK_RANGE: runtimeEnv.SQUEEZ_MIGRATION_FULL_HISTORY === "true"
+    ? runtimeEnv.INDEXER_LOG_BLOCK_RANGE
+    : (chainSource[`${chainPrefix}_INDEXER_LOG_BLOCK_RANGE`]
+      ?? chainSource.INDEXER_LOG_BLOCK_RANGE),
   INDEXER_MAX_LAG_BLOCKS: chainSource[`${chainPrefix}_INDEXER_MAX_LAG_BLOCKS`]
     ?? chainSource.INDEXER_MAX_LAG_BLOCKS,
-  INDEXER_RPC: chainSource[`${chainPrefix}_INDEXER_RPC`] ?? chainSource.INDEXER_RPC,
-  INDEXER_START_BLOCK: chainSource[`${chainPrefix}_INDEXER_START_BLOCK`] ?? chainSource.INDEXER_START_BLOCK,
-  SWAP_ROUTER_START_BLOCK: chainSource[`${chainPrefix}_SWAP_ROUTER_START_BLOCK`] ?? chainSource.SWAP_ROUTER_START_BLOCK,
+  INDEXER_RPC: runtimeEnv.SQUEEZ_RPC_SELECTION === "fallback"
+    ? fallbackRpc
+    : (chainSource[`${chainPrefix}_INDEXER_RPC`] ?? chainSource.INDEXER_RPC),
+  // Replacement-database backfills must reconstruct every on-chain row from the authoritative deployment block.
+  // Normal production services keep their explicitly configured checkpoint optimization.
+  INDEXER_START_BLOCK: runtimeEnv.SQUEEZ_MIGRATION_FULL_HISTORY === "true"
+    ? deploymentEnv.FACTORY_START_BLOCK
+    : (chainSource[`${chainPrefix}_INDEXER_START_BLOCK`] ?? chainSource.INDEXER_START_BLOCK),
+  // The deployment address book is authoritative for the router start block just as it is for the router address.
+  // Falling through to it prevents an empty root env placeholder from splitting this required pair.
+  SWAP_ROUTER_START_BLOCK: chainSource[`${chainPrefix}_SWAP_ROUTER_START_BLOCK`]
+    ?? chainSource.SWAP_ROUTER_START_BLOCK
+    ?? deploymentEnv.SWAP_ROUTER_START_BLOCK,
   DATABASE_SCHEMA: chainSource[`${chainPrefix}_DATABASE_SCHEMA`] ?? chainSource.DATABASE_SCHEMA,
   CROSS_CHAIN_DATABASE_SCHEMA: chain === "robinhood"
     ? (chainSource.ELYSIUM_DATABASE_SCHEMA ?? chainSource.DATABASE_SCHEMA)

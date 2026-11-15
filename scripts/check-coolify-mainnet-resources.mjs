@@ -77,6 +77,7 @@ const status = (application) => ({
   status: application.status,
   healthy: application.status === "running:healthy",
   commit: application.git_commit_sha ?? null,
+  fqdn: application.fqdn ?? application.domains ?? null,
 });
 const result = {
   ready: status(api).healthy && status(indexer).healthy && invalid.length === 0,
