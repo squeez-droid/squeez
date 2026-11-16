@@ -34,6 +34,9 @@ if (!Number.isSafeInteger(factoryStartBlock) || factoryStartBlock < deploymentSt
 const swapRouterAddress = process.env.SWAP_ROUTER_ADDRESS?.trim();
 const swapRouterStartBlock = process.env.SWAP_ROUTER_START_BLOCK?.trim();
 const poolManagerAddress = process.env.POOL_MANAGER?.trim();
+const poolManagerStartBlock = Number(process.env.POOL_MANAGER_START_BLOCK?.trim()
+  || swapRouterStartBlock
+  || factoryStartBlock);
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const indexerRpc = process.env.INDEXER_RPC?.trim() || required("SQUEEZ_RPC");
 const databasePoolMax = Number(process.env.INDEXER_DATABASE_POOL_MAX?.trim() || "5");
@@ -42,6 +45,9 @@ if ((swapRouterAddress && !swapRouterStartBlock) || (!swapRouterAddress && swapR
 }
 if (!Number.isSafeInteger(databasePoolMax) || databasePoolMax < 5) {
   throw new Error("INDEXER_DATABASE_POOL_MAX must be an integer greater than or equal to 5");
+}
+if (!Number.isSafeInteger(poolManagerStartBlock) || poolManagerStartBlock < factoryStartBlock) {
+  throw new Error("POOL_MANAGER_START_BLOCK must be an integer at or after FACTORY_START_BLOCK");
 }
 
 // Loaded from the selected root .env.testnet / .env.mainnet file.
@@ -110,8 +116,8 @@ export default createConfig({
       abi: UniswapV4PoolManagerAbi,
       // A zero address keeps networks without a deployed v4 venue compatible.
       address: (poolManagerAddress || "0x0000000000000000000000000000000000000000") as `0x${string}`,
-      // Squeez pools cannot predate its router deployment. Avoid scanning unrelated early v4 activity.
-      startBlock: Math.max(factoryStartBlock, swapRouterStartBlock ? Number(swapRouterStartBlock) : factoryStartBlock),
+      // Squeez pools cannot predate the first recorded Squeez launch on this v4 manager.
+      startBlock: poolManagerStartBlock,
     },
     SqueezIdentityRegistry: {
       chain: "target",

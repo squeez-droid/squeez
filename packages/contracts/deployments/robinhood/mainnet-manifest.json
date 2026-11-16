@@ -41,6 +41,7 @@
     "tickSpacing": 60,
     "create2Deployer": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
     "poolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "poolManagerStartBlock": 115781247,
     "salt": "0x4dbc886a2aeab26a60aa2fcd17a2f969b18f693be34a6f9a53f11a26e79822e9",
     "swapRouter": "0xBd3536eF5bFe791E4419c1A2A14C4D8F325c15b4",
     "swapRouterStartBlock": 112224042,

@@ -27,6 +27,7 @@ export const FIELD_TO_ENV = {
   graduationAdapter: "GRADUATION_ADAPTER_ADDRESS",
   squeezHook: "SQUEEZ_HOOK_ADDRESS",
   poolManager: "POOL_MANAGER",
+  poolManagerStartBlock: "POOL_MANAGER_START_BLOCK",
   positionManager: "POSITION_MANAGER",
   permit2: "PERMIT2",
   universalRouter: "UNIVERSAL_ROUTER",
