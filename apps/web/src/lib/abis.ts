@@ -133,6 +133,10 @@ export const curveTradeAbi = [
     ],
     outputs: [{ name: "hypeOut", type: "uint256" }],
   },
+  {
+    type: "function", name: "graduate", stateMutability: "nonpayable",
+    inputs: [], outputs: [],
+  },
 ] as const;
 
 export const erc20TradeAbi = [

@@ -270,7 +270,7 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
           </section>
         </div>
         <aside className="space-y-5">
-          {token.status !== "graduating" && <OnchainTradePanel token={token} onConfirmed={() => load()} />}
+          <OnchainTradePanel token={token} onConfirmed={() => load()} />
           <section className="rounded-xl border border-line bg-surface p-5">
             <h2 className="font-medium text-white">Creator rewards</h2>
             {!creatorReward ? (

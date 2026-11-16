@@ -37,6 +37,7 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const [slippageBps, setSlippageBps] = useState<number>(100);
   const amountWei = useMemo(() => toWei(amount), [amount]);
   const isV4 = token.venue === "uniswap-v4";
+  const isGraduating = token.status === "graduating";
   const swapRouterAddress = protocol.data?.contracts.swapRouter ?? zeroAddress;
   const v4QuoterAddress = protocol.data?.contracts.v4Quoter ?? zeroAddress;
   const squeezHookAddress = protocol.data?.contracts.squeezHook ?? zeroAddress;
@@ -55,11 +56,11 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
 
   const buyQuote = useReadContract({
     address: token.curve, abi: curveTradeAbi, functionName: "quoteBuy", args: [amountWei],
-    query: { enabled: !isV4 && side === "buy" && amountWei > 0n },
+    query: { enabled: !isV4 && !isGraduating && side === "buy" && amountWei > 0n },
   });
   const sellQuote = useReadContract({
     address: token.curve, abi: curveTradeAbi, functionName: "quoteSell", args: [amountWei],
-    query: { enabled: !isV4 && side === "sell" && amountWei > 0n },
+    query: { enabled: !isV4 && !isGraduating && side === "sell" && amountWei > 0n },
   });
   const v4Quote = useSimulateContract({
     address: v4QuoterAddress, abi: v4QuoterAbi, functionName: "quoteExactInputSingle",
@@ -89,9 +90,37 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
   const balance = side === "buy" ? (wallet.balances[nativeSymbol] ?? 0) : Number(formatEther(tokenBalance.data ?? 0n));
   const insufficient = amountWei > 0n && Number(amount) > balance;
   const quoteError = (isV4 ? v4Quote.error : (side === "buy" ? buyQuote.error : sellQuote.error))?.message.split("\n")[0];
+  const writesEnabled = protocol.data?.capability === "enabled" && dataSource.data?.writeSafe === true
+    && canary.actionAllowed;
+
+  const finalizeGraduation = () => {
+    if (!writesEnabled || !publicClient || !wallet.address) return;
+    const symbol = token.symbol ?? "TOKEN";
+    void tx.run({
+      title: `Finalize $${symbol} graduation`,
+      wallet: wallet.address,
+      lines: [
+        { label: "Token", value: `$${symbol}` },
+        { label: "From", value: "Squeez bonding curve" },
+        { label: "To", value: "Uniswap v4 locked liquidity" },
+      ],
+      successTitle: `Migration for $${symbol} confirmed`,
+      successBody: "The v4 pool address and trading route will appear after the indexer catches up.",
+      onSuccess: () => {
+        window.setTimeout(onConfirmed, 1500);
+        window.setTimeout(onConfirmed, 5000);
+        window.setTimeout(onConfirmed, 12_000);
+      },
+    }, async () => {
+      const hash = await writer.writeContractAsync({
+        address: token.curve, abi: curveTradeAbi, functionName: "graduate",
+      });
+      return { hash, wait: async () => { await publicClient.waitForTransactionReceipt({ hash }); } };
+    });
+  };
 
   const execute = () => {
-    if (protocol.data?.capability !== "enabled" || dataSource.data?.writeSafe !== true || !canary.actionAllowed) return;
+    if (!writesEnabled || isGraduating) return;
     if (!quote || output === 0n || !publicClient || !wallet.address || (isV4 && !v4Configured)) return;
     const symbol = token.symbol ?? "TOKEN";
     void tx.run({
@@ -160,12 +189,22 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
         ))}
       </div>
 
-      <div className="mt-4 flex items-center justify-between text-xs text-muted">
+      {isGraduating && (
+        <div className="mt-4 rounded-lg border border-primary/40 bg-primary/10 p-3">
+          <p className="text-sm font-medium text-white">Bonding complete · v4 migration pending</p>
+          <p className="mt-1 text-xs text-muted">The curve is closed. Graduation is permissionless; any connected wallet can finalize the locked Uniswap v4 pool.</p>
+          <WalletGateButton className="mt-3 w-full" disabled={!writesEnabled} onClick={finalizeGraduation}>
+            Finalize migration to v4
+          </WalletGateButton>
+        </div>
+      )}
+
+      <div className={`mt-4 flex items-center justify-between text-xs text-muted ${isGraduating ? "opacity-50" : ""}`}>
         <span>{side === "buy" ? `Pay with ${nativeSymbol}` : `Sell $${token.symbol ?? "TOKEN"}`}</span>
         {wallet.status === "connected" && <button type="button" onClick={() => setAmount(String(balance))}>Balance {balance.toFixed(6)}</button>}
       </div>
       <input className={`${inputCls} num mt-1 h-12 text-lg`} type="number" min="0" inputMode="decimal"
-        placeholder="0.0" value={amount} onChange={(event) => setAmount(event.target.value)} />
+        placeholder="0.0" value={amount} disabled={isGraduating} onChange={(event) => setAmount(event.target.value)} />
 
       <div className="mt-3">
         <div className="mb-1 text-xs text-muted">Slippage protection</div>
@@ -185,12 +224,12 @@ export function OnchainTradePanel({ token, onConfirmed }: { token: IndexedToken;
       {isV4 && !v4Configured && <p className="mt-3 text-xs text-down">The API has not published the v4 route configuration.</p>}
       {insufficient && <p className="mt-3 text-xs text-down">Insufficient wallet balance.</p>}
       <WalletGateButton className="mt-4 w-full" variant={side === "buy" ? "primary" : "sell"}
-        disabled={!quote || output === 0n || insufficient || Boolean(quoteError) || (isV4 && !v4Configured)
-          || protocol.data?.capability !== "enabled" || dataSource.data?.writeSafe !== true || !canary.actionAllowed} onClick={execute}>
-        {!amountWei ? "Enter an amount" : `${side === "buy" ? "Buy" : "Sell"} ${token.symbol ?? "token"}`}
+        disabled={isGraduating || !quote || output === 0n || insufficient || Boolean(quoteError) || (isV4 && !v4Configured)
+          || !writesEnabled} onClick={execute}>
+        {isGraduating ? "Trading resumes on v4 after migration" : !amountWei ? "Enter an amount" : `${side === "buy" ? "Buy" : "Sell"} ${token.symbol ?? "token"}`}
       </WalletGateButton>
       <p className="mt-2 text-center text-[11px] text-muted">
-        {isV4 ? "Quote comes from the v4 Quoter; settlement uses the graduated Uniswap v4 pool." : "Quote and settlement come directly from the deployed curve contract."}
+        {isV4 ? "Quote comes from the v4 Quoter; settlement uses the graduated Uniswap v4 pool." : isGraduating ? "Buy and sell remain visible while the permissionless v4 migration is finalized." : "Quote and settlement come directly from the deployed curve contract."}
       </p>
     </section>
   );
