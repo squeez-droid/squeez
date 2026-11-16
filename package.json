@@ -163,6 +163,7 @@
     "write:launch-config-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-launch-config-governance-batches.mjs --write",
     "build:integration-abi": "node scripts/build-integration-abi.mjs",
     "check:integration-abi": "node scripts/build-integration-abi.mjs --check",
+    "check:external-integration": "node scripts/verify-external-integration.mjs",
     "generate:curve-upgrade-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-curve-upgrade-governance-batches.mjs",
     "write:curve-upgrade-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-curve-upgrade-governance-batches.mjs --write",
     "generate:token-proxy-batches:robinhood:mainnet": "node tools/with-env.mjs robinhood mainnet node scripts/generate-token-proxy-governance-batches.mjs",
