@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const [apiUuid, indexerUuid] = process.argv.slice(2);
 if (!apiUuid || !indexerUuid) throw new Error("Usage: configure-coolify-mainnet-resources.mjs <api-uuid> <indexer-uuid>");
 const indexerOnly = process.argv.includes("--indexer-only");
+const indexerUsePrimaryRpc = process.argv.includes("--indexer-use-primary-rpc");
 const apiDatabaseOnly = process.argv.includes("--api-database-only");
 const apiOAuthOnly = process.argv.includes("--api-oauth-only");
 if ([indexerOnly, apiDatabaseOnly, apiOAuthOnly].filter(Boolean).length > 1) {
@@ -54,12 +55,27 @@ const databaseUrlFor = (service) => {
 };
 const dataFor = (service) => [
   ...sharedKeys.flatMap((key) => {
-    const value = key === "DATABASE_URL" ? databaseUrlFor(service) : process.env[key];
+    const value = key === "DATABASE_URL"
+      ? databaseUrlFor(service)
+      : service === "indexer" && key === "INDEXER_RPC" && indexerUsePrimaryRpc
+        ? process.env.SQUEEZ_RPC
+        : process.env[key];
     return value ? [{
       key, value, is_preview: false, is_literal: true, is_multiline: false,
       is_shown_once: secretKeys.has(key),
     }] : [];
   }),
+  ...(service === "indexer" && indexerUsePrimaryRpc && process.env.SQUEEZ_RPC ? [{
+    // with-env gives chain-qualified provider settings precedence. Update the
+    // qualified key as well so an exhausted legacy provider cannot override
+    // the explicitly selected recovery RPC inside the hosted container.
+    key: `${process.env.SQUEEZ_CHAIN.toUpperCase()}_INDEXER_RPC`,
+    value: process.env.SQUEEZ_RPC,
+    is_preview: false,
+    is_literal: true,
+    is_multiline: false,
+    is_shown_once: true,
+  }] : []),
   { key: "SQUEEZ_SERVICE", value: service, is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   { key: "PORT", value: "3000", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   ...(service === "api" ? apiOnlyKeys.flatMap((key) => process.env[key] ? [{

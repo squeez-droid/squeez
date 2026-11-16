@@ -4,9 +4,11 @@ import {
   SQUEEZ_NETWORKS, deploymentTargetId, parseDeploymentTarget, type DeploymentTarget,
 } from "@squeez/shared";
 import { useSyncExternalStore } from "react";
-import { apiUrl, deploymentTarget, supportedChains } from "./chain";
+import { apiUrl, supportedChains } from "./chain";
 
 const TARGET_CHANGE_EVENT = "squeez:deployment-target-change";
+export const DEPLOYMENT_TARGET_STORAGE_KEY = "squeez.deploymentTarget.v2";
+const PUBLIC_DEFAULT_TARGET: DeploymentTarget = { chain: "robinhood", stage: "mainnet" };
 
 /**
  * Updates the selected deployment without reloading the document. Keeping the
@@ -21,7 +23,7 @@ export function selectDeploymentTarget(
   if (options?.includeChainInUrl === false) url.searchParams.delete("chain");
   else url.searchParams.set("chain", target.chain);
   url.searchParams.set("network", target.stage);
-  window.localStorage.setItem("squeez.deploymentTarget", deploymentTargetId(target));
+  window.localStorage.setItem(DEPLOYMENT_TARGET_STORAGE_KEY, deploymentTargetId(target));
   window.history[options?.replace ? "replaceState" : "pushState"]({}, "", url);
   window.dispatchEvent(new Event(TARGET_CHANGE_EVENT));
 }
@@ -45,19 +47,19 @@ export function useSelectedTarget() {
   const canonicalTokenTarget = pathname.match(/^\/token\/(elysium|hyperevm|robinhood)\/(testnet|mainnet)\/0x[a-fA-F0-9]{40}\/?$/);
   const storedQuery = query || (() => {
       if (typeof window === "undefined") return "";
-      const stored = window.localStorage.getItem("squeez.deploymentTarget");
+      const stored = window.localStorage.getItem(DEPLOYMENT_TARGET_STORAGE_KEY);
       if (!stored) return "";
       const [chain, network] = stored.split(":");
       return `?chain=${encodeURIComponent(chain)}&network=${encodeURIComponent(network)}`;
     })();
   const search = new URLSearchParams(storedQuery);
-  let target = deploymentTarget;
+  let target = PUBLIC_DEFAULT_TARGET;
   try {
-    const chain = canonicalTokenTarget?.[1] ?? search.get("chain") ?? deploymentTarget.chain;
-    const stage = canonicalTokenTarget?.[2] ?? search.get("network") ?? deploymentTarget.stage;
+    const chain = canonicalTokenTarget?.[1] ?? search.get("chain") ?? PUBLIC_DEFAULT_TARGET.chain;
+    const stage = canonicalTokenTarget?.[2] ?? search.get("network") ?? PUBLIC_DEFAULT_TARGET.stage;
     target = parseDeploymentTarget(chain, stage);
   } catch {
-    target = deploymentTarget;
+    target = PUBLIC_DEFAULT_TARGET;
   }
   const info = SQUEEZ_NETWORKS[deploymentTargetId(target)];
   const chain = supportedChains.find((candidate) => candidate.id === info.chainId)!;

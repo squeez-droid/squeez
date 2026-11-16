@@ -3,7 +3,7 @@
 import { STAGES, type Stage } from "@squeez/shared";
 import clsx from "clsx";
 import { useDeploymentRegistry } from "@/lib/deployments";
-import { selectDeploymentTarget, useSelectedTarget } from "@/lib/use-selected-target";
+import { DEPLOYMENT_TARGET_STORAGE_KEY, selectDeploymentTarget, useSelectedTarget } from "@/lib/use-selected-target";
 
 const stageLabel = (stage: Stage) => stage === "mainnet" ? "Mainnet" : "Testnet";
 
@@ -22,7 +22,7 @@ export function NetworkSelector() {
     if (tokenRoute) {
       // A canonical token page must render a different route when its stage
       // changes. Launch/Explore only change query state and stay mounted.
-      window.localStorage.setItem("squeez.deploymentTarget", `${selected.target.chain}:${stage}`);
+      window.localStorage.setItem(DEPLOYMENT_TARGET_STORAGE_KEY, `${selected.target.chain}:${stage}`);
       window.location.assign(url.toString());
       return;
     }

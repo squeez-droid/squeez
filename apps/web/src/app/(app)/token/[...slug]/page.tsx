@@ -17,8 +17,8 @@ import {
   type IndexedToken,
   type IndexedTrade,
 } from "@/lib/indexer";
-import { bpsToPct, shortAddr } from "@/lib/format";
-import { AnimatedProgressValue, Badge, Button, Empty, Progress, Row, Spinner } from "@/components/ui";
+import { bpsToPct, fmtCompact, shortAddr } from "@/lib/format";
+import { AnimatedProgressValue, Badge, Button, CopyButton, Empty, Progress, Row, Spinner } from "@/components/ui";
 import { formatEther } from "viem";
 import { OnchainTradePanel } from "@/components/token/onchain-trade-panel";
 import { DataSourceState } from "@/components/data-source-state";
@@ -31,6 +31,7 @@ import { useRewards } from "@/components/rewards/use-rewards";
 import { IconTelegram, IconWebsite, IconX } from "@/components/icons";
 import { ChainBadge } from "@/components/chain-logo";
 import { apiAssetUrl } from "@/lib/api-asset-url";
+import { indexedMarketCapNative } from "@/lib/indexed-market";
 
 function TokenImage({ src }: { src: string }) {
   // Images are immutable, API-proxied IPFS assets; preserving their source size avoids a second image service.
@@ -124,6 +125,7 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
   const latestTrade = trades[0];
   const lastPrice = latestTrade && BigInt(latestTrade.tokenAmount) > 0n
     ? Number(formatEther(BigInt(latestTrade.hypeAmount))) / Number(formatEther(BigInt(latestTrade.tokenAmount))) : null;
+  const marketCap = indexedMarketCapNative(token);
   const volumeHype = trades.reduce((sum, trade) => sum + Number(formatEther(BigInt(trade.hypeAmount))), 0);
   const creatorReward = rewards.created.find((item) => item.token.address.toLowerCase() === token.address.toLowerCase());
   const explorer = protocol?.chain.explorer?.replace(/\/$/, "");
@@ -148,7 +150,11 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
             <Badge tone={token.status === "graduated" ? "mint" : "primary"}>{token.status === "graduated" ? "Graduated" : token.status === "graduating" ? "Graduation pending" : "Bonding curve"}</Badge>
             <IdentityBadges token={token} showOriginal />
           </div>
-          <p className="num mt-2 text-xs text-muted">{token.address}</p>
+          <div className="mt-2 flex max-w-full items-center gap-2 text-xs text-muted">
+            <span className="num shrink-0 uppercase">CA</span>
+            <span className="num min-w-0 break-all text-white/80">{token.address}</span>
+            <CopyButton text={token.address} className="shrink-0" />
+          </div>
           {metadata?.description && <p className="mt-3 max-w-2xl text-sm text-muted">{metadata.description}</p>}
           {metadata?.links && <div className="mt-3 flex flex-wrap gap-2 text-xs">
             {metadata.links.website && <a href={metadata.links.website} target="_blank" rel="noreferrer" aria-label={`Open ${socialLabel("website", metadata.links.website)}`} className="inline-flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-muted transition-colors hover:border-white/50 hover:text-white"><IconWebsite width={14} height={14} /><span>{socialLabel("website", metadata.links.website)}</span></a>}
@@ -162,8 +168,9 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-5">
-          <section className="grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-4">
+          <section className="grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-5">
             <div className="bg-surface p-4"><div className="text-xs text-muted">Last price</div><div className="num mt-1 text-white">{lastPrice === null ? "—" : `${lastPrice.toPrecision(5)} ${nativeSymbol}`}</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">Market cap</div><div className="num mt-1 text-white">{marketCap === null ? "Awaiting trade" : `${fmtCompact(marketCap)} ${nativeSymbol}`}</div></div>
             <div className="bg-surface p-4"><div className="text-xs text-muted">Indexed volume</div><div className="num mt-1 text-white">{volumeHype.toFixed(6)} {nativeSymbol}</div></div>
             <div className="bg-surface p-4"><div className="text-xs text-muted">Trades</div><div className="num mt-1 text-white">{trades.length}</div></div>
             <div className="bg-surface p-4"><div className="text-xs text-muted">Holders</div><div className="num mt-1 text-white">{holdersReady ? holders.length : "Indexing…"}</div></div>

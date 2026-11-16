@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { content } from "@/lib/data";
 import { getGlobalExplore, type ExploreTarget, type GlobalIndexedToken } from "@/lib/indexer";
-import { bpsToPct, fmtNum, shortAddr } from "@/lib/format";
+import { bpsToPct, fmtCompact, fmtNum, shortAddr } from "@/lib/format";
 import { AnimatedProgressValue, Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
@@ -13,6 +13,7 @@ import { CHAINS, type SqueezChain } from "@squeez/shared";
 import { apiUrl } from "@/lib/chain";
 import { ChainLogo, chainLabel } from "@/components/chain-logo";
 import { useSelectedTarget } from "@/lib/use-selected-target";
+import { indexedMarketCapNative } from "@/lib/indexed-market";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
@@ -151,6 +152,7 @@ export default function ExplorePage() {
             const raised = Number(formatEther(BigInt(token.hypeRaised ?? "0")));
             const threshold = Number(token.target.graduationThreshold ?? 0);
             const progress = token.status === "graduated" ? 100 : threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
+            const marketCap = indexedMarketCapNative(token);
             const apiBase = targetApiUrl(token);
             return (
             <Link key={`${token.target.chain}:${token.target.stage}:${token.address}`} href={`/token/${token.target.chain}/${token.target.stage}/${token.address}`} className="group relative isolate overflow-hidden bg-bg p-5 transition-colors hover:bg-surface">
@@ -173,6 +175,7 @@ export default function ExplorePage() {
               </div>
               <div className="mt-3"><IdentityBadges token={token} showOriginal /></div>
               <dl className="mt-5 grid grid-cols-2 gap-3 text-xs">
+                <div><dt className="text-muted">Market cap</dt><dd className="num mt-1 text-white">{marketCap === null ? "Awaiting first trade" : `${fmtCompact(marketCap)} ${token.target.nativeSymbol}`}</dd></div>
                 <div><dt className="text-muted">Creator fee</dt><dd className="num mt-1 text-white">{bpsToPct(token.creatorFeeBps)}</dd></div>
                 <div><dt className="text-muted">Config</dt><dd className="num mt-1 text-white">#{token.launchConfigId}</dd></div>
                 <div><dt className="text-muted">Creator</dt><dd className="num mt-1 text-white">{shortAddr(token.creator)}</dd></div>

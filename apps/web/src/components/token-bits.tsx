@@ -1,33 +1,18 @@
 "use client";
 
 import clsx from "clsx";
-import { useEffect, useState } from "react";
 import { getQuote } from "@/lib/data";
-import { getIndexedMetadata, type IndexedToken } from "@/lib/indexer";
+import type { IndexedToken } from "@/lib/indexer";
 import type { Token } from "@/lib/types";
 import type { SqueezChain, Stage } from "@squeez/shared";
 import { ChainBadge } from "./chain-logo";
-import { apiAssetUrl } from "@/lib/api-asset-url";
 
-const indexedImageCache = new Map<string, Promise<string | null>>();
-
-function indexedImage(address: string, targetApiUrl: string) {
-  const key = `${targetApiUrl}:${address.toLowerCase()}`;
-  let request = indexedImageCache.get(key);
-  if (!request) {
-    request = getIndexedMetadata(address, undefined, targetApiUrl)
-      .then((metadata) => apiAssetUrl(metadata?.imagePath))
-      .catch(() => null);
-    indexedImageCache.set(key, request);
-  }
-  return request;
+function indexedLogoUrl(address: string, targetApiUrl: string) {
+  return `${targetApiUrl.replace(/\/$/, "")}/tokens/${encodeURIComponent(address)}/logo`;
 }
 
 /** Token image from IPFS when present; otherwise a ticker monogram (monochrome, deterministic). */
 export function TokenAvatar({ token, size = 40, className }: { token: Pick<Token, "image" | "ticker">; size?: number; className?: string }) {
-  if (token.image)
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={token.image} alt="" width={size} height={size} className={clsx("shrink-0 rounded-md object-cover", className)} style={{ width: size, height: size }} />;
   const t = (token.ticker || "?").slice(0, 2);
   // line pattern differs per ticker so cards are not identical
   const seed = [...token.ticker].reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -37,6 +22,20 @@ export function TokenAvatar({ token, size = 40, className }: { token: Pick<Token
       style={{ width: size, height: size, fontSize: size * 0.34 }}>
       <span className="absolute inset-0 opacity-[0.18]" style={{ backgroundImage: `repeating-linear-gradient(${angle}deg, currentColor 0 1px, transparent 1px ${4 + (seed % 4)}px)` }} />
       <span className="relative tracking-tight">{t}</span>
+      {token.image && (
+        // Keep the deterministic monogram underneath so a missing or slow IPFS
+        // asset never leaves a broken/empty avatar in the card.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={token.image}
+          alt=""
+          width={size}
+          height={size}
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={(event) => { event.currentTarget.style.display = "none"; }}
+        />
+      )}
     </div>
   );
 }
@@ -48,16 +47,7 @@ export function IndexedTokenAvatar({ token, targetApiUrl, size = 40, className }
   size?: number;
   className?: string;
 }) {
-  const [image, setImage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setImage(null);
-    indexedImage(token.address, targetApiUrl).then((nextImage) => { if (active) setImage(nextImage); });
-    return () => { active = false; };
-  }, [targetApiUrl, token.address]);
-
-  return <TokenAvatar token={{ image, ticker: token.symbol ?? "?" }} size={size} className={className} />;
+  return <TokenAvatar token={{ image: indexedLogoUrl(token.address, targetApiUrl), ticker: token.symbol ?? "?" }} size={size} className={className} />;
 }
 
 /** Token avatar with a compact chain/network marker anchored to its bottom-right corner. */
@@ -83,18 +73,8 @@ export function IndexedTokenArtwork({ token, targetApiUrl, className }: {
   targetApiUrl: string;
   className?: string;
 }) {
-  const [image, setImage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setImage(null);
-    indexedImage(token.address, targetApiUrl).then((nextImage) => { if (active) setImage(nextImage); });
-    return () => { active = false; };
-  }, [targetApiUrl, token.address]);
-
-  if (!image) return null;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={image} alt="" aria-hidden className={clsx("absolute inset-0 h-full w-full object-cover", className)} />;
+  return <img src={indexedLogoUrl(token.address, targetApiUrl)} alt="" aria-hidden className={clsx("absolute inset-0 h-full w-full object-cover", className)} />;
 }
 
 export function PairBadge({ quote, className }: { quote: string; className?: string }) {
