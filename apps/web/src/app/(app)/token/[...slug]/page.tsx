@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   getIndexedToken,
@@ -72,10 +72,13 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
   const [metadata, setMetadata] = useState<IndexedMetadata | null>(null);
   const rewards = useRewards();
   const usdPrices = useNativeUsdPrices();
+  const refreshInFlight = useRef(false);
 
-  const load = useCallback((signal?: AbortSignal) => {
-    if (!isIndexerConfigured) return;
-    Promise.all([
+  const load = useCallback(async (signal?: AbortSignal, background = false) => {
+    if (!isIndexerConfigured || refreshInFlight.current) return;
+    refreshInFlight.current = true;
+    try {
+      const [indexedToken, indexedTrades, indexedFees, nextStatus, nextProtocol, indexedHolders, indexedMetadata] = await Promise.all([
       getIndexedToken(address, signal, selected.targetApiUrl),
       listIndexedTrades(address, signal, selected.targetApiUrl),
       listIndexedCreatorFees(address, signal, selected.targetApiUrl),
@@ -83,21 +86,23 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
       getProtocolConfig(signal, selected.targetApiUrl),
       listIndexedHolders(address, signal, selected.targetApiUrl).then((rows) => ({ rows, ready: true })).catch(() => ({ rows: [], ready: false })),
       getIndexedMetadata(address, signal, selected.targetApiUrl).catch(() => null),
-    ])
-      .then(([indexedToken, indexedTrades, indexedFees, nextStatus, nextProtocol, indexedHolders, indexedMetadata]) => {
-        setToken(indexedToken);
-        setTrades(indexedTrades);
-        setFees(indexedFees);
-        setSourceStatus(nextStatus);
-        setProtocol(nextProtocol);
-        setHolders(indexedHolders.rows);
-        setHoldersReady(indexedHolders.ready);
-        setMetadata(indexedMetadata);
-      })
-      .catch((cause) => {
-        if (!signal?.aborted) setError(cause instanceof Error ? cause.message : "Indexer request failed.");
-      })
-      .finally(() => { if (!signal?.aborted) setLoading(false); });
+      ]);
+      if (signal?.aborted) return;
+      setToken(indexedToken);
+      setTrades(indexedTrades);
+      setFees(indexedFees);
+      setSourceStatus(nextStatus);
+      setProtocol(nextProtocol);
+      setHolders(indexedHolders.rows);
+      setHoldersReady(indexedHolders.ready);
+      setMetadata(indexedMetadata);
+      setError(null);
+    } catch (cause) {
+      if (!signal?.aborted && !background) setError(cause instanceof Error ? cause.message : "Indexer request failed.");
+    } finally {
+      refreshInFlight.current = false;
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [address, selected.targetApiUrl]);
 
   const candles = useMemo<Candle[]>(() => trades
@@ -112,8 +117,17 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
 
   useEffect(() => {
     const controller = new AbortController();
-    load(controller.signal);
-    return () => controller.abort();
+    void load(controller.signal);
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load(controller.signal, true);
+    };
+    const interval = window.setInterval(refresh, 5_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [load]);
 
   if (!isIndexerConfigured) return <Empty title="Indexer not configured" body="Configure this network’s indexer before opening token pages." />;

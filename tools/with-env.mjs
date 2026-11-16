@@ -76,7 +76,6 @@ const runtimeEnv = Object.fromEntries(Object.entries(process.env).filter(([, val
 const legacyDeploymentKeys = new Set(Object.values(FIELD_TO_ENV));
 const walletKeys = [
   "DEPLOYER_PRIVATE_KEY", "UPGRADE_ADMIN_PRIVATE_KEY", "ADMIN_MULTISIG", "NEXT_ADMIN_MULTISIG", "TREASURY",
-  "KEEPER_PRIVATE_KEY",
 ];
 if (chain !== "elysium") {
   // The original root env used unprefixed contract fields for Elysium. Never let those values leak into another

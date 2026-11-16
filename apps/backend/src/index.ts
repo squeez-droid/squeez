@@ -1274,9 +1274,10 @@ const server = createServer(async (req, res) => {
         tags: {
           squeez: { name: "Squeez", description: "Token launched through the Squeez protocol" },
         },
-        tokens: result.rows.map((token) => {
+        tokens: await mapWithConcurrency(result.rows, 8, async (token) => {
           const address = getAddress(token.address);
           const base = `${publicApiUrl}/v1/${targetPath}/tokens/${address}`;
+          const metadata = await externalTokenMetadata(address, token.metadataUri);
           return {
           chainId: config.chainId,
           address,
@@ -1293,12 +1294,16 @@ const server = createServer(async (req, res) => {
             venue: token.status === "graduated" ? "uniswap-v4" : "squeez-curve",
             metadataURI: token.metadataUri,
             metadataURL: `${base}/metadata`,
+            description: metadata.description,
+            website: metadata.links.website,
+            twitter: metadata.links.x,
+            telegram: metadata.links.telegram,
             routeURL: `${base}/route`,
             poolURL: token.status === "graduated" ? `${base}/pool` : null,
             curve: token.curve ? getAddress(token.curve) : null,
             pool: token.pool ? getAddress(token.pool) : null,
           },
-        };
+          };
         }),
       }, 300);
     }
