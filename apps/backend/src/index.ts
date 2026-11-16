@@ -31,12 +31,14 @@ function cors(req: IncomingMessage, res: ServerResponse): boolean {
   // Browsers preflight non-simple requests (for example a JSON content-type) with OPTIONS before the GET.
   const publicDiscoveryRoute = (req.method === "GET" || req.method === "OPTIONS") && (
     /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/token-?list\.json$/.test(pathname)
-    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/(?:logo|metadata)$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/integrations\/launchpad\.json$/.test(pathname)
+    || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/integrations\/tokens\.json$/.test(pathname)
     || /^\/v1\/(?:elysium|hyperevm|robinhood)\/(?:testnet|mainnet)\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote|pool)$/.test(pathname)
     || /^\/v1\/token-?list\.json$/.test(pathname)
-    || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/logo$/.test(pathname)
+    || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/(?:logo|metadata)$/.test(pathname)
     || /^\/v1\/integrations\/launchpad\.json$/.test(pathname)
+    || /^\/v1\/integrations\/tokens\.json$/.test(pathname)
     || /^\/v1\/tokens\/0x[a-fA-F0-9]{40}\/(?:route|quote|pool)$/.test(pathname)
   );
   if (publicDiscoveryRoute) {
@@ -234,6 +236,54 @@ const tokenMetadataAbi = [
   { type: "function", name: "tokenURI", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
   { type: "function", name: "metadataURI", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
 ] as const;
+
+type ExternalTokenMetadata = {
+  metadataUri: string | null;
+  imageUri: string | null;
+  description: string;
+  links: { website: string | null; x: string | null; telegram: string | null };
+};
+const externalMetadataCache = new Map<string, { expiresAt: number; value: ExternalTokenMetadata }>();
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const output = new Array<R>(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      output[index] = await fn(items[index]);
+    }
+  }));
+  return output;
+}
+
+async function externalTokenMetadata(token: Address, indexedUri?: string | null): Promise<ExternalTokenMetadata> {
+  const uri = /^ipfs:\/\/[a-zA-Z0-9]+$/.test(indexedUri ?? "") ? indexedUri! : await onchainMetadataUri(token);
+  const cid = uri?.match(/^ipfs:\/\/([a-zA-Z0-9]+)$/)?.[1];
+  if (!cid) return { metadataUri: uri, imageUri: null, description: "", links: { website: null, x: null, telegram: null } };
+  const cached = externalMetadataCache.get(cid);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  try {
+    const response = await fetch(`${config.pinata.gatewayUrl}/${cid}`, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new Error("Metadata gateway unavailable");
+    const payload = await response.json() as Record<string, unknown>;
+    const rawLinks = typeof payload.links === "object" && payload.links ? payload.links as Record<string, unknown> : {};
+    const value: ExternalTokenMetadata = {
+      metadataUri: uri,
+      imageUri: typeof payload.image === "string" && /^ipfs:\/\/[a-zA-Z0-9]+$/.test(payload.image) ? payload.image : null,
+      description: safeMetadataText(payload.description, 280),
+      links: {
+        website: safeMetadataUrl(rawLinks.website),
+        x: safeMetadataUrl(rawLinks.x),
+        telegram: safeMetadataUrl(rawLinks.telegram),
+      },
+    };
+    externalMetadataCache.set(cid, { expiresAt: Date.now() + 300_000, value });
+    return value;
+  } catch {
+    return { metadataUri: uri, imageUri: null, description: "", links: { website: null, x: null, telegram: null } };
+  }
+}
 
 async function onchainMetadataUri(token: Address): Promise<string | null> {
   for (const functionName of ["tokenURI", "metadataURI"] as const) {
@@ -1170,8 +1220,8 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "GET" && ["/v1/token-list.json", "/v1/tokenlist.json"].includes(url.pathname)) {
       const result = await pool.query(
-        `select address, coalesce(name, '') as name, coalesce(symbol, '') as symbol,
-          created_at as "createdAt"
+        `select address, curve, pool, status, metadata_uri as "metadataUri",
+          coalesce(name, '') as name, coalesce(symbol, '') as symbol, created_at as "createdAt"
          from "${config.databaseSchema}"."token"
          where name is not null and symbol is not null
          order by created_at asc limit 10000`,
@@ -1190,15 +1240,32 @@ const server = createServer(async (req, res) => {
         tags: {
           squeez: { name: "Squeez", description: "Token launched through the Squeez protocol" },
         },
-        tokens: result.rows.map((token) => ({
+        tokens: result.rows.map((token) => {
+          const address = getAddress(token.address);
+          const base = `${publicApiUrl}/v1/${targetPath}/tokens/${address}`;
+          return {
           chainId: config.chainId,
-          address: getAddress(token.address),
+          address,
           decimals: 18,
           name: String(token.name).slice(0, 60),
           symbol: String(token.symbol).slice(0, 20),
-          logoURI: `${publicApiUrl}/v1/${targetPath}/tokens/${getAddress(token.address)}/logo`,
+          logoURI: `${base}/logo`,
           tags: ["squeez"],
-        })),
+          extensions: {
+            launchpad: "Squeez",
+            chain: config.chain,
+            network: config.network,
+            status: token.status,
+            venue: token.status === "graduated" ? "uniswap-v4" : "squeez-curve",
+            metadataURI: token.metadataUri,
+            metadataURL: `${base}/metadata`,
+            routeURL: `${base}/route`,
+            poolURL: token.status === "graduated" ? `${base}/pool` : null,
+            curve: token.curve ? getAddress(token.curve) : null,
+            pool: token.pool ? getAddress(token.pool) : null,
+          },
+        };
+        }),
       }, 300);
     }
     if (req.method === "GET" && url.pathname === "/v1/integrations/launchpad.json") {
@@ -1223,6 +1290,7 @@ const server = createServer(async (req, res) => {
         },
         discovery: {
           tokenList: `${base}/token-list.json`,
+          partnerTokenFeed: `${base}/integrations/tokens.json`,
           tokens: `${base}/tokens`,
           token: `${base}/tokens/{address}`,
           metadata: `${base}/tokens/{address}/metadata`,
@@ -1264,6 +1332,74 @@ const server = createServer(async (req, res) => {
           solanaLaunchpads: "not-compatible-without-bridge-and-wrapped-asset",
         },
       }, 300);
+    }
+    if (req.method === "GET" && url.pathname === "/v1/integrations/tokens.json") {
+      const columns = await tokenColumns();
+      const result = await pool.query(
+        `select ${columns} from "${config.databaseSchema}"."token" order by "createdAt" asc limit 10000`,
+      );
+      const base = `${config.publicApiUrl.replace(/\/$/, "")}/v1/${config.chain}/${config.network}`;
+      // Bound gateway fan-out so a large token list cannot create thousands of simultaneous IPFS requests.
+      const tokens = await mapWithConcurrency(result.rows, 8, async (token) => {
+        const address = getAddress(token.address);
+        const metadata = await externalTokenMetadata(address, token.metadataUri);
+        const tokenBase = `${base}/tokens/${address}`;
+        const graduated = token.status === "graduated";
+        return {
+          chainId: config.chainId,
+          chain: config.chain,
+          network: config.network,
+          address,
+          name: token.name,
+          symbol: token.symbol,
+          decimals: 18,
+          creator: getAddress(token.creator),
+          quoteAsset: getAddress(token.quote),
+          creatorFeeBps: Number(token.creatorFeeBps),
+          createdAt: token.createdAt,
+          launchTransactionHash: token.launchTxHash,
+          lifecycle: {
+            status: token.status,
+            venue: graduated ? "uniswap-v4" : "squeez-curve",
+            curve: token.curve ? getAddress(token.curve) : null,
+            pool: token.pool ? getAddress(token.pool) : null,
+          },
+          metadata: {
+            uri: metadata.metadataUri,
+            url: `${tokenBase}/metadata`,
+            imageUri: metadata.imageUri,
+            logoURI: `${tokenBase}/logo`,
+            description: metadata.description,
+            links: metadata.links,
+          },
+          execution: {
+            routeURL: `${tokenBase}/route`,
+            quoteURL: graduated ? null : `${tokenBase}/quote`,
+            poolKeyURL: graduated ? `${tokenBase}/pool` : null,
+            router: graduated
+              ? (standardRouterSupported() ? "uniswap-v4-universal" : "squeez-swap-router")
+              : "squeez-curve",
+            externallyRoutable: graduated ? standardRouterSupported() : false,
+            requiresLaunchpadAdapter: !graduated,
+          },
+          identity: {
+            status: token.identityStatus,
+            duplicateName: Boolean(token.duplicateName),
+            duplicateSymbol: Boolean(token.duplicateSymbol),
+            originalToken: token.originalToken ? getAddress(token.originalToken) : null,
+          },
+        };
+      });
+      return publicJson(res, 200, {
+        schema: "squeez.external-token-feed.v1",
+        generatedAt: new Date().toISOString(),
+        launchpad: "Squeez",
+        chain: config.chain,
+        network: config.network,
+        chainId: config.chainId,
+        factory: config.contracts.factory,
+        tokens,
+      }, 60);
     }
     const routeMatch = url.pathname.match(/^\/v1\/tokens\/(0x[a-fA-F0-9]{40})\/route$/);
     if (req.method === "GET" && routeMatch) {
