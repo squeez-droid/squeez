@@ -167,6 +167,16 @@ const curveLimitsAbi = [
     ],
   },
 ] as const;
+const factoryLaunchConfigAbi = [{
+  type: "function", name: "launchConfigs", stateMutability: "view",
+  inputs: [{ name: "configId", type: "uint256" }],
+  outputs: [
+    { name: "graduationThresholdHype", type: "uint256" }, { name: "virtualHypeReserve", type: "uint256" },
+    { name: "virtualTokenReserve", type: "uint256" }, { name: "sniperTaxStartBps", type: "uint16" },
+    { name: "sniperTaxDecaySeconds", type: "uint32" }, { name: "maxWalletBps", type: "uint16" },
+    { name: "maxWalletWindowSeconds", type: "uint32" }, { name: "launchFeeHype", type: "uint256" },
+  ],
+}] as const;
 const TOTAL_SUPPLY_WEI = 1_000_000_000n * 10n ** 18n;
 const curveRevertReasons: Record<string, string> = Object.fromEntries([
   "CurveClosed", "Unauthorized", "Expired", "SlippageExceeded", "MaxWalletExceeded", "BuyLimitExceeded",
@@ -175,6 +185,30 @@ const curveRevertReasons: Record<string, string> = Object.fromEntries([
 
 async function ethCall(to: Address, data: Hex) {
   return await rpc("eth_call", [{ to, data }, "latest"]) as Hex;
+}
+
+const launchConfigThresholdCache = new Map<string, Promise<string | null>>();
+function graduationThresholdForConfig(configId: string): Promise<string | null> {
+  if (!config.contracts.factory) return Promise.resolve(null);
+  const cached = launchConfigThresholdCache.get(configId);
+  if (cached) return cached;
+  const request = ethCall(config.contracts.factory, encodeFunctionData({
+    abi: factoryLaunchConfigAbi, functionName: "launchConfigs", args: [BigInt(configId)],
+  })).then((data) => decodeFunctionResult({
+    abi: factoryLaunchConfigAbi, functionName: "launchConfigs", data,
+  })[0].toString()).catch(() => {
+    launchConfigThresholdCache.delete(configId);
+    return null;
+  });
+  launchConfigThresholdCache.set(configId, request);
+  return request;
+}
+
+async function withTokenLaunchConfig<T extends { launchConfigId: string }>(row: T) {
+  return {
+    ...chainQualified(row),
+    graduationThresholdHypeWei: await graduationThresholdForConfig(row.launchConfigId),
+  };
 }
 
 /// Dry-runs a call and reports a decoded Curve revert instead of throwing. `unknown` means the node could not tell
@@ -1216,7 +1250,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/v1/tokens") {
       const columns = await tokenColumns();
       const result = await pool.query(`select ${columns} from "${config.databaseSchema}"."token" order by "createdAt" desc limit 100`);
-      return json(res, 200, result.rows.map(chainQualified));
+      return json(res, 200, await Promise.all(result.rows.map(withTokenLaunchConfig)));
     }
     if (req.method === "GET" && ["/v1/token-list.json", "/v1/tokenlist.json"].includes(url.pathname)) {
       const result = await pool.query(
@@ -1750,7 +1784,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && tokenMatch) {
       const columns = await tokenColumns();
       const result = await pool.query(`select ${columns} from "${config.databaseSchema}"."token" where lower(address) = lower($1) limit 1`, [tokenMatch[1]]);
-      return result.rows[0] ? json(res, 200, chainQualified(result.rows[0])) : json(res, 404, { error: "Token not found" });
+      return result.rows[0] ? json(res, 200, await withTokenLaunchConfig(result.rows[0])) : json(res, 404, { error: "Token not found" });
     }
     if (req.method === "POST" && (url.pathname === "/rpc" || url.pathname === "/v1/rpc")) {
       const payload = await body(req) as { method?: string };
@@ -1759,7 +1793,18 @@ const server = createServer(async (req, res) => {
         const result = await rpc(payload.method, (payload as { params?: unknown[] }).params ?? []);
         return json(res, 200, { jsonrpc: "2.0", id: (payload as { id?: unknown }).id ?? 1, result });
       } catch (error) {
-        return json(res, 502, { error: error instanceof Error ? error.message : "RPC providers unavailable" });
+        // JSON-RPC application errors must still use a successful HTTP response. Returning an
+        // HTTP 502 here causes edge proxies to replace the body (and its CORS headers), hiding
+        // useful contract-revert errors from viem and browser wallets behind a misleading CORS
+        // failure. The client can now distinguish a reverted simulation from a transport outage.
+        return json(res, 200, {
+          jsonrpc: "2.0",
+          id: (payload as { id?: unknown }).id ?? 1,
+          error: {
+            code: -32000,
+            message: error instanceof Error ? error.message : "RPC providers unavailable",
+          },
+        });
       }
     }
     return json(res, 404, { error: "Not found" });
