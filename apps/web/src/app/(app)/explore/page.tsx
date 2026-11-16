@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { content } from "@/lib/data";
 import { getGlobalExplore, type ExploreTarget, type GlobalIndexedToken } from "@/lib/indexer";
-import { bpsToPct, fmtCompact, fmtNum, shortAddr } from "@/lib/format";
+import { bpsToPct, fmtNum, fmtUsd, shortAddr } from "@/lib/format";
 import { AnimatedProgressValue, Badge, Button, Empty, Progress, Spinner, Stat } from "@/components/ui";
 import { IdentityBadges } from "@/components/identity-badges";
 import { formatEther } from "viem";
@@ -14,6 +14,7 @@ import { apiUrl } from "@/lib/chain";
 import { ChainLogo, chainLabel } from "@/components/chain-logo";
 import { useSelectedTarget } from "@/lib/use-selected-target";
 import { indexedMarketCapNative } from "@/lib/indexed-market";
+import { nativeUsd, useNativeUsdPrices } from "@/lib/native-usd";
 
 type StatusFilter = "all" | "curve" | "graduating" | "graduated";
 type SortMode = "trending" | "new" | "graduating" | "graduated";
@@ -21,6 +22,7 @@ const PAGE_SIZE = 12;
 
 export default function ExplorePage() {
   const stage = useSelectedTarget().target.stage;
+  const usdPrices = useNativeUsdPrices();
   const [chainFilter, setChainFilter] = useState<SqueezChain | "all">("all");
   const [tokens, setTokens] = useState<GlobalIndexedToken[]>([]);
   const [targets, setTargets] = useState<ExploreTarget[]>([]);
@@ -61,7 +63,9 @@ export default function ExplorePage() {
   const progressOf = useCallback((token: GlobalIndexedToken) => {
     if (token.status === "graduated") return 100;
     const raised = Number(formatEther(BigInt(token.hypeRaised ?? "0")));
-    const threshold = Number(token.target.graduationThreshold ?? 0);
+    const threshold = token.graduationThresholdHypeWei
+      ? Number(formatEther(BigInt(token.graduationThresholdHypeWei)))
+      : Number(token.target.graduationThreshold ?? 0);
     return threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
   }, []);
   const filtered = useMemo(() => tokens.filter((token) => {
@@ -89,6 +93,10 @@ export default function ExplorePage() {
   const totalLaunched = targets.reduce((sum, target) => sum + target.stats.tokensLaunched, 0);
   const totalGraduated = targets.reduce((sum, target) => sum + target.stats.tokensGraduated, 0);
   const totalTrades = targets.reduce((sum, target) => sum + target.stats.trades24h, 0);
+  const totalVolumeUsd = targets.reduce((sum, target) => {
+    const rate = nativeUsd(usdPrices.data, target.nativeSymbol);
+    return rate === null ? sum : sum + Number(formatEther(BigInt(target.stats.volume24hHype))) * rate;
+  }, 0);
   const targetApiUrl = (token: GlobalIndexedToken) => `${apiUrl}/v1/${token.target.chain}/${token.target.stage}`;
 
   return (
@@ -105,7 +113,7 @@ export default function ExplorePage() {
         <Stat className="bg-bg p-4" label="Live networks" value={loading ? "—" : targets.length} sub={`${stage} · ${degraded.length ? `${degraded.length} degraded` : "all healthy"}`} />
         <Stat className="bg-bg p-4" label="Tokens launched" value={loading ? "—" : totalLaunched} sub={`${totalGraduated} graduated`} />
         <Stat className="bg-bg p-4" label="Trades · 24h" value={loading ? "—" : totalTrades} sub="Across selected chains" />
-        <Stat className="bg-bg p-4" label="Native volume · 24h" value={targets.length ? targets.map((target) => `${fmtNum(Number(formatEther(BigInt(target.stats.volume24hHype))), 3)} ${target.nativeSymbol}`).join(" · ") : "—"} sub="Kept separate by network" />
+        <Stat className="bg-bg p-4" label="Volume · 24h" value={usdPrices.data && targets.length ? fmtUsd(totalVolumeUsd) : "—"} sub="Live USD reference" />
       </div>
 
       <div className="my-5 flex flex-col gap-3 border border-line bg-surface/40 p-3 xl:flex-row xl:items-center">
@@ -150,9 +158,12 @@ export default function ExplorePage() {
         <div className="grid gap-px border border-line bg-line md:grid-cols-2 xl:grid-cols-3">
           {visible.map((token) => {
             const raised = Number(formatEther(BigInt(token.hypeRaised ?? "0")));
-            const threshold = Number(token.target.graduationThreshold ?? 0);
+            const threshold = token.graduationThresholdHypeWei
+              ? Number(formatEther(BigInt(token.graduationThresholdHypeWei)))
+              : Number(token.target.graduationThreshold ?? 0);
             const progress = token.status === "graduated" ? 100 : threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
             const marketCap = indexedMarketCapNative(token);
+            const usdRate = nativeUsd(usdPrices.data, token.target.nativeSymbol);
             const apiBase = targetApiUrl(token);
             return (
             <Link key={`${token.target.chain}:${token.target.stage}:${token.address}`} href={`/token/${token.target.chain}/${token.target.stage}/${token.address}`} className="group relative isolate overflow-hidden bg-bg p-5 transition-colors hover:bg-surface">
@@ -175,12 +186,12 @@ export default function ExplorePage() {
               </div>
               <div className="mt-3"><IdentityBadges token={token} showOriginal /></div>
               <dl className="mt-5 grid grid-cols-2 gap-3 text-xs">
-                <div><dt className="text-muted">Market cap</dt><dd className="num mt-1 text-white">{marketCap === null ? "Awaiting first trade" : `${fmtCompact(marketCap)} ${token.target.nativeSymbol}`}</dd></div>
+                <div><dt className="text-muted">Market cap</dt><dd className="num mt-1 text-white">{marketCap === null ? "Awaiting first trade" : usdRate === null ? "USD price unavailable" : fmtUsd(marketCap * usdRate)}</dd></div>
                 <div><dt className="text-muted">Creator fee</dt><dd className="num mt-1 text-white">{bpsToPct(token.creatorFeeBps)}</dd></div>
                 <div><dt className="text-muted">Config</dt><dd className="num mt-1 text-white">#{token.launchConfigId}</dd></div>
                 <div><dt className="text-muted">Creator</dt><dd className="num mt-1 text-white">{shortAddr(token.creator)}</dd></div>
                 <div><dt className="text-muted">Block</dt><dd className="num mt-1 text-white">{token.launchBlockNumber}</dd></div>
-                <div><dt className="text-muted">Volume 24h</dt><dd className="num mt-1 text-white">{fmtNum(Number(formatEther(BigInt(token.volume24hHype ?? "0"))), 4)} {token.target.nativeSymbol}</dd></div>
+                <div><dt className="text-muted">Volume 24h</dt><dd className="num mt-1 text-white">{usdRate === null ? "USD price unavailable" : fmtUsd(Number(formatEther(BigInt(token.volume24hHype ?? "0"))) * usdRate)}</dd></div>
                 <div><dt className="text-muted">Trades</dt><dd className="num mt-1 text-white">{token.tradeCount ?? 0}</dd></div>
               </dl>
               <div className="mt-5 border-t border-line pt-4">

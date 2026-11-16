@@ -17,7 +17,7 @@ import {
   type IndexedToken,
   type IndexedTrade,
 } from "@/lib/indexer";
-import { bpsToPct, fmtCompact, shortAddr } from "@/lib/format";
+import { bpsToPct, fmtPrice, fmtUsd, shortAddr } from "@/lib/format";
 import { AnimatedProgressValue, Badge, Button, CopyButton, Empty, Progress, Row, Spinner } from "@/components/ui";
 import { formatEther } from "viem";
 import { OnchainTradePanel } from "@/components/token/onchain-trade-panel";
@@ -32,6 +32,7 @@ import { IconTelegram, IconWebsite, IconX } from "@/components/icons";
 import { ChainBadge } from "@/components/chain-logo";
 import { apiAssetUrl } from "@/lib/api-asset-url";
 import { indexedMarketCapNative } from "@/lib/indexed-market";
+import { nativeUsd, useNativeUsdPrices } from "@/lib/native-usd";
 
 function TokenImage({ src }: { src: string }) {
   // Images are immutable, API-proxied IPFS assets; preserving their source size avoids a second image service.
@@ -70,6 +71,7 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
   const [holdersReady, setHoldersReady] = useState(false);
   const [metadata, setMetadata] = useState<IndexedMetadata | null>(null);
   const rewards = useRewards();
+  const usdPrices = useNativeUsdPrices();
 
   const load = useCallback((signal?: AbortSignal) => {
     if (!isIndexerConfigured) return;
@@ -120,13 +122,19 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
   if (!token) return <Empty title="Token not found" body="No indexed TokenLaunched event matches this address." action={<Link href="/explore"><Button>Back to Explore</Button></Link>} />;
 
   const raised = Number(formatEther(BigInt(token.hypeRaised ?? "0")));
-  const threshold = Number(protocol?.launchConfig.graduationThresholdHype ?? 0);
+  const threshold = token.graduationThresholdHypeWei
+    ? Number(formatEther(BigInt(token.graduationThresholdHypeWei)))
+    : Number(protocol?.launchConfig.graduationThresholdHype ?? 0);
   const bondingProgress = token.status === "graduated" ? 100 : threshold > 0 ? Math.min(100, (raised / threshold) * 100) : 0;
   const latestTrade = trades[0];
   const lastPrice = latestTrade && BigInt(latestTrade.tokenAmount) > 0n
     ? Number(formatEther(BigInt(latestTrade.hypeAmount))) / Number(formatEther(BigInt(latestTrade.tokenAmount))) : null;
   const marketCap = indexedMarketCapNative(token);
-  const volumeHype = trades.reduce((sum, trade) => sum + Number(formatEther(BigInt(trade.hypeAmount))), 0);
+  const usdRate = nativeUsd(usdPrices.data, nativeSymbol);
+  const priceUsd = lastPrice !== null && usdRate !== null ? lastPrice * usdRate : null;
+  const volumeNative24h = Number(formatEther(BigInt(token.volume24hHype ?? "0")));
+  const totalFeesNative = fees.filter((fee) => fee.kind === "accrued")
+    .reduce((sum, fee) => sum + Number(formatEther(BigInt(fee.amount))), 0);
   const creatorReward = rewards.created.find((item) => item.token.address.toLowerCase() === token.address.toLowerCase());
   const explorer = protocol?.chain.explorer?.replace(/\/$/, "");
   const tokenImage = apiAssetUrl(metadata?.imagePath);
@@ -169,10 +177,10 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
         <div className="space-y-5">
           <section className="grid grid-cols-2 gap-px border border-line bg-line md:grid-cols-5">
-            <div className="bg-surface p-4"><div className="text-xs text-muted">Last price</div><div className="num mt-1 text-white">{lastPrice === null ? "—" : `${lastPrice.toPrecision(5)} ${nativeSymbol}`}</div></div>
-            <div className="bg-surface p-4"><div className="text-xs text-muted">Market cap</div><div className="num mt-1 text-white">{marketCap === null ? "Awaiting trade" : `${fmtCompact(marketCap)} ${nativeSymbol}`}</div></div>
-            <div className="bg-surface p-4"><div className="text-xs text-muted">Indexed volume</div><div className="num mt-1 text-white">{volumeHype.toFixed(6)} {nativeSymbol}</div></div>
-            <div className="bg-surface p-4"><div className="text-xs text-muted">Trades</div><div className="num mt-1 text-white">{trades.length}</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">Price</div><div className="num mt-1 text-white">{priceUsd === null ? "—" : `$${fmtPrice(priceUsd)}`}</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">Market cap</div><div className="num mt-1 text-white">{marketCap === null ? "Awaiting trade" : usdRate === null ? "USD unavailable" : fmtUsd(marketCap * usdRate)}</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">24h volume</div><div className="num mt-1 text-white">{usdRate === null ? "—" : fmtUsd(volumeNative24h * usdRate)}</div></div>
+            <div className="bg-surface p-4"><div className="text-xs text-muted">Total fees</div><div className="num mt-1 text-white">{usdRate === null ? "—" : fmtUsd(totalFeesNative * usdRate)}</div></div>
             <div className="bg-surface p-4"><div className="text-xs text-muted">Holders</div><div className="num mt-1 text-white">{holdersReady ? holders.length : "Indexing…"}</div></div>
           </section>
           <section className="rounded-xl border border-line bg-surface p-5">

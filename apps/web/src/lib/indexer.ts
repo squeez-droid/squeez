@@ -15,6 +15,8 @@ export interface IndexedToken {
   feeDestinationKind: number;
   buybackBps: number;
   launchConfigId: string;
+  /** Immutable graduation threshold of this token's own launch config, in wei. */
+  graduationThresholdHypeWei?: string | null;
   name: string | null;
   symbol: string | null;
   metadataUri: string | null;
