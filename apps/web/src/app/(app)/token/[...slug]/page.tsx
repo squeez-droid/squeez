@@ -67,6 +67,7 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
   const [sourceStatus, setSourceStatus] = useState<DataSourceStatus | null>(null);
   const [protocol, setProtocol] = useState<RuntimeProtocolConfig | null>(null);
   const [timeframe, setTimeframe] = useState<Timeframe>("5m");
+  const [activityTab, setActivityTab] = useState<"trades" | "holders" | "fees">("trades");
   const [holders, setHolders] = useState<IndexedHolder[]>([]);
   const [holdersReady, setHoldersReady] = useState(false);
   const [metadata, setMetadata] = useState<IndexedMetadata | null>(null);
@@ -220,26 +221,6 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
             </div>
           </section>
           <section className="rounded-xl border border-line bg-surface p-5">
-            <h2 className="font-medium text-white">Token holders</h2>
-            {!holdersReady ? (
-              <p className="mt-2 text-sm text-muted">Holder indexing will become available after the token Transfer-event backfill completes.</p>
-            ) : holders.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">No positive token balances are currently indexed.</p>
-            ) : (
-              <div className="mt-3 divide-y divide-line text-sm">
-                {holders.slice(0, 25).map((holder, index) => {
-                  const balance = Number(formatEther(BigInt(holder.balance)));
-                  return <div key={holder.account} className="grid grid-cols-[32px_1fr_auto_auto] gap-3 py-2">
-                    <span className="num text-muted">{index + 1}</span>
-                    <span className="num text-white">{shortAddr(holder.account, 6)}{holder.account.toLowerCase() === token.curve.toLowerCase() ? " · Curve" : ""}</span>
-                    <span className="num text-muted">{balance.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
-                    <span className="num text-muted">{(balance / 1_000_000_000 * 100).toFixed(3)}%</span>
-                  </div>;
-                })}
-              </div>
-            )}
-          </section>
-          <section className="rounded-xl border border-line bg-surface p-5">
             <div className="flex items-end justify-between gap-4">
               <div><h2 className="font-medium text-white">Bonding progress</h2><p className="mt-1 text-xs text-muted">{nativeSymbol} held by the curve toward automatic graduation.</p></div>
               <strong className="num text-2xl text-white"><AnimatedProgressValue value={bondingProgress} /></strong>
@@ -247,40 +228,46 @@ export default function TokenPage({ params }: { params: Promise<{ slug: string[]
             <Progress value={bondingProgress} glow={bondingProgress >= 80} className="mt-4 h-2" />
             <div className="num mt-2 flex justify-between text-xs text-muted"><span>{raised.toFixed(6)} {nativeSymbol} raised</span><span>{threshold > 0 ? `${threshold} ${nativeSymbol} target` : "Threshold unavailable"}</span></div>
           </section>
-          <section className="rounded-xl border border-line bg-surface p-5">
-            <h2 className="font-medium text-white">Indexed on-chain trades</h2>
-            {trades.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">No on-chain trades have been indexed for this token.</p>
-            ) : (
-              <div className="mt-3 divide-y divide-line text-sm">
-                {trades.slice(0, 20).map((trade) => (
-                  <div key={trade.id} className="grid grid-cols-[70px_1fr_1fr] gap-3 py-2">
-                    <span className={trade.isBuy ? "text-primary" : "text-red-300"}>{trade.isBuy ? "Buy" : "Sell"}</span>
-                    <span className="num text-white">{Number(formatEther(BigInt(trade.hypeAmount))).toFixed(6)} {nativeSymbol}</span>
-                    <span className="num text-right text-muted">{shortAddr(trade.trader, 5)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-          <section className="rounded-xl border border-line bg-surface p-5">
-            <h2 className="font-medium text-white">Creator fee events</h2>
-            {fees.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">No creator-fee event has been indexed.</p>
-            ) : (
-              <div className="mt-3 divide-y divide-line text-sm">
-                {fees.slice(0, 20).map((fee) => (
-                  <div key={fee.id} className="flex items-center justify-between gap-3 py-2">
-                    <span className={fee.kind === "accrued" ? "text-primary" : "text-mint"}>{fee.kind}</span>
-                    <span className="num text-white">
-                      {fee.asset === "0x0000000000000000000000000000000000000000"
-                        ? `${Number(formatEther(BigInt(fee.amount))).toFixed(6)} ${nativeSymbol}`
-                        : `${fee.amount} units · ${shortAddr(fee.asset, 4)}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <section className="overflow-hidden rounded-xl border border-line bg-surface">
+            <div className="flex overflow-x-auto border-b border-line px-3 pt-3" role="tablist" aria-label="Token on-chain activity">
+              {([
+                ["trades", "Trades", trades.length],
+                ["holders", "Holders", holdersReady ? holders.length : null],
+                ["fees", "Creator fees", fees.length],
+              ] as const).map(([value, label, count]) => (
+                <button key={value} type="button" role="tab" aria-selected={activityTab === value} onClick={() => setActivityTab(value)} className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm transition-colors ${activityTab === value ? "border-primary text-white" : "border-transparent text-muted hover:text-white"}`}>
+                  {label}{count !== null && <span className="num ml-2 rounded-full bg-white/5 px-1.5 py-0.5 text-[10px]">{count}</span>}
+                </button>
+              ))}
+            </div>
+            <div className="max-h-[380px] overflow-auto" role="tabpanel">
+              {activityTab === "trades" && (trades.length === 0 ? (
+                <p className="p-5 text-sm text-muted">No on-chain trades have been indexed for this token.</p>
+              ) : (
+                <table className="w-full min-w-[680px] text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-surface text-xs text-muted"><tr><th className="px-5 py-3 font-normal">Side</th><th className="px-4 py-3 font-normal">Venue</th><th className="px-4 py-3 font-normal">Value</th><th className="px-4 py-3 font-normal">Tokens</th><th className="px-4 py-3 font-normal">Trader</th><th className="px-5 py-3 text-right font-normal">Transaction</th></tr></thead>
+                  <tbody className="divide-y divide-line">{trades.map((trade) => <tr key={trade.id} className="hover:bg-white/[0.02]"><td className={`px-5 py-3 ${trade.isBuy ? "text-primary" : "text-red-300"}`}>{trade.isBuy ? "Buy" : "Sell"}</td><td className="px-4 py-3 text-muted">{trade.source === "pool" ? "Uniswap v4" : "Curve"}</td><td className="num px-4 py-3 text-white">{Number(formatEther(BigInt(trade.hypeAmount))).toFixed(6)} {nativeSymbol}</td><td className="num px-4 py-3 text-muted">{Number(formatEther(BigInt(trade.tokenAmount))).toLocaleString("en-US", { maximumFractionDigits: 2 })}</td><td className="num px-4 py-3 text-muted">{shortAddr(trade.trader, 5)}</td><td className="px-5 py-3 text-right">{explorer ? <a href={`${explorer}/tx/${trade.txHash}`} target="_blank" rel="noreferrer" className="num text-primary hover:text-white">{shortAddr(trade.txHash, 5)}</a> : <span className="num text-muted">{shortAddr(trade.txHash, 5)}</span>}</td></tr>)}</tbody>
+                </table>
+              ))}
+              {activityTab === "holders" && (!holdersReady ? (
+                <p className="p-5 text-sm text-muted">Holder indexing will become available after the token Transfer-event backfill completes.</p>
+              ) : holders.length === 0 ? (
+                <p className="p-5 text-sm text-muted">No positive token balances are currently indexed.</p>
+              ) : (
+                <table className="w-full min-w-[560px] text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-surface text-xs text-muted"><tr><th className="px-5 py-3 font-normal">#</th><th className="px-4 py-3 font-normal">Holder</th><th className="px-4 py-3 text-right font-normal">Balance</th><th className="px-5 py-3 text-right font-normal">Supply</th></tr></thead>
+                  <tbody className="divide-y divide-line">{holders.map((holder, index) => { const balance = Number(formatEther(BigInt(holder.balance))); return <tr key={holder.account} className="hover:bg-white/[0.02]"><td className="num px-5 py-3 text-muted">{index + 1}</td><td className="num px-4 py-3 text-white">{shortAddr(holder.account, 7)}{holder.account.toLowerCase() === token.curve.toLowerCase() ? <span className="ml-2 text-xs text-muted">Curve</span> : null}</td><td className="num px-4 py-3 text-right text-muted">{balance.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td><td className="num px-5 py-3 text-right text-muted">{(balance / 1_000_000_000 * 100).toFixed(3)}%</td></tr>; })}</tbody>
+                </table>
+              ))}
+              {activityTab === "fees" && (fees.length === 0 ? (
+                <p className="p-5 text-sm text-muted">No creator-fee event has been indexed.</p>
+              ) : (
+                <table className="w-full min-w-[620px] text-left text-sm">
+                  <thead className="sticky top-0 z-10 bg-surface text-xs text-muted"><tr><th className="px-5 py-3 font-normal">Event</th><th className="px-4 py-3 font-normal">Amount</th><th className="px-4 py-3 font-normal">Recipient / asset</th><th className="px-5 py-3 text-right font-normal">Transaction</th></tr></thead>
+                  <tbody className="divide-y divide-line">{fees.map((fee) => <tr key={fee.id} className="hover:bg-white/[0.02]"><td className={`px-5 py-3 capitalize ${fee.kind === "accrued" ? "text-primary" : "text-mint"}`}>{fee.kind}</td><td className="num px-4 py-3 text-white">{fee.asset === "0x0000000000000000000000000000000000000000" ? `${Number(formatEther(BigInt(fee.amount))).toFixed(6)} ${nativeSymbol}` : `${fee.amount} units`}</td><td className="num px-4 py-3 text-muted">{shortAddr(fee.recipient ?? fee.asset, 5)}</td><td className="px-5 py-3 text-right">{explorer ? <a href={`${explorer}/tx/${fee.txHash}`} target="_blank" rel="noreferrer" className="num text-primary hover:text-white">{shortAddr(fee.txHash, 5)}</a> : <span className="num text-muted">{shortAddr(fee.txHash, 5)}</span>}</td></tr>)}</tbody>
+                </table>
+              ))}
+            </div>
           </section>
         </div>
         <aside className="space-y-5">

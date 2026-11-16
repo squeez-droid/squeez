@@ -1,4 +1,5 @@
 import { ponder } from "ponder:registry";
+import { eq } from "ponder";
 import {
   creatorFee,
   holderBalance,
@@ -247,6 +248,42 @@ ponder.on("SqueezSwapRouter:PoolSwap", async ({ event, context }) => {
     logIndex: event.log.logIndex,
   });
   await logIndexed("PoolSwap", event.transaction.hash, event.block.number, event.log.logIndex);
+});
+
+ponder.on("UniswapV4PoolManager:Swap", async ({ event, context }) => {
+  // The custom router emits a richer PoolSwap event that is indexed above. Skipping it here
+  // prevents duplicate rows while still capturing Universal Router and third-party trades.
+  const squeezRouter = process.env.SWAP_ROUTER_ADDRESS?.toLowerCase();
+  if (squeezRouter && event.args.sender.toLowerCase() === squeezRouter) return;
+
+  // Graduation stores the lower 160 bits of the v4 pool id as the pool address.
+  const pool = `0x${event.args.id.slice(-40)}` as `0x${string}`;
+  const [launchedToken] = await context.db.sql
+    .select({ address: token.address })
+    .from(token)
+    .where(eq(token.pool, pool))
+    .limit(1);
+  if (!launchedToken) return;
+
+  // Native quote pools are ordered as currency0=native, currency1=token. PoolManager's
+  // BalanceDelta is negative for input and positive for output from the caller perspective.
+  const amount0 = event.args.amount0;
+  const amount1 = event.args.amount1;
+  const absolute = (value: bigint) => value < 0n ? -value : value;
+  await context.db.insert(trade).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    token: launchedToken.address,
+    trader: event.transaction.from,
+    isBuy: amount0 < 0n,
+    hypeAmount: absolute(amount0),
+    tokenAmount: absolute(amount1),
+    source: "pool",
+    timestamp: event.block.timestamp,
+    txHash: event.transaction.hash,
+    blockNumber: event.block.number,
+    logIndex: event.log.logIndex,
+  }).onConflictDoNothing();
+  await logIndexed("PoolManagerSwap", event.transaction.hash, event.block.number, event.log.logIndex);
 });
 
 // TODO: SqueezBurned → burn

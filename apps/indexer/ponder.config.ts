@@ -7,6 +7,7 @@ import { SqueezFeeVaultAbi } from "./abis/SqueezFeeVault";
 import { SqueezSwapRouterAbi } from "./abis/SqueezSwapRouter";
 import { SqueezTokenAbi } from "./abis/SqueezToken";
 import { SqueezIdentityRegistryAbi } from "./abis/SqueezIdentityRegistry";
+import { UniswapV4PoolManagerAbi } from "./abis/UniswapV4PoolManager";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -32,6 +33,7 @@ if (!Number.isSafeInteger(factoryStartBlock) || factoryStartBlock < deploymentSt
 }
 const swapRouterAddress = process.env.SWAP_ROUTER_ADDRESS?.trim();
 const swapRouterStartBlock = process.env.SWAP_ROUTER_START_BLOCK?.trim();
+const poolManagerAddress = process.env.POOL_MANAGER?.trim();
 const databaseUrl = process.env.DATABASE_URL?.trim();
 const indexerRpc = process.env.INDEXER_RPC?.trim() || required("SQUEEZ_RPC");
 const databasePoolMax = Number(process.env.INDEXER_DATABASE_POOL_MAX?.trim() || "5");
@@ -101,6 +103,14 @@ export default createConfig({
       abi: SqueezSwapRouterAbi,
       // Zero address is a no-op target until the router has an authoritative deployment fragment.
       address: (swapRouterAddress || "0x0000000000000000000000000000000000000000") as `0x${string}`,
+      startBlock: Math.max(factoryStartBlock, swapRouterStartBlock ? Number(swapRouterStartBlock) : factoryStartBlock),
+    },
+    UniswapV4PoolManager: {
+      chain: "target",
+      abi: UniswapV4PoolManagerAbi,
+      // A zero address keeps networks without a deployed v4 venue compatible.
+      address: (poolManagerAddress || "0x0000000000000000000000000000000000000000") as `0x${string}`,
+      // Squeez pools cannot predate its router deployment. Avoid scanning unrelated early v4 activity.
       startBlock: Math.max(factoryStartBlock, swapRouterStartBlock ? Number(swapRouterStartBlock) : factoryStartBlock),
     },
     SqueezIdentityRegistry: {
