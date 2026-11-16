@@ -307,9 +307,9 @@ async function externalTokenMetadata(token: Address, indexedUri?: string | null)
       imageUri: typeof payload.image === "string" && /^ipfs:\/\/[a-zA-Z0-9]+$/.test(payload.image) ? payload.image : null,
       description: safeMetadataText(payload.description, 280),
       links: {
-        website: safeMetadataUrl(rawLinks.website),
-        x: safeMetadataUrl(rawLinks.x),
-        telegram: safeMetadataUrl(rawLinks.telegram),
+        website: safeMetadataUrl(rawLinks.website ?? payload.website),
+        x: safeMetadataUrl(rawLinks.x ?? payload.x ?? payload.twitter),
+        telegram: safeMetadataUrl(rawLinks.telegram ?? payload.telegram),
       },
     };
     externalMetadataCache.set(cid, { expiresAt: Date.now() + 300_000, value });
@@ -1700,9 +1700,9 @@ const server = createServer(async (req, res) => {
         schema: payload.schema === "squeez.token.v1" || payload.schema === "squeez.token.v2" ? payload.schema : null,
         description: safeMetadataText(payload.description, 280),
         links: {
-          website: safeMetadataUrl(rawLinks.website),
-          x: safeMetadataUrl(rawLinks.x),
-          telegram: safeMetadataUrl(rawLinks.telegram),
+          website: safeMetadataUrl(rawLinks.website ?? payload.website),
+          x: safeMetadataUrl(rawLinks.x ?? payload.x ?? payload.twitter),
+          telegram: safeMetadataUrl(rawLinks.telegram ?? payload.telegram),
         },
         imagePath: imageCid ? `/v1/${config.chain}/${config.network}/ipfs/${imageCid}` : null,
       });

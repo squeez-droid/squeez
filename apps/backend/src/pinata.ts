@@ -60,6 +60,9 @@ export async function pinLaunchMetadata(input: {
     icons: [{ uri: imageUri, type: input.imageMime, purpose: "token-icon" }],
     imageHash,
     perceptualHash,
+    ...(input.website ? { website: input.website } : {}),
+    ...(input.x ? { twitter: input.x, x: input.x } : {}),
+    ...(input.telegram ? { telegram: input.telegram } : {}),
     links: {
       ...(input.website ? { website: input.website } : {}),
       ...(input.x ? { x: input.x } : {}),
