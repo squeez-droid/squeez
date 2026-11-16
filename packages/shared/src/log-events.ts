@@ -14,6 +14,10 @@ export const LOG_EVENTS = {
   keeperTickSkipped: "keeper.tick.skipped",
   keeperTickSucceeded: "keeper.tick.succeeded",
   keeperTickFailed: "keeper.tick.failed",
+  graduationRequested: "graduation.requested",
+  graduationSubmitted: "graduation.submitted",
+  graduationConfirmed: "graduation.confirmed",
+  graduationFailed: "graduation.failed",
 } as const;
 
 export type LogEvent = typeof LOG_EVENTS[keyof typeof LOG_EVENTS];

@@ -2,13 +2,14 @@
 
 import { readFileSync } from "node:fs";
 
-const [apiUuid, indexerUuid] = process.argv.slice(2);
+const [apiUuid, indexerUuid, keeperUuid] = process.argv.slice(2).filter((value) => !value.startsWith("--"));
 if (!apiUuid || !indexerUuid) throw new Error("Usage: configure-coolify-mainnet-resources.mjs <api-uuid> <indexer-uuid>");
 const indexerOnly = process.argv.includes("--indexer-only");
+const keeperOnly = process.argv.includes("--keeper-only");
 const indexerUsePrimaryRpc = process.argv.includes("--indexer-use-primary-rpc");
 const apiDatabaseOnly = process.argv.includes("--api-database-only");
 const apiOAuthOnly = process.argv.includes("--api-oauth-only");
-if ([indexerOnly, apiDatabaseOnly, apiOAuthOnly].filter(Boolean).length > 1) {
+if ([indexerOnly, keeperOnly, apiDatabaseOnly, apiOAuthOnly].filter(Boolean).length > 1) {
   throw new Error("Choose only one scoped update mode");
 }
 if (!["elysium", "robinhood", "hyperevm"].includes(process.env.SQUEEZ_CHAIN) || process.env.SQUEEZ_NETWORK !== "mainnet") {
@@ -46,7 +47,7 @@ const secretKeys = new Set(["SQUEEZ_RPC", "SQUEEZ_RPC_FALLBACK", "INDEXER_RPC", 
 const apiOnlyKeys = ["X_OAUTH_ENABLED", "X_ATTESTATION_REQUIRED", "X_REDIRECT_URI", "X_MAX_ATTESTED_LAUNCHES_PER_24H"];
 const apiOnlySecretKeys = ["PINATA_JWT", "X_CLIENT_ID", "X_CLIENT_SECRET", "SQUEEZ_ATTESTER_PRIVATE_KEY"];
 const databaseUrlFor = (service) => {
-  if (service !== "api" || !process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (!["api", "keeper"].includes(service) || !process.env.DATABASE_URL) return process.env.DATABASE_URL;
   const url = new URL(process.env.DATABASE_URL);
   // Hosted APIs use Supabase's transaction pooler so multiple chain/network services do not consume the
   // small session-pool quota. Ponder indexers retain session mode because they own long-running checkpoints.
@@ -65,12 +66,12 @@ const dataFor = (service) => [
       is_shown_once: secretKeys.has(key),
     }] : [];
   }),
-  ...(service === "indexer" && indexerUsePrimaryRpc && process.env.SQUEEZ_RPC ? [{
+  ...(service === "indexer" && (indexerUsePrimaryRpc ? process.env.SQUEEZ_RPC : process.env.INDEXER_RPC) ? [{
     // with-env gives chain-qualified provider settings precedence. Update the
-    // qualified key as well so an exhausted legacy provider cannot override
-    // the explicitly selected recovery RPC inside the hosted container.
+    // qualified key as well so it cannot override the provider selected by
+    // this synchronization run inside the hosted container.
     key: `${process.env.SQUEEZ_CHAIN.toUpperCase()}_INDEXER_RPC`,
-    value: process.env.SQUEEZ_RPC,
+    value: indexerUsePrimaryRpc ? process.env.SQUEEZ_RPC : process.env.INDEXER_RPC,
     is_preview: false,
     is_literal: true,
     is_multiline: false,
@@ -88,6 +89,12 @@ const dataFor = (service) => [
     key: "PONDER_EXPERIMENTAL_DB", value: process.env.PONDER_EXPERIMENTAL_DB,
     is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false,
   }] : []),
+  ...(service === "keeper" ? [
+    { key: "KEEPER_PRIVATE_KEY", value: process.env.KEEPER_PRIVATE_KEY, is_preview: false, is_literal: true, is_multiline: false, is_shown_once: true },
+    { key: "GRADUATION_KEEPER_ENABLED", value: "true", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
+    { key: "GRADUATION_KEEPER_INTERVAL_SECONDS", value: process.env.GRADUATION_KEEPER_INTERVAL_SECONDS ?? "15", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
+    { key: "BUYBACK_KEEPER_ENABLED", value: "false", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
+  ] : []),
   { key: "VIRTUAL_HYPE_RESERVE", value: (BigInt(process.env.GRADUATION_THRESHOLD_HYPE) * 2n / 5n).toString(), is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false },
   ...(service === "api" ? [{ key: "SQUEEZ_API_CAPABILITY", value: process.env.SQUEEZ_API_CAPABILITY ?? "read-only", is_preview: false, is_literal: true, is_multiline: false, is_shown_once: false }] : []),
 ];
@@ -117,8 +124,11 @@ const update = async (uuid, service) => {
   return { uuid, service, variablesUpdated: data.length };
 };
 
+if (keeperOnly && !keeperUuid) throw new Error("--keeper-only requires <keeper-uuid> as the third UUID");
 console.log(JSON.stringify(await Promise.all(indexerOnly
   ? [update(indexerUuid, "indexer")]
+  : keeperOnly
+    ? [update(keeperUuid, "keeper")]
   : apiDatabaseOnly || apiOAuthOnly
     ? [update(apiUuid, "api")]
-    : [update(apiUuid, "api"), update(indexerUuid, "indexer")]), null, 2));
+    : [update(apiUuid, "api"), update(indexerUuid, "indexer"), ...(keeperUuid ? [update(keeperUuid, "keeper")] : [])]), null, 2));

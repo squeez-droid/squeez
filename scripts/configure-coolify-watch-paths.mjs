@@ -44,7 +44,7 @@ function desiredWatchPaths(name) {
   if (name.startsWith("squeez:main-")) {
     return paths(common, "apps/backend/**", "packages/shared/**", "packages/contracts/deployments/elysium/**");
   }
-  if (name === "squeez-keeper") {
+  if (name === "squeez-keeper" || name.startsWith("squeez-graduation-keeper-")) {
     return paths(common, "apps/keeper/**", "packages/shared/**", "packages/contracts/deployments/**");
   }
   return null;

@@ -53,6 +53,10 @@ const definitions = [
     name: `squeez-indexer-${chain}-mainnet`,
     watch_paths: "Dockerfile.backend\npackage.json\npackage-lock.json\ntools/**\nscripts/start-backend-service.mjs\napps/indexer/**\npackages/shared/**\npackages/contracts/deployments/**",
   },
+  ...(chain === "robinhood" ? [{
+    name: "squeez-graduation-keeper-robinhood-mainnet",
+    watch_paths: "Dockerfile.backend\npackage.json\npackage-lock.json\ntools/**\nscripts/start-backend-service.mjs\napps/keeper/**\npackages/shared/**\npackages/contracts/deployments/robinhood/**",
+  }] : []),
 ];
 const result = [];
 for (const definition of definitions) {
